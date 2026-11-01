@@ -1,0 +1,19 @@
+# Game code and assets never go in this repo (LocalThunk's / Playstack's, not ours).
+local/
+source/
+modded/
+dump/
+game-dump/
+*.jkr
+Balatro.exe
+*.love
+balatro_bundle.zip
+
+# Built runtime (recreate with harness/build_lupa_luajit.sh)
+harness/vendor/
+*.so
+*.pyd
+*.dll
+
+__pycache__/
+*.pyc
