@@ -90,6 +90,18 @@ local function use_targets(card)
   return out
 end
 
+-- G.FUNCS.check_for_buy_space is the game's own room check, but when there's no room it also
+-- calls alert_no_space: the "No space!" popup, which locks the controller and queues events,
+-- as if the player had clicked Buy. Listing legal actions must not change the game, so the
+-- check runs with only that alert switched off.
+local function has_buy_space(card)
+  local alert = alert_no_space
+  alert_no_space = function() end
+  local ok, r = pcall(G.FUNCS.check_for_buy_space, card)
+  alert_no_space = alert
+  return ok and r
+end
+
 local function usable_now(card)
   local ok, r = pcall(function() return card:can_use_consumeable() end)
   return ok and r
@@ -196,7 +208,7 @@ function H.legal_actions()
     add(acts, { type = "end_shop" })
     if button_check(G.FUNCS.can_reroll) then add(acts, { type = "reroll" }) end
     for i, c in ipairs(G.shop_jokers and G.shop_jokers.cards or {}) do
-      if button_check(G.FUNCS.can_buy, c) and G.FUNCS.check_for_buy_space(c) then add(acts, { type = "buy", i = i }) end
+      if button_check(G.FUNCS.can_buy, c) and has_buy_space(c) then add(acts, { type = "buy", i = i }) end
       if c.ability.consumeable and button_check(G.FUNCS.can_buy_and_use, c) then add(acts, { type = "buy_and_use", i = i }) end
     end
     for i, c in ipairs(G.shop_vouchers and G.shop_vouchers.cards or {}) do
