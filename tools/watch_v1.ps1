@@ -30,9 +30,9 @@ $ES_CONTINUOUS = [uint32]"0x80000000"; $ES_SYSTEM_REQUIRED = [uint32]"0x00000001
 function Stay-Awake { [void][Power.Native]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED) }
 function Allow-Sleep { [void][Power.Native]::SetThreadExecutionState($ES_CONTINUOUS) }
 
-$run = Join-Path $Work ("runs\" + $Run)
-$healthPath = Join-Path $run "health.json"
-$metricsPath = Join-Path $run "metrics.jsonl"
+$runDir = Join-Path $Work ("runs\" + $Run)   # not $run: PowerShell names ignore case
+$healthPath = Join-Path $runDir "health.json"
+$metricsPath = Join-Path $runDir "metrics.jsonl"
 $wslWork = "/mnt/c/" + ($Work.Substring(3) -replace '\\', '/')
 $launch = "cd ~/balatro/balatro-headless && bash train/run_$Run.sh $wslWork $Hours $Workers"
 $seenAlerts = @{}
@@ -62,7 +62,7 @@ function Train-Average {
     return ($last | Measure-Object -Average).Average
 }
 
-Write-Host "Watching $run every $Interval s. Keeping the PC awake. Ctrl+C to stop watching." -ForegroundColor Cyan
+Write-Host "Watching $runDir every $Interval s. Keeping the PC awake. Ctrl+C to stop watching." -ForegroundColor Cyan
 try {
     while ($true) {
         Stay-Awake
