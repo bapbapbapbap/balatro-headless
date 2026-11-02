@@ -1,7 +1,8 @@
 # watch_v1.ps1
-# Keeps this PC awake, prints the v1 training status at a steady interval, and restarts training
+# Keeps this PC awake, prints a run's training status at a steady interval, and restarts training
 # if it died unexpectedly. Run it in its own PowerShell window and leave it open:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\Jacobi\balatro-work\watch_v1.ps1
+#   ... -Run v2      watch (and restart) v2 instead of v1
 # Options: -Interval 60       seconds between status lines
 #          -StaleMinutes 15   no health update for this long, and no training process = died
 #          -NoRestart         only watch, never restart
@@ -14,6 +15,7 @@
 param(
     [string]$Work = "C:\Users\Jacobi\balatro-work",
     [string]$Distro = "Ubuntu-24.04",
+    [ValidateSet("v1", "v2")][string]$Run = "v1",
     [int]$Interval = 60,
     [int]$StaleMinutes = 15,
     [int]$Hours = 168,
@@ -28,16 +30,16 @@ $ES_CONTINUOUS = [uint32]"0x80000000"; $ES_SYSTEM_REQUIRED = [uint32]"0x00000001
 function Stay-Awake { [void][Power.Native]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED) }
 function Allow-Sleep { [void][Power.Native]::SetThreadExecutionState($ES_CONTINUOUS) }
 
-$run = Join-Path $Work "runs\v1"
+$run = Join-Path $Work ("runs\" + $Run)
 $healthPath = Join-Path $run "health.json"
 $metricsPath = Join-Path $run "metrics.jsonl"
 $wslWork = "/mnt/c/" + ($Work.Substring(3) -replace '\\', '/')
-$launch = "cd ~/balatro/balatro-headless && bash train/run_v1.sh $wslWork $Hours $Workers"
+$launch = "cd ~/balatro/balatro-headless && bash train/run_$Run.sh $wslWork $Hours $Workers"
 $seenAlerts = @{}
 $restarts = 0
 
 function Training-Running {
-    & wsl.exe -d $Distro -- pgrep -f "train.py --src" *> $null
+    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run" *> $null
     return ($LASTEXITCODE -eq 0)
 }
 
