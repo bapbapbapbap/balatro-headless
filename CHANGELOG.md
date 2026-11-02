@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.2.1] - 2026-11-01
+
+### Fixed
+- **Listing legal actions no longer changes the game.** The shop's room check (`G.FUNCS.check_for_buy_space`) also shows the game's "No space!" alert, which locks the controller and queues events, as if the player had clicked Buy. `env.lua` called it for every shop joker while listing actions, so with full joker slots, merely asking for legal actions locked selling and using for a moment. The check now runs with only the alert switched off. Found by the new differential check.
+
+### Added
+- **`harness/diff_check.py`: differential accuracy check.** A reference sim (nothing stripped) and a candidate sim (`--fast`, plus any optimization under test) play the same seeds with the same actions. After every action the complete logic state must be identical: `G.STATE`, all of `G.GAME` (every RNG stream, money, round state, hand levels, pools), every card in every area with its full ability table, edition, seal, debuff, facing and selection, the blind, the tags, and the legal actions offered. Visual-only fields are excluded, each one justified by reading every use in the source (vanilla 1.0.1o): drawn positions and animation state, the debug outline flag, and the HUD's display strings (`chips_text`, `chip_text`, `mult_text`, `chip_total_text`, `handname_text`). An audit of all 57 UI callbacks found no other game state they write during a run. `--fast` vs the untouched game: 60 runs, 931 decisions across every state type, identical.
+- **`tools/setup_linux.sh`**: one-shot setup on Linux or WSL from a `balatro_bundle.zip`: clones the repo, builds the runtime, unpacks the bundle on the Linux filesystem, builds the modded tree, runs every accuracy check and writes a report next to the bundle.
+
 ## [0.2.0] - 2026-11-01
 
 The game can now be played from code, not only replayed from logs.
