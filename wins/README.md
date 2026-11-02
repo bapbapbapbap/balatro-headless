@@ -28,7 +28,7 @@ state and the win. `--full` runs the game with nothing stripped.
 
 ## Route format
 - `seed`, `back`, `stake`: the run to start.
-- `actions` / `enc`: which action list the moves index (`subsets`: one move per play/discard with
+- `actions` / `enc`: which action list the moves index (absent means `subsets` / `1`, the v1 setup) (`subsets`: one move per play/discard with
   the selected hand positions; `ordered`: the same plus the lead card, Death's direction and boss
   rerolls) and the encoding version.
 - `acts`: every move as an index into the legal moves at that point; `desc`: the same moves as text,
@@ -36,6 +36,8 @@ state and the win. `--full` runs the game with nothing stripped.
   The replay checks both, so a route can't silently drift.
 - `n` (moves), `final` (hash of the final state), `progress` (blinds, bosses, won).
 - How it was found: `mode` (training or eval game), `iteration` (training round), `retry` (a seed
-  retried after an earlier loss), `source`.
+  retried after an earlier loss), `source` (`v1/wins.jsonl` = the main v1 run; `low`/`high` and
+  `off`/`on` = the arms of the learning-rate and self-imitation A/B tests, which played from v1's
+  weights), `commit` (the trainer's code version).
 
-Multiple wins on one seed: the shortest is kept.
+Multiple wins on one seed: the shortest is kept. No model weights are published.
