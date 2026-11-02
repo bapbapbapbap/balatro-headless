@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.3.3] - 2026-11-01
+
+### Added
+- **`--max-wins`**: stop after a total number of won training games (beat the ante 8 boss); carried across resumes. `run_v1.sh` now defaults to 1,000,000 wins, no games limit, and a 168-hour cap.
+- **Hypotheses**: run target change registered (prediction A5: a backstop ends the run first), and E1 "Hanging Chad is the best common joker" (proposed by chud) with its test design and precondition.
+
 ## [0.3.2] - 2026-11-01
 
 ### Fixed

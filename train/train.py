@@ -347,6 +347,8 @@ def main():
     ap.add_argument("--iterations", type=int, default=10**9)
     ap.add_argument("--hours", type=float, default=8.0, help="stop after this much wall time")
     ap.add_argument("--max-games", type=int, default=0, help="stop after this many training games in total (0 = no limit)")
+    ap.add_argument("--max-wins", type=int, default=0,
+                    help="stop after this many won training games in total, i.e. runs that beat the ante 8 boss (0 = no limit)")
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--eval-games", type=int, default=200)
@@ -445,7 +447,8 @@ def main():
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads},
-              "best_eval": best_eval, "games_total": games_total, "lr": opt.param_groups[0]["lr"]}
+              "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
+              "lr": opt.param_groups[0]["lr"]}
         tmp = os.path.join(out, f".{tag}.pt.tmp")
         torch.save(ck, tmp)
         os.replace(tmp, os.path.join(out, f"{tag}.pt"))      # never leaves a half-written file
@@ -461,14 +464,15 @@ def main():
         os.replace(tmp, os.path.join(out, "health.json"))
 
     t_start = time.time()
-    games_total, strikes, it = 0, 0, start_it
+    games_total, wins_total, strikes, it = 0, 0, 0, start_it
     best_eval, best_time = -1.0, time.time()
     train_hist, best_roll = [], -1.0
     if resumed:
         best_eval = resumed.get("best_eval", -1.0)
         games_total = resumed.get("games_total", 0)
+        wins_total = resumed.get("wins_total", 0)
         alert(f"resumed from {args.resume} at round {start_it} (best eval {best_eval:.2f} blinds/game, "
-              f"{games_total} games so far)")
+              f"{games_total:,} games and {wins_total:,} wins so far)")
     rates = []                     # decisions per second of play, for the throttling flag
     reason = "finished"
     try:
@@ -480,6 +484,8 @@ def main():
                 raise Stop(f"time limit ({args.hours} h)")
             if args.max_games and games_total >= args.max_games:
                 raise Stop(f"reached {games_total:,} training games (limit {args.max_games:,})")
+            if args.max_wins and wins_total >= args.max_wins:
+                raise Stop(f"reached {wins_total:,} won games (limit {args.max_wins:,})")
             if mem_available_gb() < args.min_mem_gb:
                 raise Stop(f"free memory below {args.min_mem_gb} GB ({mem_available_gb():.2f} GB)")
             if disk_free_gb(out) < args.min_disk_gb:
@@ -536,6 +542,7 @@ def main():
 
             games_total += len(eps)
             s = summarize(eps)
+            wins_total += s["wins"]
             train_hist.append(s["blinds_mean"])
             roll = float(np.mean(train_hist[-10:]))
             if len(train_hist) >= 10 and roll > best_roll + 0.05:
@@ -552,17 +559,17 @@ def main():
                       f"({sorted(early)[len(early) // 2]:.0f}); likely heat throttling")
             if st["entropy"] < 0.05:
                 alert(f"policy entropy {st['entropy']:.3f}: the policy has become nearly deterministic")
-            rec = {"iteration": it, "train": s, "ppo": st, "play_seconds": round(t1 - t0, 1),
+            rec = {"iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
                    "hours": round((time.time() - t_start) / 3600, 3)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
-            print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} ante {s['final_ante']} "
+            print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
                   f"ent {st['entropy']:.2f} kl {st['kl']:.4f} | {rec['games_per_hour']} games/h "
                   f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)", flush=True)
             save(it, "latest")
-            write_health(iteration=it, hours=rec["hours"], games_total=games_total, last_train=s,
+            write_health(iteration=it, hours=rec["hours"], games_total=games_total, wins_total=wins_total, last_train=s,
                          decisions_per_second=rec["decisions_per_second"])
     except Stop as e:
         reason = str(e)

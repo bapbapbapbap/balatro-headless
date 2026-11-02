@@ -55,3 +55,30 @@ place an ought enters.
    each log replayed with 0 mismatches before it's used.
 8. **Pre-registration numbers** for C3: N, held-out split, test, threshold.
 9. **Compute plan** for 1M+ games on the target config (laptop, or rented x86 cores).
+
+---
+
+## Added 2026-11-01 ~20:30 CST
+
+### Run target changed
+The v1 run's stop target is raised from 100,000 games to **1,000,000 won games** (runs that beat
+the ante 8 boss), set by chud. At registration the run had ~6,800 training games and **0 wins**.
+Backstops still apply: 168-hour cap, and the safety stops (including 3 hours with a flat
+training score). Prediction (A5): the run ends on a backstop, not the win target; if it does hit
+1,000,000 wins, that falsifies A5. The A1–A4 predictions are scored at whatever point it stops,
+with the game count stated.
+
+### E. Joker value (proposed by chud)
+- **E1. Hanging Chad is the best common joker** in 1.0.1o (common, $4; retriggers the first
+  scoring card 2 extra times). It is also chud's most-used joker by far (1,920 completed rounds
+  in his career stats; next highest 872), so this tests his own preference against a measurement.
+  - **Population:** the 61 common jokers in 1.0.1o (`rarity = 1` in the game's own table).
+  - **Intervention:** for each joker and each seed in a fixed set, the run starts with that joker;
+    same player, same seed; plus a no-joker baseline. Each seed is played 62 times (paired).
+  - **Yardstick:** blinds beaten per game (later: win rate). The yardstick is named as such.
+  - **Claim:** Hanging Chad ranks first, with its confidence interval clear of second place.
+    *Falsified* if any other common joker scores significantly higher.
+  - **Precondition:** a player that controls play order (controls mode or ordered selection).
+    Hanging Chad's value depends on which card scores first; v1 plays in hand order and would
+    undervalue it, so a v1-based result would measure v1's blind spot, not the joker.
+  - **Compute:** 62 × 1,000 seeds ≈ 62,000 games (~4–5 h on the laptop).
