@@ -102,14 +102,19 @@ def worker_main(wid, args, in_q, out_q):
 
 
 def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
-        state, seeds, greedy, it, gen = msg
-        if it in crash_at and gen == 0 and wid == 0 and not greedy:
+        # mode: "train" (sampled, steps kept for PPO), "eval" (sampled with a fixed RNG per seed, so
+        # scores are comparable between rounds), "greedy" (most likely action; can loop forever
+        # on free actions like dragging jokers, so it is a diagnostic only).
+        state, seeds, mode, it, gen = msg
+        greedy = mode == "greedy"
+        if it in crash_at and gen == 0 and wid == 0 and mode == "train":
             raise RuntimeError(f"injected worker crash at iteration {it}")
         model.load_state_dict(state)
         trng = random.Random(f"{args.seed}-{wid}-{it}")      # reproducible sampling per worker+iteration
         episodes = []
         for seed in seeds:
             seed = seed or rand_seed(rng)
+            srng = random.Random(f"eval-{seed}") if mode == "eval" else trng
             o = sim.reset(seed, args.back, args.stake)
             steps, done = [], False
             while not done and sim.steps < args.max_steps:
@@ -121,7 +126,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 if greedy:
                     a = int(p.argmax())
                 else:
-                    a = int(np.searchsorted(np.cumsum(p), trng.random() * p.sum()))
+                    a = int(np.searchsorted(np.cumsum(p), srng.random() * p.sum()))
                     a = min(a, len(p) - 1)
                 logp = float(math.log(max(p[a], 1e-30)))
                 prev, cur, done = sim.step(a)
@@ -129,7 +134,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if not done:
                     o = sim.observe()
-            episodes.append({"seed": seed, "steps": steps if not greedy else None, "n": sim.steps,
+            episodes.append({"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
                              "progress": sim.progress, "capped": not done,
                              "return": sum(s[5] for s in steps)})
         return episodes
@@ -299,9 +304,9 @@ class Pool:
                 p.terminate()
         self.procs = []
 
-    def play(self, state, seeds_per_worker, greedy, it, timeout, should_stop=lambda: None):
+    def play(self, state, seeds_per_worker, mode, it, timeout, should_stop=lambda: None):
         for w in range(self.args.workers):
-            self.in_qs[w].put((state, seeds_per_worker[w], greedy, it, self.gen))
+            self.in_qs[w].put((state, seeds_per_worker[w], mode, it, self.gen))
         eps, errors, deadline = [], [], time.time() + timeout
         for _ in range(self.args.workers):
             while True:                       # wait in 1 s slices so a stop request is seen at once
@@ -417,10 +422,10 @@ def main():
     def weights():
         return {k: v.detach().cpu() for k, v in model.state_dict().items()}
 
-    def run_round(seeds, greedy, it):
+    def run_round(seeds, mode, it):
         for attempt in (1, 2):
             try:
-                return pool.play(weights(), seeds, greedy, it, args.round_timeout,
+                return pool.play(weights(), seeds, mode, it, args.round_timeout,
                                  lambda: stop_requested[0] if stop_requested else None)
             except WorkerFailure as e:
                 alert(f"workers failed in round {it} (attempt {attempt}): {str(e)[-1500:]}")
@@ -475,7 +480,7 @@ def main():
             if it % args.eval_every == 0:
                 te = time.time()
                 split = [esd[w::args.workers] for w in range(args.workers)]
-                ev = summarize(run_round(split, True, it))
+                ev = summarize(run_round(split, "eval", it))
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
@@ -489,7 +494,7 @@ def main():
                 health["best_eval_blinds"] = best_eval
 
             t0 = time.time()
-            eps = run_round([[None] * args.games_per_worker for _ in range(args.workers)], False, it)
+            eps = run_round([[None] * args.games_per_worker for _ in range(args.workers)], "train", it)
             t1 = time.time()
 
             # Update guard: keep a copy, reject the update if it is non-finite or moves too far.
