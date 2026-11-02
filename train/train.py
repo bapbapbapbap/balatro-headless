@@ -522,6 +522,9 @@ def main():
                     help="1.0 pushed KL past the guard and entropy 2.35 -> 1.9 within 10 rounds on v1 (rounds 307-320)")
     ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
     ap.add_argument("--sil-steps", type=int, default=8, help="self-imitation minibatches per update")
+    ap.add_argument("--sil-seed", nargs="*", default=[],
+                    help="wins.jsonl files to fill the self-imitation buffer from at start (training wins on this "
+                         "deck and stake only; eval-seed wins are left out so the eval stays clean)")
     ap.add_argument("--sil-clip", type=float, default=1.0,
                     help="cap on a saved move's pull, in PPO advantage standard deviations")
     # second drive
@@ -628,7 +631,7 @@ def main():
     def usable(d):
         try:
             os.makedirs(d, exist_ok=True)
-            t = os.path.join(d, ".write_test")
+            t = os.path.join(d, f".write_test_{os.getpid()}")      # per process: two runs may check at once
             open(t, "w").write("ok"); os.remove(t)
             return True
         except OSError:
@@ -679,6 +682,25 @@ def main():
         alert(f"resumed from {args.resume} at round {start_it} (best eval {best_eval:.2f} blinds/game, "
               f"{games_total:,} games and {wins_total:,} wins so far)")
     sil_buffer = list(resumed.get("sil_buffer", [])) if resumed else []
+    if args.sil_buffer > 0 and args.sil_seed:
+        have, added = {r["seed"] for r in sil_buffer}, 0
+        for path in args.sil_seed:
+            if not os.path.exists(path):
+                continue
+            for line in open(path):
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                if (r.get("mode") != "train" or not r.get("verified") or r["back"] != args.back
+                        or r["stake"] != args.stake or r["seed"] in have):
+                    continue
+                have.add(r["seed"])
+                sil_buffer.append({"key": f"seed-{r['seed']}", "seed": r["seed"], "acts": r["acts"], "desc": r["desc"],
+                                   "final": r["final"], "return": r["return"], "won": True, "it": r["iteration"]})
+                added += 1
+        sil_buffer.sort(key=lambda r: (r["return"], r["it"]), reverse=True)
+        del sil_buffer[args.sil_buffer:]
+        alert(f"self-imitation buffer filled with {added} saved wins ({sum(r['won'] for r in sil_buffer)} wins in a buffer of {len(sil_buffer)})")
     sil_rng = random.Random(f"sil-{args.seed}-{start_it}")
     games_dir = os.path.join(out, "games")
     if args.save_games != "none":

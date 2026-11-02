@@ -7,6 +7,17 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.6.2] - 2026-11-02
+
+### Added
+- `--sil-seed <wins.jsonl ...>`: fills the self-imitation buffer from saved wins at start (verified training wins on the same deck and stake; eval-seed wins left out so the eval stays clean). Checked: 48 laptop-recorded wins loaded on the cloud sim, and the ones sampled replayed exactly there (cross-machine).
+
+### Fixed
+- Two runs starting at once could report the mirror drive unwritable: the write test used one shared file name. Now one per process.
+
+### Results
+- **Stage 1 A/B, learning rate** (v1 round 473, two arms side by side, 7 workers each, 27 rounds, same seeds): 3.75e-5 vs 1e-4 evals 10.79/10.88/10.15 vs 10.78/10.50/10.21 (400 seeds each), no difference beyond noise. At 1e-4 every update hit the KL target after ~100 of ~280 minibatches: the KL target, not the learning rate, now sets how far an update moves. v1 continues at 1e-4 (same learning, cheaper updates). 33 seeds beaten during the test.
+
 ## [0.6.1] - 2026-11-02
 
 ### Fixed
