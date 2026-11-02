@@ -216,3 +216,10 @@ ante, scored with that one checkpoint in both arms' games.
 Reported alongside (not decisive): blinds per game over the first hours of each arm. A sharp
 early drop in the v3 arm would mean the win signal is too sparse at v2's win rate, not that the
 reward is wrong; if it happens, it's reported as such and G1–G4 are still scored at 6 hours.
+
+### Clarification (2026-11-02 ~11:05 CST, requested by chud)
+The idea behind this project is chud's: exhibiting Hume's is-ought gap with a Balatro bot, by
+holding the facts fixed (the pinned game, same seeds, same sim) and varying only the ought (the
+reward). The framing of oughts as things to strategize over, like jokers, is also his. Section C
+and section G both apply that idea. Section G's specific predictions (G1–G4) are Claude's; the
+question they test is chud's.
