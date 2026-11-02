@@ -880,7 +880,10 @@ def main():
             for line in open(path):
                 if not line.strip():
                     continue
-                r = json.loads(line)
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue                      # a file still being written can end mid-line
                 if (r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
                         or r["back"] != args.back or r["stake"] != args.stake):
                     continue
