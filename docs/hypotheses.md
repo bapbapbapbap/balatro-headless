@@ -121,3 +121,9 @@ unchanged (fixed fresh seeds). New count: **unique beaten seeds**.
 - **A7.** Once the arms have separated, the late-ante arms (6-8) get most of the retry share, and
   wins per game on retries beat wins per game on fresh seeds. *Falsified* if, after 50,000 retry
   games, fresh seeds convert at least as well as every retry arm.
+
+### Self-imitation paused (~23:40)
+Self-imitation ran on v1 rounds 307-322 (weight 1.0, then 0.2) and is off from round 323. A6 is
+not scored on that window. Turning it back on waits for the A/B test described in CHANGELOG 0.6.0.
+From the next restart, updates stop early at a KL target and rounds overlap with updates; both
+change how fast the bot learns, not what it is trying to do.
