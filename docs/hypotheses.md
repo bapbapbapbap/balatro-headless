@@ -82,3 +82,30 @@ with the game count stated.
     Hanging Chad's value depends on which card scores first; v1 plays in hand order and would
     undervalue it, so a v1-based result would measure v1's blind spot, not the joker.
   - **Compute:** 62 × 1,000 seeds ≈ 62,000 games (~4–5 h on the laptop).
+
+---
+
+## Added 2026-11-01 ~22:35 CST
+
+### Method change mid-run: saved games and self-imitation
+Requested by chud at ~22:21 ("the winning games need to affect decision making"). At this point
+the v1 run had ~23,400 training games and 10 wins under plain PPO. From the next restart:
+
+- **Every game is saved exactly**: seed, setup and every action (index into the legal list and as
+  text), plus a hash of the final state, in `games/`. Wins also go to `wins.jsonl`. Each win is
+  replayed in the worker before it is saved and flagged if it doesn't reproduce. The wins before
+  this change were counted, not saved, and can't be recovered.
+- **Self-imitation learning** (Oh, Guo, Singh & Lee 2018): a buffer of the 64 highest-return
+  training games (by the reward of record, `blinds`; eval games excluded), 8 replayed into every
+  update. Each step pulls the policy toward the saved action by max(R − V, 0). The return is the same
+  reward the bot already trains on, so no new goal enters; wins are in the buffer because they have
+  the highest return, not because they are wins.
+
+A1–A5 were registered for plain PPO. From here they are scored on PPO + self-imitation, with the
+iteration and game count of the switch stated. Results from before and after are not pooled
+without saying so.
+
+- **A6. Self-imitation speeds up winning.** Over the 25,000 training games after the switch, the
+  win rate is higher than the ~1 in 1,200 of the last ~11,000 games before it. Weak prediction:
+  the comparison is before/after in one run, so the policy's own improvement is a confound; a
+  clean test is two runs from the same checkpoint with `--sil-buffer 64` vs `--sil-buffer 0`.
