@@ -127,3 +127,43 @@ Self-imitation ran on v1 rounds 307-322 (weight 1.0, then 0.2) and is off from r
 not scored on that window. Turning it back on waits for the A/B test described in CHANGELOG 0.6.0.
 From the next restart, updates stop early at a KL target and rounds overlap with updates; both
 change how fast the bot learns, not what it is trying to do.
+
+---
+
+## Added 2026-11-02 ~10:35 CST: v2 vs v1 (registered before v2's RL phase has produced any result)
+
+Requested by chud: v2 replaces v1 only if it beats v1 on **wins for the compute spent**. v2 was
+launched at ~10:20 (`train/run_v2.sh`: conversion of v1's recent games, behavior cloning, then RL).
+At registration it had not finished cloning; no v2 RL round, eval or win exists yet.
+
+### What is compared
+Same laptop (Core Ultra 9 285H, RTX 40 learner, WSL), 14 workers, Red Deck, White Stake, unmodded
+1.0.1o, reward `blinds` + shaping, seed retries on (same settings), self-imitation off. v2 differs
+in encoding (v2), action list (ordered), model size (1.6M vs 250k parameters) and its start
+(behavior cloning from v1's games instead of v1's weights).
+
+### F1 (primary): new beaten seeds per hour
+- **Measure:** seeds beaten by v2 that no run had beaten before (not in v1's beaten set, the A/B
+  test runs, or `wins/routes.jsonl`), per hour of RL wall-clock time. Behavior cloning and
+  conversion time are not counted (one-time cost); the first hour of RL is warm-up and not counted.
+- **Window:** the next 6 hours of v2 RL after warm-up. One analysis at the end of the window, no
+  interim stopping on results. If v2 is stopped early, the result is reported as underpowered and
+  no claim is made either way.
+- **v1 baseline:** 80 new beaten seeds in 1.89 h of RL = **42.3 per hour** (v1 rounds 388–555,
+  the segments with seed retries on; from `runs/v1/metrics.jsonl`).
+- **Test:** one-sided exact Poisson rate comparison (conditional binomial), v2 rate > v1 rate,
+  alpha 0.05.
+- **Decision:** v2 passes → v1 is retired as the producer of beaten seeds and v2 continues. v2
+  fails → v1 resumes from `runs/v1/latest.pt`; v2's weights and games are kept.
+- **Prediction:** v2 passes. Direction only; no effect size predicted.
+
+Note: v2 starts with empty retry pools (v1's near-miss seeds stay with v1), which works against v2
+early; that's part of what is compared.
+
+### Reported alongside (not decisive)
+- Wins per hour (v1: 52.4/h, same window) and per 1,000 games (v1: 4.73 fresh-seed wins per
+  1,000, rounds 494–555).
+- Eval blinds/game on the fixed 200 eval seeds: mean of v2's evals in the window vs v1's last six
+  evals (rounds 500–550: 11.29, 10.42, 10.89, 10.05, 11.17, 11.40; mean 10.87).
+- Games per hour, and model vs sim milliseconds per decision (whether the GPU would help v2).
+- v2's level straight after behavior cloning (`[eval 0]`).
