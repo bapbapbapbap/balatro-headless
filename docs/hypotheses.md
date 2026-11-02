@@ -167,3 +167,52 @@ early; that's part of what is compared.
   evals (rounds 500–550: 11.29, 10.42, 10.89, 10.05, 11.17, 11.40; mean 10.87).
 - Games per hour, and model vs sim milliseconds per decision (whether the GPU would help v2).
 - v2's level straight after behavior cloning (`[eval 0]`).
+
+---
+
+## Added 2026-11-02 ~11:05 CST: authorship, and v3 (registered before v3 exists)
+
+### Authorship
+- **Sections A–F, and every item in the dated sections above:** chud's hypotheses and decisions,
+  reviewed by Claude (Claude did the write-up).
+- **Section G below:** Claude's hypotheses, reviewed by chud.
+
+The sections above are not edited; this note applies to them as they stand.
+
+### G. v3: the goal as the only ought
+**Design.** v3 is v2 with one change: reward `win` instead of `blinds`. Same encoding, model,
+action list, sim (unmodded 1.0.1o), deck and stake, seed retries and shaping (potential-based,
+so it leaves the optimal policy for either reward unchanged). Both arms start from the same v2
+checkpoint (`best.pt` when the F1 window closes) and get the same compute:
+- **v3 arm:** `--reward win`, 6 hours of RL.
+- **Control arm:** `--reward blinds`, 6 hours of RL.
+
+Run one after the other on the laptop, 14 workers, no other training running. Not started until
+v2's F1 analysis is done, so F1's compute conditions are untouched. Starting both arms from one
+checkpoint removes the before/after confound A6 had.
+
+**Evaluation.** 2,000 held-out seeds never used in training or eval before, each played once per
+arm with seeded sampling (same RNG per seed in both arms). "Behind" positions: decisions where
+the frozen starting checkpoint's value estimate is in the bottom 20% of decisions at the same
+ante, scored with that one checkpoint in both arms' games.
+
+- **G1. Win rate rises.** The v3 arm wins more of the 2,000 seeds than the control arm.
+  Test: one-sided exact McNemar on per-seed outcomes, alpha 0.05. *Falsified* if not significant.
+  This is the first direct data on C2 (C2 predicts the opposite direction or a tie).
+- **G2. Blinds per game holds.** v3's mean blinds per game is at least the control's minus 1.0.
+  *Falsified* if lower by more than 1.0.
+- **G3. Hail-mary play when behind (headline).** In behind positions, the v3 arm rerolls more per
+  shop visit, skips more blinds, and leaves shops holding less money than the control arm.
+  Reason: under `blinds`, a losing run still earns credit for one more blind; under `win`, a run
+  that can't win is worth zero whatever it does, so only high-variance lines carry value.
+  Test: each statistic paired by seed, one-sided permutation test, Holm correction across the
+  three, alpha 0.05. *Falsified* if none of the three moves in the predicted direction
+  significantly.
+- **G4. Money is spent down late.** At ante 8 shop exits (all positions, not only behind), v3 holds
+  less money than the control. Reason: money has no value after the final boss, while `blinds`
+  still rewards the interest buffer that buys future blinds. *Falsified* if not lower
+  (same test as G3, alone).
+
+Reported alongside (not decisive): blinds per game over the first hours of each arm. A sharp
+early drop in the v3 arm would mean the win signal is too sparse at v2's win rate, not that the
+reward is wrong; if it happens, it's reported as such and G1–G4 are still scored at 6 hours.
