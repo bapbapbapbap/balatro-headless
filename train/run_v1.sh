@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Trains model v1 overnight on this machine. Run after tools/setup_linux.sh.
-#   bash run_v1.sh <shared folder for results> [hours, default 10] [workers, default 12]
+#   bash run_v1.sh <shared folder for results> [hours, default 10] [workers, default 14]
 # Weights (ckpt_*.pt, best.pt, latest.pt, final.pt), metrics.jsonl, health.json, provenance.json
 # and train.log go to <shared folder>/runs/v1. Keep this window open and the machine awake.
 #
@@ -11,7 +11,7 @@
 set -uo pipefail
 OUT="${1:?usage: run_v1.sh <shared folder> [hours] [workers]}/runs/v1"
 HOURS="${2:-10}"
-WORKERS="${3:-12}"
+WORKERS="${3:-14}"
 W="${BALATRO_HOME:-$HOME/balatro}"
 R="$W/balatro-headless"
 mkdir -p "$OUT"
@@ -36,5 +36,5 @@ cd "$R/train"
 RESUME=()
 if [ -f "$OUT/latest.pt" ]; then RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"; fi
 python3 train.py --src "$W/local/source" --run v1 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
-  --reward blinds --back b_red --stake 1 "${RESUME[@]}"
+  --reward blinds --back b_red --stake 1 --max-games "${MAX_GAMES:-100000}" "${RESUME[@]}"
 echo "== exited $(date)"
