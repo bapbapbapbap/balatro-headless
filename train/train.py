@@ -116,7 +116,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             seed = seed or rand_seed(rng)
             srng = random.Random(f"eval-{seed}") if mode == "eval" else trng
             o = sim.reset(seed, args.back, args.stake)
-            steps, done = [], False
+            steps, done, tail = [], False, []
             while not done and sim.steps < args.max_steps:
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
@@ -129,13 +129,16 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                     a = int(np.searchsorted(np.cumsum(p), srng.random() * p.sum()))
                     a = min(a, len(p) - 1)
                 logp = float(math.log(max(p[a], 1e-30)))
+                if mode != "train" and sim.steps >= args.max_steps - 30:
+                    tail.append((sim.H.state_name(), int(o["act"][a][0]), int(o["act"][a][1]),
+                                 int(o["act"][a][2]), round(float(p[a]), 4), len(p)))
                 prev, cur, done = sim.step(a)
                 r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if not done:
                     o = sim.observe()
             episodes.append({"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
-                             "progress": sim.progress, "capped": not done,
+                             "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
                              "return": sum(s[5] for s in steps)})
         return episodes
 
@@ -343,6 +346,7 @@ def main():
     ap.add_argument("--games-per-worker", type=int, default=8)
     ap.add_argument("--iterations", type=int, default=10**9)
     ap.add_argument("--hours", type=float, default=8.0, help="stop after this much wall time")
+    ap.add_argument("--max-games", type=int, default=0, help="stop after this many training games in total (0 = no limit)")
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--eval-games", type=int, default=200)
@@ -368,7 +372,8 @@ def main():
     ap.add_argument("--min-mem-gb", type=float, default=1.0, help="stop cleanly below this much free memory")
     ap.add_argument("--worker-mem-gb", type=float, default=0.45, help="memory budget per worker, for sizing")
     ap.add_argument("--min-disk-gb", type=float, default=2.0)
-    ap.add_argument("--stall-hours", type=float, default=3.0, help="stop if the eval score hasn't improved in this long")
+    ap.add_argument("--stall-hours", type=float, default=3.0,
+                    help="stop if the 10-round average training score hasn't improved in this long")
     ap.add_argument("--inject", help="test the safety checks: nan:<it>,crash:<it>")
     args = ap.parse_args()
 
@@ -458,6 +463,7 @@ def main():
     t_start = time.time()
     games_total, strikes, it = 0, 0, start_it
     best_eval, best_time = -1.0, time.time()
+    train_hist, best_roll = [], -1.0
     if resumed:
         best_eval = resumed.get("best_eval", -1.0)
         games_total = resumed.get("games_total", 0)
@@ -472,6 +478,8 @@ def main():
             hours = (time.time() - t_start) / 3600
             if hours > args.hours:
                 raise Stop(f"time limit ({args.hours} h)")
+            if args.max_games and games_total >= args.max_games:
+                raise Stop(f"reached {games_total:,} training games (limit {args.max_games:,})")
             if mem_available_gb() < args.min_mem_gb:
                 raise Stop(f"free memory below {args.min_mem_gb} GB ({mem_available_gb():.2f} GB)")
             if disk_free_gb(out) < args.min_disk_gb:
@@ -480,16 +488,21 @@ def main():
             if it % args.eval_every == 0:
                 te = time.time()
                 split = [esd[w::args.workers] for w in range(args.workers)]
-                ev = summarize(run_round(split, "eval", it))
+                eval_eps = run_round(split, "eval", it)
+                ev = summarize(eval_eps)
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
                 save(it, f"ckpt_{it:05d}")
                 if ev["blinds_mean"] > best_eval:
-                    best_eval, best_time = ev["blinds_mean"], time.time()
+                    best_eval = ev["blinds_mean"]
                     save(it, "best")
-                elif (time.time() - best_time) / 3600 > args.stall_hours:
-                    raise Stop(f"no eval improvement in {args.stall_hours} h (best {best_eval:.2f} blinds/game)")
+                capped = [e for e in eval_eps if e["capped"]][:20]
+                if capped:
+                    with open(os.path.join(out, "eval_capped.jsonl"), "a") as f:
+                        for e in capped:
+                            f.write(json.dumps({"iteration": it, "seed": e["seed"], "progress": e["progress"],
+                                                "last_moves": e["tail"]}) + "\n")
                 health["last_eval"] = ev
                 health["best_eval_blinds"] = best_eval
 
@@ -523,6 +536,13 @@ def main():
 
             games_total += len(eps)
             s = summarize(eps)
+            train_hist.append(s["blinds_mean"])
+            roll = float(np.mean(train_hist[-10:]))
+            if len(train_hist) >= 10 and roll > best_roll + 0.05:
+                best_roll, best_time = roll, time.time()
+            elif len(train_hist) >= 10 and (time.time() - best_time) / 3600 > args.stall_hours:
+                raise Stop(f"training score flat for {args.stall_hours} h (best 10-round average "
+                           f"{best_roll:.2f} blinds/game)")
             decisions = sum(e["n"] for e in eps)
             rate = decisions / max(t1 - t0, 1e-6)
             rates.append((time.time() - t_start, rate))
