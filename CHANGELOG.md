@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.3.1] - 2026-11-01
+
+### Added
+- **Automatic safety checks for unattended training.** Pre-flight accuracy checks in `train/run_v1.sh` (nothing starts unless they pass). During training: bad updates (non-finite, or KL above `--max-kl`) reverted with the learning rate halved, stop after 3 in a row; crashed or hung workers restarted with the round retried, stop after 2 failures; worker pool sized to free memory; clean stop on low memory, low disk, 3 hours without eval improvement, or Ctrl+C (within seconds); heat-throttling flag; `best.pt` kept separately; atomic checkpoint writes; `health.json` every round. Each verified by fault injection (`--inject`), forced low memory, forced stall and an interrupt.
+
 ## [0.3.0] - 2026-11-01
 
 ### Added

@@ -77,6 +77,24 @@ policy for the chosen reward is unchanged. Scores are always reported on the uns
 Greedy policy (argmax) on the fixed evaluation seeds: final-ante distribution, win rate, blinds
 beaten, all against random and the greedy test player on the same seeds.
 
-## 7. Reproducibility
+## 7. Safety checks (automatic)
+Before training (`train/run_v1.sh`): the env must replay a logged run and pass the differential
+check with the encoder running, or nothing starts. During training (`train/train.py`):
+- **Bad update**: non-finite loss/weights or policy moved more than `--max-kl` → reverted, learning
+  rate halved; `--max-strikes` (3) in a row → stop.
+- **Worker crash or hang** (`--round-timeout`): traceback logged, pool restarted, round retried;
+  twice in a row → stop.
+- **Resources**: pool sized to free memory (`--worker-mem-gb`); stop below `--min-mem-gb` free
+  memory or `--min-disk-gb` free disk.
+- **Not learning**: no eval improvement in `--stall-hours` (3) → stop.
+- **Heat**: play speed under 60% of the first half hour's → flagged (WSL can't read temperatures;
+  the CPU throttles and protects itself in hardware).
+- **Stop button**: Ctrl+C or SIGTERM stops within seconds; every stop saves `final.pt`.
+- `best.pt` (best eval) kept apart from `latest.pt`; checkpoints written atomically; `health.json`
+  updated every round with status, alerts, memory, disk, speed and scores.
+Tested by fault injection (`--inject nan:<it>,crash:<it>`), a forced low-memory stop, a forced
+stall and Ctrl+C: each behaved as above.
+
+## 8. Reproducibility
 Each checkpoint stores: weights, vocabulary, config (deck, stake, reward, mode, game modded or
 not), repo commit, `Balatro.exe` hash from the bundle, Python/torch versions, and the seeds used.
