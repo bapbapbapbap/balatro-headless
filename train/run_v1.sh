@@ -33,6 +33,8 @@ df -h "$OUT" | tail -1
 
 echo "== training"
 cd "$R/train"
+RESUME=()
+if [ -f "$OUT/latest.pt" ]; then RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"; fi
 python3 train.py --src "$W/local/source" --run v1 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
-  --reward blinds --back b_red --stake 1
+  --reward blinds --back b_red --stake 1 "${RESUME[@]}"
 echo "== exited $(date)"

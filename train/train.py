@@ -399,11 +399,12 @@ def main():
 
     model = Net(len(vocab), d=args.d, layers=args.layers, heads=args.heads).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
-    start_it = 0
+    start_it, resumed = 0, None
     if args.resume:
-        ck = torch.load(args.resume, map_location=device)
+        ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start_it = ck["iteration"] + 1
+        resumed = ck
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
     print(f"model {param_count(model):,} params on {device}; {args.workers} workers; reward '{args.reward}' "
@@ -433,7 +434,8 @@ def main():
 
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
-              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads}}
+              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads},
+              "best_eval": best_eval, "games_total": games_total, "lr": opt.param_groups[0]["lr"]}
         tmp = os.path.join(out, f".{tag}.pt.tmp")
         torch.save(ck, tmp)
         os.replace(tmp, os.path.join(out, f"{tag}.pt"))      # never leaves a half-written file
@@ -451,6 +453,11 @@ def main():
     t_start = time.time()
     games_total, strikes, it = 0, 0, start_it
     best_eval, best_time = -1.0, time.time()
+    if resumed:
+        best_eval = resumed.get("best_eval", -1.0)
+        games_total = resumed.get("games_total", 0)
+        alert(f"resumed from {args.resume} at round {start_it} (best eval {best_eval:.2f} blinds/game, "
+              f"{games_total} games so far)")
     rates = []                     # decisions per second of play, for the throttling flag
     reason = "finished"
     try:

@@ -16,7 +16,11 @@ PROGRESS = r"""
 local H = ...
 function H.progress()
   local b = G.GAME.blind
-  return H.state_name(), (b and b.boss) and true or false, G.GAME.won and true or false,
+  -- Boss test as the game does it in end_round (state_events.lua): the blind just played was
+  -- neither Small nor Big. Blind.boss is already cleared by the time the cash-out screen shows.
+  local rb = G.GAME.round_resets.blind
+  local boss = rb ~= nil and rb ~= G.P_BLINDS.bl_small and rb ~= G.P_BLINDS.bl_big
+  return H.state_name(), boss, G.GAME.won and true or false,
          G.GAME.round_resets.ante, H.is_terminal(), G.GAME.chips or 0, (b and b.chips) or 0
 end
 """
