@@ -10,7 +10,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ## [0.5.0] - 2026-11-01
 
 ### Added
-- **Seed retries** (`--retry-frac 0.25 --retry-min-ante 6 --retry-max 30 --retry-pool 2000`): seeds that lost after reaching ante 6+ are replayed with fresh sampling until beaten or out of attempts, closest first. Training stats stay on fresh seeds; retried games are logged separately (`retry` in metrics, `retry: true` on saved games). Unique beaten seeds counted in the log and `health.json`. Pool and beaten seeds saved in checkpoints.
+- **Seed retries, allocated by ante** (`--retry 1 --fresh-min 0.5 --arm-prior 100 --retry-max 30 --retry-pool 500`): lost seeds are kept by the latest ante they reached (1-8) and replayed with fresh sampling until beaten or out of attempts. Each round's games are split across 9 arms (fresh, ante 1..8) by Thompson sampling on wins per game, Beta(1 + wins, prior + losses), with at least `--fresh-min` on fresh seeds. Training stats stay on fresh seeds; per-arm games and wins, the round's split and unique beaten seeds go to the log, `metrics.jsonl` and `health.json`; saved games carry `retry` and `arm`. Pools, arm records and beaten seeds are saved in checkpoints.
 
 ### Fixed
 - `run_v1.sh` pulls the repo first and then restarts itself from the updated script. Before, a pull that changed the script mid-run made bash skip lines (the new pre-flight replay didn't run on the 22:48 launch).
