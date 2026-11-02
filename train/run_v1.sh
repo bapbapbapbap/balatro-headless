@@ -46,5 +46,6 @@ cd "$R/train"
 RESUME=()
 if [ -f "$OUT/latest.pt" ]; then RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"; fi
 python3 train.py --src "$W/local/source" --run v1 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
-  --reward blinds --back b_red --stake 1 --max-games "${MAX_GAMES:-0}" --max-wins "${MAX_WINS:-1000000}" "${RESUME[@]}"
+  --reward blinds --back b_red --stake 1 --max-games "${MAX_GAMES:-0}" --max-wins "${MAX_WINS:-1000000}" \
+  --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" "${RESUME[@]}"
 echo "== exited $(date)"

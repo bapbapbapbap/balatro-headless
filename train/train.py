@@ -450,6 +450,10 @@ def main():
     ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
     ap.add_argument("--sil-weight", type=float, default=1.0)
     ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
+    # second drive
+    ap.add_argument("--mirror-dir", help="also append every win to <dir>/wins.jsonl (e.g. an external drive)")
+    ap.add_argument("--spill-dir", help="when the main drive runs low, write saved games and checkpoints here")
+    ap.add_argument("--spill-at-gb", type=float, default=50.0, help="free space on the main drive that triggers spilling")
     # seed retries: the solver side. Lost seeds are kept by the latest ante they reached (1-8) and
     # replayed with fresh sampling. Each round's games are split across 9 arms (fresh seeds, and
     # retries of seeds whose best was ante 1..8) by Thompson sampling on wins per game, so effort
@@ -533,11 +537,51 @@ def main():
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten)}
-        tmp = os.path.join(out, f".{tag}.pt.tmp")
+        d = out
+        if tag.startswith("ckpt_") and spilling():
+            d = os.path.join(args.spill_dir, "runs", args.run)
+            os.makedirs(d, exist_ok=True)
+        tmp = os.path.join(d, f".{tag}.pt.tmp")
         torch.save(ck, tmp)
-        os.replace(tmp, os.path.join(out, f"{tag}.pt"))      # never leaves a half-written file
+        os.replace(tmp, os.path.join(d, f"{tag}.pt"))      # never leaves a half-written file
 
     health = {"status": "running", "started": time.strftime("%Y-%m-%d %H:%M:%S")}
+    drive_note = {}
+
+    def usable(d):
+        try:
+            os.makedirs(d, exist_ok=True)
+            t = os.path.join(d, ".write_test")
+            open(t, "w").write("ok"); os.remove(t)
+            return True
+        except OSError:
+            return False
+
+    def spilling():
+        """True when the main drive is low and the spill drive is writable."""
+        if not args.spill_dir or disk_free_gb(out) >= args.spill_at_gb:
+            return False
+        ok = usable(args.spill_dir)
+        if drive_note.get("spill") != ok:
+            drive_note["spill"] = ok
+            alert(f"main drive under {args.spill_at_gb} GB free; " + (f"writing games and checkpoints to {args.spill_dir}"
+                  if ok else f"spill drive {args.spill_dir} not writable, staying on the main drive"))
+        return ok
+
+    def mirror_win(line):
+        if not args.mirror_dir:
+            return
+        try:
+            os.makedirs(args.mirror_dir, exist_ok=True)
+            with open(os.path.join(args.mirror_dir, "wins.jsonl"), "a") as f:
+                f.write(line)
+            if drive_note.get("mirror") is False:
+                alert(f"mirror {args.mirror_dir} writable again")
+            drive_note["mirror"] = True
+        except OSError as ex:
+            if drive_note.get("mirror") is not False:
+                alert(f"couldn't copy a win to {args.mirror_dir} ({ex}); the main copy is saved")
+            drive_note["mirror"] = False
 
     def write_health(**kw):
         health.update(kw, alerts=log_alerts[-10:], mem_available_gb=round(mem_available_gb(), 2),
@@ -567,6 +611,9 @@ def main():
                                 "back": args.back, "stake": args.stake, "mode": "subsets",
                                 "profile": "unlocked", "fast": True, "provenance": prov}) + "\n")
     saved = {"games": 0, "wins": 0, "wins_verified": 0}
+    if args.mirror_dir:
+        alert(f"wins also copied to {args.mirror_dir}" if usable(args.mirror_dir)
+              else f"mirror {args.mirror_dir} not writable now; wins stay on the main drive until it is")
     # retry pools: ante -> {seed: {"attempts", "best_blinds", "first_it"}}; arms: wins and games per arm
     ARMS = ["fresh"] + [str(a) for a in range(1, 9)]
     pools = {a: dict(v) for a, v in (resumed.get("retry_pools", {}) if resumed else {}).items()}
@@ -633,6 +680,72 @@ def main():
             if len(pools[a]) > args.retry_pool:     # full: drop the most-tried, then the oldest
                 worst = max(pools[a].items(), key=lambda kv: (kv[1]["attempts"], -kv[1]["first_it"]))[0]
                 del pools[a][worst]
+
+    def record(it, mode, eps):
+        """Writes each game exactly. Wins also go to wins.jsonl, flagged if they didn't replay."""
+        if args.save_games == "none":
+            return
+        keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"]]
+        recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
+                 "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
+                 "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
+                 "retry": e.get("retry", False), "arm": e.get("arm")} for e in keep]
+        if recs:
+            gd = os.path.join(args.spill_dir, "runs", args.run, "games") if spilling() else games_dir
+            os.makedirs(gd, exist_ok=True)
+            path = os.path.join(gd, f"r{it:05d}_{mode}.jsonl.gz")
+            tmp = path + ".tmp"
+            with gzip.open(tmp, "wt") as f:
+                for r in recs:
+                    f.write(json.dumps(r) + "\n")
+            os.replace(tmp, path)
+            saved["games"] += len(recs)
+        for r in recs:
+            if r["progress"]["won"]:
+                line = json.dumps(r | {"commit": prov["commit"][:12]}) + "\n"
+                with open(os.path.join(out, "wins.jsonl"), "a") as f:
+                    f.write(line)
+                mirror_win(line)
+                saved["wins"] += 1
+                if r["verified"]:
+                    saved["wins_verified"] += 1
+                else:
+                    alert(f"won game (seed {r['seed']}, round {it}) did NOT replay exactly; saved, flagged unverified")
+
+    def add_to_buffer(it, eps):
+        """Keeps the highest-return training games (return under the reward of record), as routes."""
+        if args.sil_buffer <= 0:
+            return
+        for k, e in enumerate(eps):
+            if e["capped"]:
+                continue
+            sil_buffer.append({"key": f"{it}-{k}", "seed": e["seed"], "acts": e["acts"], "desc": e["desc"],
+                               "final": e["final"], "return": e["return"], "won": e["progress"]["won"], "it": it})
+        sil_buffer.sort(key=lambda r: (r["return"], r["it"]), reverse=True)
+        del sil_buffer[args.sil_buffer:]
+
+    def sil_data(it):
+        if args.sil_buffer <= 0 or not sil_buffer:
+            return None, {}
+        pick = [sil_buffer[sil_rng.randrange(len(sil_buffer))] for _ in range(args.sil_games)]
+        split = [pick[w::args.workers] for w in range(args.workers)]
+        got = run_round(split, "replay", it)
+        obs, act, ret, bad = [], [], [], set()
+        for g in got:
+            if g["problem"]:
+                bad.add(g["key"])
+                alert(f"saved game {g['key']} no longer replays ({g['problem']}); dropped from the buffer")
+                continue
+            for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], args.gamma)):
+                obs.append(o); act.append(a); ret.append(R)
+        if bad:
+            sil_buffer[:] = [r for r in sil_buffer if r["key"] not in bad]
+        if not obs:
+            return None, {}
+        info = {"buffer": len(sil_buffer), "buffer_wins": sum(r["won"] for r in sil_buffer),
+                "buffer_min_return": min(r["return"] for r in sil_buffer),
+                "replayed_games": len(got) - len(bad), "replayed_steps": len(obs)}
+        return (obs, np.array(act), np.array(ret, np.float32)), info
 
     rates = []                     # decisions per second of play, for the throttling flag
     reason = "finished"

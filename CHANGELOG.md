@@ -12,6 +12,8 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **Seed retries, allocated by ante** (`--retry 1 --fresh-min 0.5 --arm-prior 100 --retry-max 30 --retry-pool 500`): lost seeds are kept by the latest ante they reached (1-8) and replayed with fresh sampling until beaten or out of attempts. Each round's games are split across 9 arms (fresh, ante 1..8) by Thompson sampling on wins per game, Beta(1 + wins, prior + losses), with at least `--fresh-min` on fresh seeds. Training stats stay on fresh seeds; per-arm games and wins, the round's split and unique beaten seeds go to the log, `metrics.jsonl` and `health.json`; saved games carry `retry` and `arm`. Pools, arm records and beaten seeds are saved in checkpoints.
 
+- **Second drive**: `--mirror-dir` appends every win to `<dir>/wins.jsonl` as well (a second copy of the beaten seeds); `--spill-dir` takes new saved games and checkpoints once the main drive is under `--spill-at-gb` (default 50) free. Both alert instead of failing if the drive isn't there. `run_v1.sh` points both at `/mnt/f/balatro data` (override with `MIRROR_DIR` / `SPILL_DIR`).
+
 ### Fixed
 - `run_v1.sh` pulls the repo first and then restarts itself from the updated script. Before, a pull that changed the script mid-run made bash skip lines (the new pre-flight replay didn't run on the 22:48 launch).
 
