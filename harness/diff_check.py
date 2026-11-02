@@ -149,6 +149,9 @@ def main():
     ap.add_argument("--greedy", type=float, default=0.85)
     ap.add_argument("--max-steps", type=int, default=3000)
     ap.add_argument("--candidate", default="fast", help="fast | fast+<opt>,<opt> (see OPTIMIZATIONS)")
+    ap.add_argument("--encode", action="store_true",
+                    help="run the learner's encoder (encode.lua) before every comparison, candidate only: "
+                         "proves encoding never changes the game")
     args = ap.parse_args()
 
     ref = make(args.src, False, args.mode)
@@ -156,6 +159,9 @@ def main():
     for opt in args.candidate.split("+")[1:]:
         for o in opt.split(","):
             cand.lua.execute(OPTIMIZATIONS[o], cand.H)
+    if args.encode:
+        import os
+        cand.lua.execute(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "encode.lua")).read(), cand.H)
     rng = random.Random(args.rng)
     t0, steps, bad, states = time.time(), 0, [], collections.Counter()
     for r in range(args.runs):
@@ -164,6 +170,8 @@ def main():
         cand.reset(seed)
         plan, ok = [], True
         while ok and not ref.done and ref.steps < args.max_steps:
+            if args.encode:
+                cand.H.encode()
             da, db = ref.H.state_dump(), cand.H.state_dump()
             if da != db:
                 a, b = first_diff(da, db)

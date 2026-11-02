@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.3.0] - 2026-11-01
+
+### Added
+- **Model v1 and its trainer** (`train/`, design in `docs/model_v1.md`). A ~250k-parameter transformer over what the player sees, scoring each legal action; PPO with parallel workers, one sim per worker. Nothing in it encodes strategy; what the bot wants is `--reward` (`blinds`, `antes`, `win`), recorded in every checkpoint with the repo commit, the `Balatro.exe` hash, the vocabulary hash and the full config.
+- **Potential-based shaping** (Ng, Harada & Russell 1999), on by default: a signal for progress inside a blind (chips scored / target) that is taken back in full when the blind ends, so it sums to ~0 over a game and provably leaves the optimal policy for the chosen reward unchanged. Without it, near-random early play beat a blind once in 640 games and nothing was learned; with it, blinds beaten per game rose from 0 to ~2 within ~1,100 games (Red Deck, White Stake, 2 workers). Reported scores are always the unshaped reward.
+- **`harness/encode.lua`**: numeric encoding for learning. Flattens `H.observe()`, so it has exactly the same visibility rules (face-down masked, deck as sets, no RNG state); builds the action list itself and plays by index into it, so a choice can never be mapped to the wrong action. Each candidate play carries its poker hand type, which the game shows on selection.
+- **`diff_check.py --encode`**: runs the encoder before every comparison on the candidate side only. 40 runs, 574 decisions: encoding never changes the game.
+- **`train/run_v1.sh`**: overnight launcher for Linux/WSL after `tools/setup_linux.sh`.
+
 ## [0.2.1] - 2026-11-01
 
 ### Fixed
