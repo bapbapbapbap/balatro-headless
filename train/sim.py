@@ -11,7 +11,8 @@ HARNESS = os.path.join(HERE, "..", "harness")
 sys.path.insert(0, HARNESS)
 from env import BalatroEnv  # noqa: E402
 
-F, ACT = 32, 9
+F = 32
+ACT_WIDTH = {1: 9, 2: 18}     # action row width per encoding version (encode.lua)
 
 PROGRESS = r"""
 local H = ...
@@ -33,24 +34,30 @@ function H.action_desc(i)
   if a.i then s = s .. " " .. a.i end
   if a.j then s = s .. ">" .. a.j end
   if a.cards and a.cards[1] then s = s .. " " .. table.concat(a.cards, ",") end
+  if a.lead then s = s .. " lead " .. a.lead end
+  if a.src then s = s .. " src " .. a.src end
   return s
 end
 """
 
 
-def parse(buf):
+def parse(buf, act_width=9):
     v = np.array(buf.split(), dtype=np.float32)
     nt, na = int(v[0]), int(v[1])
     tok = v[2:2 + nt * (F + 2)].reshape(nt, F + 2)
-    act = v[2 + nt * (F + 2):].reshape(na, ACT)
+    act = v[2 + nt * (F + 2):].reshape(na, act_width)
     return {"kind": tok[:, 0].astype(np.int8), "vocab": tok[:, 1].astype(np.int16),
             "feat": tok[:, 2:].astype(np.float16), "act": act.astype(np.int16)}
 
 
 class Sim:
-    def __init__(self, src, mods=None, fast=True):
-        self.env = BalatroEnv(src, mods=mods, fast=fast, mode="subsets")
+    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1):
+        """mode: "subsets" (v1) or "ordered" (v2: lead card, Death direction, boss reroll).
+        enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards)."""
+        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=mode)
         self.H = self.env.H
+        self.H.enc = enc
+        self.enc, self.mode, self.act_width = enc, mode, ACT_WIDTH[enc]
         lua = self.env.lua
         lua.execute(open(os.path.join(HARNESS, "encode.lua")).read(), self.H)
         lua.execute(PROGRESS, self.H)
@@ -65,7 +72,7 @@ class Sim:
         return self.observe()
 
     def observe(self):
-        return parse(self.H.encode())
+        return parse(self.H.encode(), self.act_width)
 
     def step(self, index):
         """index: 0-based into the last observed action list."""

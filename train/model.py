@@ -1,4 +1,4 @@
-"""Model v1: a small transformer over what the player sees, scoring each legal action.
+"""Model v1/v2: a transformer over what the player sees, scoring each legal action.
 
 Nothing here encodes strategy. Inputs are the tokens and actions built by harness/encode.lua;
 see docs/model_v1.md.
@@ -7,27 +7,35 @@ import torch
 import torch.nn as nn
 
 N_KINDS = 16       # token kinds (encode.lua KIND), 0 = padding
-N_ACT_TYPES = 18   # action types (encode.lua ACTION), 0 = padding
+N_ACT_TYPES = 19   # action types (encode.lua ACTION, reroll_boss = 18 in v2), 0 = padding
 F = 32             # features per token
-ACT = 9            # type, a, b, c1..c5, hand_type
+ACT = 9            # v1 row: type, a, b, c1..c5, hand_type
+ACT_WIDTH = {1: 9, 2: 18}
+# Fields that are embedding ids or numbers (padded with 0); every other field is a token index (-1 = none).
+ZERO_FIELDS = {1: (0, 8), 2: (0, 8, 16, 17)}
 
 
 class Net(nn.Module):
-    def __init__(self, n_vocab, d=96, layers=2, heads=4):
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
         super().__init__()
-        self.d = d
+        self.d, self.enc = d, enc
         self.feat = nn.Linear(F, d)
         self.kind_emb = nn.Embedding(N_KINDS, d)
         self.vocab_emb = nn.Embedding(n_vocab, d)
         layer = nn.TransformerEncoderLayer(d, heads, 2 * d, dropout=0.0, batch_first=True, norm_first=True)
         self.encoder = nn.TransformerEncoder(layer, layers, enable_nested_tensor=False)
         self.norm = nn.LayerNorm(d)
-        self.type_emb = nn.Embedding(N_ACT_TYPES, d)
+        self.type_emb = nn.Embedding(N_ACT_TYPES if enc == 2 else 18, d)   # v1 checkpoints have 18
         self.proj_a = nn.Linear(d, d)
         self.proj_b = nn.Linear(d, d)
         self.proj_c = nn.Linear(d, d)
         self.policy = nn.Sequential(nn.Linear(2 * d, d), nn.ReLU(), nn.Linear(d, 1))
         self.value = nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, 1))
+        if enc == 2:
+            self.proj_s = nn.Linear(d, d)      # scoring cards
+            self.proj_l = nn.Linear(d, d)      # lead card / card Death copies
+            self.proj_h = nn.Linear(d, d)      # the hand type's token (level, chips, mult, increments)
+            self.num = nn.Linear(2, d)         # HUD chips x mult, scoring cards' chips (slog)
 
     @staticmethod
     def _gather(h, idx):
@@ -54,6 +62,13 @@ class Net(nn.Module):
         a = a + self.proj_c(cg.sum(2) / n)
         ht = act[..., 8]
         a = a + self.vocab_emb(ht) * (ht > 0).unsqueeze(-1)
+        if self.enc == 2:
+            ss = act[..., 9:14]
+            sg = self._gather(h, ss.reshape(B, A * 5)).reshape(B, A, 5, self.d)
+            ns = (ss >= 0).sum(-1, keepdim=True).clamp(min=1).float()
+            a = a + self.proj_s(sg.sum(2) / ns)
+            a = a + self.proj_l(self._gather(h, act[..., 14])) + self.proj_h(self._gather(h, act[..., 15]))
+            a = a + self.num(act[..., 16:18].float() / 10000.0)
 
         logits = self.policy(torch.cat([a, pooled.unsqueeze(1).expand(-1, A, -1)], -1)).squeeze(-1)
         logits = logits.masked_fill(~act_mask, float("-inf"))

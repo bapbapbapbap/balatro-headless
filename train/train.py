@@ -29,7 +29,7 @@ import torch.multiprocessing as mp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import ACT, F, Net, param_count  # noqa: E402
+from model import ACT_WIDTH, F, ZERO_FIELDS, Net, param_count  # noqa: E402
 from rewards import REWARDS, shaping  # noqa: E402
 
 SEED_CHARS = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
@@ -50,13 +50,15 @@ def collate(obs, device="cpu"):
     B = len(obs)
     T = max(len(o["kind"]) for o in obs)
     A = max(len(o["act"]) for o in obs)
+    W = obs[0]["act"].shape[1]
+    enc = 2 if W == ACT_WIDTH[2] else 1
     kind = np.zeros((B, T), np.int64)
     vocab = np.zeros((B, T), np.int64)
     feat = np.zeros((B, T, F), np.float32)
     tmask = np.zeros((B, T), bool)
-    act = np.full((B, A, ACT), -1, np.int64)
-    act[..., 0] = 0
-    act[..., 8] = 0
+    act = np.full((B, A, W), -1, np.int64)
+    for f in ZERO_FIELDS[enc]:
+        act[..., f] = 0
     amask = np.zeros((B, A), bool)
     for i, o in enumerate(obs):
         n, m = len(o["kind"]), len(o["act"])
@@ -82,11 +84,11 @@ def worker_main(wid, args, in_q, out_q):
     torch.set_num_threads(1)
     try:
         from sim import Sim
-        sim = Sim(args.src, args.mods)
+        sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc)
     except Exception:
         out_q.put(("error", wid, traceback.format_exc()))
         return
-    model = Net(len(sim.vocab), d=args.d, layers=args.layers, heads=args.heads)
+    model = Net(len(sim.vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc)
     model.eval()
     reward_fn = REWARDS[args.reward]
     rng = random.Random(f"{args.seed}-{wid}")
@@ -480,6 +482,10 @@ def main():
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--eval-games", type=int, default=200)
+    ap.add_argument("--enc", type=int, choices=[1, 2], default=1,
+                    help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score")
+    ap.add_argument("--actions", choices=["subsets", "ordered"], default="subsets",
+                    help="action list: subsets (v1) or ordered (lead card, Death direction, boss reroll)")
     ap.add_argument("--d", type=int, default=96)
     ap.add_argument("--layers", type=int, default=2)
     ap.add_argument("--heads", type=int, default=4)
@@ -573,12 +579,16 @@ def main():
     pool.start()
     vocab = pool.vocab
 
-    model = Net(len(vocab), d=args.d, layers=args.layers, heads=args.heads).to(device)
+    model = Net(len(vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     start_it, resumed = 0, None
     if args.resume:
         ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
+        arch = ck.get("arch", {})
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions)):
+            have = arch.get(k, {"enc": 1, "actions": "subsets"}.get(k))
+            assert have == v, f"checkpoint was trained with {k}={have}, this run has {k}={v}"
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start_it = ck["iteration"] + 1
         if args.reset_lr:
             for g in opt.param_groups:
@@ -613,7 +623,7 @@ def main():
 
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
-              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads},
+              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten)}
@@ -692,6 +702,7 @@ def main():
                     continue
                 r = json.loads(line)
                 if (r.get("mode") != "train" or not r.get("verified") or r["back"] != args.back
+                        or r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
                         or r["stake"] != args.stake or r["seed"] in have):
                     continue
                 have.add(r["seed"])
@@ -707,7 +718,7 @@ def main():
         os.makedirs(games_dir, exist_ok=True)
         with open(os.path.join(games_dir, "meta.jsonl"), "a") as f:   # what every saved game was played on
             f.write(json.dumps({"from_iteration": start_it, "started": time.strftime("%Y-%m-%d %H:%M:%S"),
-                                "back": args.back, "stake": args.stake, "mode": "subsets",
+                                "back": args.back, "stake": args.stake, "mode": args.actions, "enc": args.enc,
                                 "profile": "unlocked", "fast": True, "provenance": prov}) + "\n")
     saved = {"games": 0, "wins": 0, "wins_verified": 0}
     if args.mirror_dir:
@@ -789,7 +800,7 @@ def main():
         recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
-                 "retry": e.get("retry", False), "arm": e.get("arm")} for e in keep]
+                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc} for e in keep]
         if recs:
             gd = os.path.join(args.spill_dir, "runs", args.run, "games") if spilling() else games_dir
             os.makedirs(gd, exist_ok=True)

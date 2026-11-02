@@ -49,8 +49,9 @@ def main():
     args = ap.parse_args()
     sim, cur, n, bad, wins = None, None, 0, 0, 0
     for f, r in records(args.paths, args.wins_only):
-        if sim is None or args.fresh_each or f != cur:
-            sim, cur = Sim(args.src, fast=not args.full), f
+        kind = (f, r.get("actions", "subsets"), r.get("enc", 1))      # saved games before v2 are subsets/enc 1
+        if sim is None or args.fresh_each or kind != cur:
+            sim, cur = Sim(args.src, fast=not args.full, mode=kind[1], enc=kind[2]), kind
         prog, steps, final, problems = sim.replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"])
         if not problems:
             if steps != r["n"]:

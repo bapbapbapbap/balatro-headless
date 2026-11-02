@@ -13,7 +13,19 @@
 --                         exactly as in the game (play_cards_from_highlighted sorts by position).
 --   "subsets"             one action per selection: play/discard/use/pick carry the hand
 --                         positions to select. Same game, fewer steps, ~2000 actions per hand.
--- Both modes offer move_joker, the shop, packs, blinds and selling.
+--   "ordered"             subsets, plus what card order can change: a play whose score can depend on
+--                         card order is offered once per scoring card as the lead (that card is
+--                         dragged to the front of the selection, as a player would), Death is
+--                         offered with each selected card as the one copied (the game copies the
+--                         rightmost), and the boss reroll (Director's Cut / Retcon) is offered.
+--                         Lead variants are only listed when order can matter: Hanging Chad held
+--                         (it retriggers the first scoring card), or a per-card x-mult source
+--                         (Glass, Polychrome, Photograph, The Idol, Bloodstone, Ancient Joker,
+--                         Triboulet) together with a per-card +mult source (Mult, Lucky,
+--                         Holographic; Smiley Face, Scholar, Walkie Talkie, Fibonacci, Even
+--                         Steven, Onyx Agate, the four suit jokers), with Blueprint/Brainstorm
+--                         counted as both. Only the lead is chosen; the rest keep hand order.
+-- All modes offer move_joker, the shop, packs, blinds and selling.
 --
 -- An action is a table { type, i, j, cards }: i/j are 1-based positions in the relevant area;
 -- cards are hand positions, ascending.
@@ -102,6 +114,52 @@ local function has_buy_space(card)
   return ok and r
 end
 
+local XMULT_JOKERS = { ["Photograph"] = true, ["The Idol"] = true, ["Bloodstone"] = true,
+                       ["Ancient Joker"] = true, ["Triboulet"] = true }
+local PMULT_JOKERS = { ["Smiley Face"] = true, ["Scholar"] = true, ["Walkie Talkie"] = true, ["Fibonacci"] = true,
+                       ["Even Steven"] = true, ["Onyx Agate"] = true, ["Greedy Joker"] = true, ["Lusty Joker"] = true,
+                       ["Wrathful Joker"] = true, ["Gluttonous Joker"] = true }
+local COPIERS = { ["Blueprint"] = true, ["Brainstorm"] = true }
+
+-- Can the order of these hand positions change what the play scores?
+local function order_matters(s)
+  if #s < 2 then return false end
+  local x, p = false, false
+  for _, j in ipairs(G.jokers.cards) do
+    local n = j.ability.name
+    if not j.debuff then
+      if n == "Hanging Chad" then return true end
+      if XMULT_JOKERS[n] or COPIERS[n] then x = true end
+      if PMULT_JOKERS[n] or COPIERS[n] then p = true end
+    end
+  end
+  for _, i in ipairs(s) do
+    local c = G.hand.cards[i]
+    local key = c.config.center.key
+    if key == "m_glass" or (c.edition and c.edition.polychrome) then x = true end
+    if key == "m_mult" or key == "m_lucky" or (c.edition and c.edition.holo) then p = true end
+  end
+  return x and p
+end
+
+-- Hand positions of the cards in s that score, left to right.
+local function scoring_positions(s)
+  local cards, pos = {}, {}
+  for _, i in ipairs(s) do cards[#cards + 1] = G.hand.cards[i]; pos[G.hand.cards[i]] = i end
+  local _, _, _, scoring = G.FUNCS.get_poker_hand_info(cards)
+  local out = {}
+  for _, c in ipairs(scoring or {}) do if pos[c] then out[#out + 1] = pos[c] end end
+  table.sort(out)
+  return out
+end
+H.scoring_positions = scoring_positions
+
+local function can_reroll_boss()
+  local GG = G.GAME
+  return (GG.dollars - GG.bankrupt_at) - 10 >= 0 and
+    (GG.used_vouchers["v_retcon"] or (GG.used_vouchers["v_directors_cut"] and not GG.round_resets.boss_rerolled))
+end
+
 local function usable_now(card)
   local ok, r = pcall(function() return card:can_use_consumeable() end)
   return ok and r
@@ -135,7 +193,13 @@ local function add_jokers_and_consumables(acts, controls)
     if controls then
       if usable_now(c) then add(acts, { type = "use_consumable", i = i }) end
     else
-      for _, s in ipairs(use_targets(c)) do add(acts, { type = "use_consumable", i = i, cards = s }) end
+      for _, s in ipairs(use_targets(c)) do
+        if H.mode == "ordered" and c.ability.name == "Death" and #s == 2 then
+          for _, src in ipairs(s) do add(acts, { type = "use_consumable", i = i, cards = s, src = src }) end
+        else
+          add(acts, { type = "use_consumable", i = i, cards = s })
+        end
+      end
     end
   end
 end
@@ -190,7 +254,13 @@ function H.legal_actions()
     else
       local n = #G.hand.cards
       for _, s in ipairs(subsets(n, 1, math.min(G.hand.config.highlighted_limit, n), forced_indices())) do
-        if can_play and #s <= 5 then add(acts, { type = "play", cards = s }) end
+        if can_play and #s <= 5 then
+          if H.mode == "ordered" and order_matters(s) then
+            for _, lead in ipairs(scoring_positions(s)) do add(acts, { type = "play", cards = s, lead = lead }) end
+          else
+            add(acts, { type = "play", cards = s })
+          end
+        end
         if can_discard then add(acts, { type = "discard", cards = s }) end
       end
     end
@@ -198,6 +268,7 @@ function H.legal_actions()
 
   elseif st == S.BLIND_SELECT then
     add(acts, { type = "select_blind" })
+    if H.mode == "ordered" and can_reroll_boss() then add(acts, { type = "reroll_boss" }) end
     local deck = G.GAME.blind_on_deck
     if (deck == "Small" or deck == "Big") and G.blind_select_opts and G.blind_select_opts[deck:lower()] then
       add(acts, { type = "skip_blind" })
@@ -226,7 +297,13 @@ function H.legal_actions()
         if controls then
           if usable_now(c) then add(acts, { type = "pick", i = i }) end
         else
-          for _, s in ipairs(use_targets(c)) do add(acts, { type = "pick", i = i, cards = s }) end
+          for _, s in ipairs(use_targets(c)) do
+            if H.mode == "ordered" and c.ability.name == "Death" and #s == 2 then
+              for _, src in ipairs(s) do add(acts, { type = "pick", i = i, cards = s, src = src }) end
+            else
+              add(acts, { type = "pick", i = i, cards = s })
+            end
+          end
         end
       elseif button_check(G.FUNCS.can_select_card, c) then
         add(acts, { type = "pick", i = i })
@@ -265,7 +342,7 @@ end
 
 function H.apply(a)
   local F, t = G.FUNCS, a.type
-  local subs = H.mode == "subsets"
+  local subs = H.mode ~= "controls"
   if t == "toggle" then
     local c = G.hand.cards[a.i]
     if c.highlighted then G.hand:remove_from_highlighted(c) else G.hand:add_to_highlighted(c, true) end
@@ -273,7 +350,11 @@ function H.apply(a)
   elseif t == "move_joker" then move(G.jokers, a.i, a.j)
   elseif t == "sort_rank" then G.FUNCS.sort_hand_value(nil)
   elseif t == "sort_suit" then G.FUNCS.sort_hand_suit(nil)
-  elseif t == "play" then if subs then set_highlight(a.cards) end; F.play_cards_from_highlighted(nil)
+  elseif t == "play" then
+    if subs then set_highlight(a.cards) end
+    -- lead: drag that card to the leftmost selected slot; played cards score in hand order
+    if a.lead and a.cards and a.lead ~= a.cards[1] then move(G.hand, a.lead, a.cards[1]) end
+    F.play_cards_from_highlighted(nil)
   elseif t == "discard" then if subs then set_highlight(a.cards) end; F.discard_cards_from_highlighted(nil)
   elseif t == "select_blind" then
     local box = G.blind_select_opts[G.GAME.blind_on_deck:lower()]
@@ -285,12 +366,19 @@ function H.apply(a)
   elseif t == "buy_and_use" then F.buy_from_shop(e_for(G.shop_jokers.cards[a.i], "buy_and_use"))
   elseif t == "redeem" then F.use_card(e_for(G.shop_vouchers.cards[a.i]))
   elseif t == "open_pack" then F.use_card(e_for(G.shop_booster.cards[a.i]))
-  elseif t == "pick" then if subs then set_highlight(a.cards) end; F.use_card(e_for(G.pack_cards.cards[a.i]))
+  elseif t == "pick" then
+    if subs then set_highlight(a.cards) end
+    if a.src and a.src ~= a.cards[#a.cards] then move(G.hand, a.src, a.cards[#a.cards]) end   -- Death copies the rightmost
+    F.use_card(e_for(G.pack_cards.cards[a.i]))
   elseif t == "skip_pack" then F.skip_booster(nil)
-  elseif t == "use_consumable" then if subs then set_highlight(a.cards) end; F.use_card(e_for(G.consumeables.cards[a.i]))
+  elseif t == "use_consumable" then
+    if subs then set_highlight(a.cards) end
+    if a.src and a.src ~= a.cards[#a.cards] then move(G.hand, a.src, a.cards[#a.cards]) end   -- Death copies the rightmost
+    F.use_card(e_for(G.consumeables.cards[a.i]))
   elseif t == "sell_joker" then F.sell_card(e_for(G.jokers.cards[a.i]))
   elseif t == "sell_consumable" then F.sell_card(e_for(G.consumeables.cards[a.i]))
   elseif t == "cash_out" then F.cash_out({ config = {} })
+  elseif t == "reroll_boss" then F.reroll_boss(nil)
   else error("unknown action " .. tostring(t)) end
 end
 
@@ -341,7 +429,8 @@ local function item(c, area_hides)
   local a = c.ability
   return { key = c.config.center.key, set = a.set, edition = ed(c), cost = c.cost, sell = c.sell_cost,
            eternal = a.eternal or nil, perishable = a.perishable or nil, perish_tally = a.perish_tally,
-           rental = a.rental or nil, debuff = c.debuff or nil, ability = primitives(a, 1) }
+           rental = a.rental or nil, debuff = c.debuff or nil, ability = primitives(a, 1),
+           hand_type = a.consumeable and a.consumeable.hand_type or nil }       -- the hand a Planet levels
 end
 
 local function map(list, f, hides) local out = {}; for i, v in ipairs(list or {}) do out[i] = f(v, hides) end; return out end
@@ -360,7 +449,7 @@ function H.observe()
   local GG, cr = G.GAME, G.GAME.current_round
   local hands = {}
   for k, v in pairs(GG.hands) do
-    hands[k] = { level = v.level, chips = v.chips, mult = v.mult, played = v.played,
+    hands[k] = { level = v.level, chips = v.chips, mult = v.mult, l_chips = v.l_chips, l_mult = v.l_mult, played = v.played,
                  played_this_round = v.played_this_round, visible = v.visible }
   end
   local vouchers = {}
@@ -369,7 +458,9 @@ function H.observe()
   local o = {
     state = H.state_name(), ante = GG.round_resets.ante, round = GG.round, stake = GG.stake,
     money = GG.dollars, chips = GG.chips, won = GG.won or false, bankrupt_at = GG.bankrupt_at,
-    interest_cap = GG.interest_cap, hands_left = cr.hands_left, discards_left = cr.discards_left,
+    interest_cap = GG.interest_cap, interest_amount = GG.interest_amount,
+    no_interest = (GG.modifiers and GG.modifiers.no_interest) and true or false,
+    hands_left = cr.hands_left, discards_left = cr.discards_left,
     hand_size = G.hand.config.card_limit, joker_slots = G.jokers.config.card_limit,
     consumable_slots = G.consumeables.config.card_limit, reroll_cost = cr.reroll_cost,
     free_rerolls = cr.free_rerolls, blind_on_deck = GG.blind_on_deck, hand_sort = G.hand.config.sort,

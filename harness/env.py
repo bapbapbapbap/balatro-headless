@@ -6,7 +6,8 @@
         acts = env.legal_actions()          # list of hashable tuples
         obs = env.step(random.choice(acts))
 
-An action tuple is (type, i, j, cards): i is a 1-based position in the relevant area (hand, shop,
+An action tuple is (type, i, j, cards), plus (lead, src) for the ordered mode's lead-card plays
+and Death directions: i is a 1-based position in the relevant area (hand, shop,
 pack, jokers, consumables), j the destination of a move, cards the 1-based hand positions to select
 (subsets mode only). Legality comes from the game's own button checks (see env.lua).
 
@@ -75,6 +76,8 @@ class BalatroEnv:
             a = raw[i]
             cards = tuple(a.cards[j] for j in range(1, len(a.cards) + 1)) if a.cards else ()
             key = (a.type, a.i, a.j, cards)
+            if a.lead or a.src:                    # ordered mode: lead card / card Death copies
+                key = key + (a.lead, a.src)
             self._acts[key] = a
             out.append(key)
         return out
