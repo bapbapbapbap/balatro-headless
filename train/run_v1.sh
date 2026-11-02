@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Trains model v1 overnight on this machine. Run after tools/setup_linux.sh.
 #   bash run_v1.sh <shared folder for results> [hours, default 10] [workers, default 12]
-# Weights (ckpt_*.pt, latest.pt, final.pt), metrics.jsonl, provenance.json and the log go to
-# <shared folder>/runs/v1. Keep this window open and the machine awake until it finishes.
+# Weights (ckpt_*.pt, best.pt, latest.pt, final.pt), metrics.jsonl, health.json, provenance.json
+# and train.log go to <shared folder>/runs/v1. Keep this window open and the machine awake.
+#
+# Safety: pre-flight accuracy checks below must pass or nothing starts. During the run, train.py
+# rejects bad updates, restarts crashed or hung workers, sizes the pool to free memory, stops
+# cleanly on low memory or disk or if learning stalls, flags heat throttling, keeps best.pt, and
+# stops within seconds on Ctrl+C with weights saved. See health.json for its state at any time.
 set -uo pipefail
 OUT="${1:?usage: run_v1.sh <shared folder> [hours] [workers]}/runs/v1"
 HOURS="${2:-10}"
@@ -10,11 +15,24 @@ WORKERS="${3:-12}"
 W="${BALATRO_HOME:-$HOME/balatro}"
 R="$W/balatro-headless"
 mkdir -p "$OUT"
+exec > >(tee -a "$OUT/train.log") 2>&1
+echo "== run_v1 $(date)"
 . "$W/venv/bin/activate"
-git -C "$R" pull -q --ff-only
+git -C "$R" pull -q --ff-only && git -C "$R" log --oneline -1
 python3 -c "import torch" 2>/dev/null || pip install -q torch numpy
-python3 -c "import numpy" 2>/dev/null || pip install -q numpy
 python3 -c "import torch; print('torch', torch.__version__, 'cuda' if torch.cuda.is_available() else 'cpu')"
+
+echo "== pre-flight checks"
+python3 "$R/harness/check_env.py" "$R/tests/fixtures/1793565485_2730e932.json.gz" --src "$W/local/source" \
+  --fast --mode subsets | tail -1 | grep -q PASS \
+  && echo "env vs logged run: PASS" || { echo "PRE-FLIGHT FAILED: env vs logged run"; exit 1; }
+( cd "$R/harness" && python3 diff_check.py --src "$W/local/source" --runs 5 --encode | tail -1 | grep -q PASS ) \
+  && echo "differential check with encoder: PASS" || { echo "PRE-FLIGHT FAILED: differential check"; exit 1; }
+free -g | head -2
+df -h "$OUT" | tail -1
+
+echo "== training"
 cd "$R/train"
 python3 train.py --src "$W/local/source" --run v1 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
-  --reward blinds --back b_red --stake 1 2>&1 | tee -a "$OUT/train.log"
+  --reward blinds --back b_red --stake 1
+echo "== exited $(date)"
