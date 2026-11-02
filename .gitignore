@@ -17,3 +17,6 @@ harness/vendor/
 
 __pycache__/
 *.pyc
+
+# Training output (checkpoints, metrics)
+train/runs/
