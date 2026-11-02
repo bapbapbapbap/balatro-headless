@@ -119,9 +119,35 @@ powershell -NoProfile -ExecutionPolicy Bypass -File bundle_balatro.ps1
 - Runs on Linux (or WSL).
 - Speed: ~60 ms per action with `--fast`. Fine for replays and search, not for millions of
   RL episodes. A fast rewrite of the rules could use this harness as its reference.
+- **Playable from code** (see [Playing it from code](#playing-it-from-code)): legal actions and
+  player-visible observations at every decision. Both fixtures can be driven entirely through
+  it with 0 mismatches.
 
 More logged runs and bug reports are the most useful contribution. A run that doesn't
 replay cleanly is a finding.
+
+## Versions
+Everything here was built and checked against exactly these. Anything else may differ.
+
+| Component | Version | Pin |
+|---|---|---|
+| Balatro | 1.0.1o-FULL, Windows Steam (app 2379780) | `Balatro.exe` SHA-256 `0D75FE164ACCF3312734D4B37AC98788DD15F0B8E4F9BB8B7F90C4E59DE93F47` |
+| LÖVE (the game's runtime) | 11.5 "Mysterious Mysteries" | `love.dll` FileVersion 11.5 r2 |
+| LuaJIT (the game's runtime) | 2.0.5 | `lua51.dll` SHA-256 `d0039528…ae49fb2`; built here from LuaJIT git `0bf80b07` ("RELEASE LuaJIT-2.0.5") |
+| lupa (Python bridge) | 2.8, rebuilt against LuaJIT 2.0.5 | `harness/build_lupa_luajit.sh` |
+| Lovely | 0.10.0 | |
+| Steamodded | 26.1002.0 | Lovely's dump of the patched game is version-specific |
+| Antelytics (run logger) | 1.3.0-alpha | fixtures recorded with it |
+| Python | 3.13 (tested 3.13.18) | |
+| OS for the harness | Linux x86_64 (or WSL) | |
+| Claude (wrote the code with chud) | Claude Opus 5.5, high effort | model ID `claude-opus-5-5`; each commit names the session |
+
+What each check ran on:
+- `replay.py`, `tests/run_replays.sh`: the modded game (Lovely + Steamodded above), both fixtures, 0 mismatches.
+- `check_env.py`, `fuzz.py`, `tests/run_env_checks.sh`: the unmodded 1.0.1o game, both fixtures (every vanilla value matching; Steamodded-only RNG streams excluded) and 100+ fuzz runs per action mode. The env hasn't been checked on the modded game yet.
+
+To keep your own install on these versions, run `tools/lock_balatro.ps1` (stops Steam
+updating the game) and don't update the mods while you're collecting runs.
 
 ## Usage
 ```bash
@@ -141,6 +167,33 @@ bash tests/run_replays.sh ./local/modded
 The fixtures in `tests/fixtures/` are our own logged runs: gameplay data only, no game code.
 They were recorded on the setup above. Lovely's dump changes with Steamodded's version, so
 re-record fixtures against your own setup.
+
+## Playing it from code
+`harness/env.py` exposes legal actions and observations at every decision, so an agent can play.
+```python
+from env import BalatroEnv
+env = BalatroEnv("./local/source")            # mode="controls" (default) or "subsets"
+env.reset(seed="ABC123", back="b_red", stake=1)
+while not env.done:
+    acts = env.legal_actions()                # [(type, i, j, cards), ...]
+    env.step(acts[0])
+```
+**Two action modes, same game:**
+- `controls` (default): the game's own controls. `toggle` a hand card, `move_hand` / `move_joker` (drag from slot i to j), `sort_rank` / `sort_suit`, then `play`, `discard`, `use_consumable` or `pick` with whatever is selected. Played cards score left to right in hand order, as in the game.
+- `subsets`: the selection is part of the action (`play` with cards (1,3,5)). Fewer steps, ~200–2000 actions per hand.
+- Both: `select_blind`, `skip_blind`, `end_shop`, `reroll`, `buy`, `buy_and_use`, `redeem`, `open_pack`, `pick`, `skip_pack`, `sell_joker`, `sell_consumable`, `cash_out`, `move_joker`.
+- Legality is the game's own: the checks its buttons use (`can_play`, `can_discard`, `can_buy`, `can_redeem`, `can_open`, `can_reroll`, `can_skip_booster`, `can_select_card`, `Card:can_use_consumeable`, `Card:can_sell_card`, `check_for_buy_space`, Cerulean Bell's forced selection, sort buttons only when they'd change something). Actions go through the same `G.FUNCS` calls `replay.py` validates.
+- Not offered yet: boss reroll (Director's Cut / Retcon), endless mode after a win.
+
+**Observation = what a player can see.** Face-up cards; face-down cards (The Fish, House, Wheel, Mark; jokers under Amber Acorn) masked; the deck view as sets (remaining and full deck, never draw order); joker and card values shown on hover; HUD, blind and its effect, shop and pack contents, tags, vouchers, hand levels, the round's Idol / Mail-In / Ancient / Castle targets. Never RNG state.
+
+**Checks** (`tests/run_env_checks.sh <source dir>`):
+- `check_env.py --mode controls`: drives each fixture entirely through env actions (joker drags as `move_joker`, hand order as `move_hand`, selections as `toggle`); every action must be legal when taken and state must match the log. Both fixtures: 256 decisions through 902 env actions, 0 mismatches.
+- `check_env.py --mode subsets`: every logged decision is in the legal set. 256/256.
+- `fuzz.py --mode controls|subsets`: plays many runs; fails on any offered action that crashes, never settles or changes nothing, and on any observation that leaks seed/RNG state or a face-down card. No failures.
+- Speed (unmodded, visuals stripped): ~12 ms per step in controls mode, ~33 ms in subsets mode; a runtime boots in ~0.1 s and `reset()` reuses it.
+
+The unmodded game also replays both fixtures with every vanilla value matching (money, hand, deck order, score, jokers, consumables, tags, hand levels, vanilla RNG streams). The only differences are Steamodded's own streams, which an unmodded game doesn't have.
 
 ## License and contact
 MIT, for **our tooling only**. Use it, fork it, build on it. Balatro itself remains
