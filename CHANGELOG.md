@@ -7,6 +7,14 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.5.0] - 2026-11-01
+
+### Added
+- **Seed retries** (`--retry-frac 0.25 --retry-min-ante 6 --retry-max 30 --retry-pool 2000`): seeds that lost after reaching ante 6+ are replayed with fresh sampling until beaten or out of attempts, closest first. Training stats stay on fresh seeds; retried games are logged separately (`retry` in metrics, `retry: true` on saved games). Unique beaten seeds counted in the log and `health.json`. Pool and beaten seeds saved in checkpoints.
+
+### Fixed
+- `run_v1.sh` pulls the repo first and then restarts itself from the updated script. Before, a pull that changed the script mid-run made bash skip lines (the new pre-flight replay didn't run on the 22:48 launch).
+
 ## [0.4.0] - 2026-11-01
 
 ### Added

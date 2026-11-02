@@ -17,10 +17,16 @@ WORKERS="${3:-14}"
 W="${BALATRO_HOME:-$HOME/balatro}"
 R="$W/balatro-headless"
 mkdir -p "$OUT"
+# Update first, then start over from the updated script: bash reads a script as it runs, so a pull
+# that changes this file mid-run would make it skip or garble lines.
+if [ -z "${RUN_V1_UPDATED:-}" ]; then
+  git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
+  RUN_V1_UPDATED=1 exec bash "$R/train/run_v1.sh" "$@"
+fi
 exec > >(tee -a "$OUT/train.log") 2>&1
 echo "== run_v1 $(date)"
 . "$W/venv/bin/activate"
-git -C "$R" pull -q --ff-only && git -C "$R" log --oneline -1
+git -C "$R" log --oneline -1
 python3 -c "import torch" 2>/dev/null || pip install -q torch numpy
 python3 -c "import torch; print('torch', torch.__version__, 'cuda' if torch.cuda.is_available() else 'cpu')"
 

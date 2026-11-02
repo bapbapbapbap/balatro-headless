@@ -450,6 +450,13 @@ def main():
     ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
     ap.add_argument("--sil-weight", type=float, default=1.0)
     ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
+    # seed retries: the solver side. A seed that lost after reaching a late ante is played again
+    # (with fresh sampling) until it is beaten or runs out of attempts.
+    ap.add_argument("--retry-frac", type=float, default=0.25,
+                    help="share of each round's training games spent on retrying close seeds (0 = off)")
+    ap.add_argument("--retry-min-ante", type=int, default=6, help="a lost seed is retried if it reached this ante")
+    ap.add_argument("--retry-max", type=int, default=30, help="attempts per seed before it is dropped")
+    ap.add_argument("--retry-pool", type=int, default=2000, help="most seeds waiting to be retried")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -521,7 +528,8 @@ def main():
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
-              "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer}
+              "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pool": retry_pool,
+              "beaten_seeds": sorted(beaten), "retry_stats": retry_stats}
         tmp = os.path.join(out, f".{tag}.pt.tmp")
         torch.save(ck, tmp)
         os.replace(tmp, os.path.join(out, f"{tag}.pt"))      # never leaves a half-written file
@@ -556,6 +564,48 @@ def main():
                                 "back": args.back, "stake": args.stake, "mode": "subsets",
                                 "profile": "unlocked", "fast": True, "provenance": prov}) + "\n")
     saved = {"games": 0, "wins": 0, "wins_verified": 0}
+    # retry pool: seed -> {"best_ante", "best_blinds", "attempts", "first_it"}; beaten: seeds won
+    retry_pool = dict(resumed.get("retry_pool", {})) if resumed else {}
+    beaten = set(resumed.get("beaten_seeds", [])) if resumed else set()
+    retry_stats = dict(resumed.get("retry_stats", {})) if resumed else {}
+    for k in ("retried", "beaten_on_retry", "dropped"):
+        retry_stats.setdefault(k, 0)
+
+    def train_seeds():
+        """This round's seeds: the closest waiting seeds first (latest ante reached, then fewest
+        attempts), the rest fresh (None = a new random seed in the worker)."""
+        n = args.workers * args.games_per_worker
+        k = min(int(round(n * args.retry_frac)), len(retry_pool)) if args.retry_frac > 0 else 0
+        order = sorted(retry_pool.items(), key=lambda kv: (-kv[1]["best_ante"], kv[1]["attempts"], -kv[1]["best_blinds"]))
+        picked = [sd for sd, _ in order[:k]]
+        flat = picked + [None] * (n - k)
+        return [flat[w::args.workers] for w in range(args.workers)], set(picked)
+
+    def update_retries(it, eps, retried):
+        for e in eps:
+            sd, p = e["seed"], e["progress"]
+            if p["won"]:
+                if sd not in beaten and sd in retried:
+                    retry_stats["beaten_on_retry"] += 1
+                beaten.add(sd)
+                retry_pool.pop(sd, None)
+                continue
+            if sd in retried:
+                r = retry_pool.get(sd)
+                if r is None:
+                    continue
+                r["attempts"] += 1
+                r["best_ante"] = max(r["best_ante"], p["ante"])
+                r["best_blinds"] = max(r["best_blinds"], p["blinds_beaten"])
+                if r["attempts"] >= args.retry_max:
+                    del retry_pool[sd]
+                    retry_stats["dropped"] += 1
+            elif p["ante"] >= args.retry_min_ante and sd not in beaten and sd not in retry_pool:
+                retry_pool[sd] = {"best_ante": p["ante"], "best_blinds": p["blinds_beaten"], "attempts": 0, "first_it": it}
+        retry_stats["retried"] += len(retried)
+        if len(retry_pool) > args.retry_pool:      # keep the closest
+            keep = sorted(retry_pool.items(), key=lambda kv: (-kv[1]["best_ante"], kv[1]["attempts"], -kv[1]["best_blinds"]))
+            retry_pool.clear(); retry_pool.update(keep[:args.retry_pool])
 
     def record(it, mode, eps):
         """Writes each game exactly. Wins also go to wins.jsonl, flagged if they didn't replay."""
@@ -564,7 +614,8 @@ def main():
         keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"]]
         recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
-                 "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"]} for e in keep]
+                 "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
+                 "retry": e.get("retry", False)} for e in keep]
         if recs:
             path = os.path.join(games_dir, f"r{it:05d}_{mode}.jsonl.gz")
             tmp = path + ".tmp"
@@ -642,6 +693,7 @@ def main():
                 eval_eps = run_round(split, "eval", it)
                 ev = summarize(eval_eps)
                 record(it, "eval", eval_eps)
+                beaten.update(e["seed"] for e in eval_eps if e["progress"]["won"])
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
@@ -659,9 +711,13 @@ def main():
                 health["best_eval_blinds"] = best_eval
 
             t0 = time.time()
-            eps = run_round([[None] * args.games_per_worker for _ in range(args.workers)], "train", it)
+            seeds, retried = train_seeds()
+            eps = run_round(seeds, "train", it)
             t1 = time.time()
+            for e in eps:
+                e["retry"] = e["seed"] in retried
             record(it, "train", eps)
+            update_retries(it, eps, retried)
             sil, sil_info = sil_data(it)
             add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
 
@@ -690,8 +746,10 @@ def main():
             t2 = time.time()
 
             games_total += len(eps)
-            s = summarize(eps)
-            wins_total += s["wins"]
+            fresh = [e for e in eps if not e["retry"]]
+            s = summarize(fresh or eps)       # the learning curve stays on fresh seeds only
+            sr = summarize([e for e in eps if e["retry"]]) if retried else None
+            wins_total += sum(e["progress"]["won"] for e in eps)
             train_hist.append(s["blinds_mean"])
             roll = float(np.mean(train_hist[-10:]))
             if len(train_hist) >= 10 and roll > best_roll + 0.05:
@@ -711,7 +769,8 @@ def main():
             rec = {"iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
-                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved)}
+                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved),
+                   "retry": sr, "retry_pool": len(retry_pool), "beaten_seeds": len(beaten), "retry_stats": dict(retry_stats)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
             print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
@@ -719,10 +778,13 @@ def main():
                   f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)"
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
+                  + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
+                  + f" | pool {len(retry_pool)} beaten seeds {len(beaten)}"
                   + f" | saved {saved['games']:,} games, {saved['wins_verified']}/{saved['wins']} wins verified", flush=True)
             save(it, "latest")
             write_health(iteration=it, hours=rec["hours"], games_total=games_total, wins_total=wins_total, last_train=s,
-                         decisions_per_second=rec["decisions_per_second"], saved=dict(saved), sil=sil_info)
+                         decisions_per_second=rec["decisions_per_second"], saved=dict(saved), sil=sil_info,
+                         last_retry=sr, retry_pool=len(retry_pool), beaten_seeds=len(beaten), retry_stats=dict(retry_stats))
     except Stop as e:
         reason = str(e)
     except Exception:
