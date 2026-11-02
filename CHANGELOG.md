@@ -7,6 +7,19 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.6.0] - 2026-11-01
+
+### Added
+- **Overlapped rounds** (`--overlap 1`, default): the workers play the next round while the learner updates, so the CPU isn't idle during the GPU update. Those games are played with weights one update old; PPO's ratio uses the log-probs of the policy that actually played them. Requests to the workers are numbered, so evals and self-imitation replays can land in between.
+- **Early stopping on KL** (`--target-kl 0.04`): an update stops once it has moved the policy past 1.5x the target, measured against the weights the update started from. Before, an update ran all epochs and was thrown out if it overshot (v1: 5 rejections between rounds 312 and 324, learning rate down to 3.75e-5).
+- The reject-guard (`--max-kl`) now checks how far the update itself moved the policy (`moved` in the log, on up to 2,048 of its steps), not the drift since the games were played, which with overlap includes the previous update.
+
+### Changed
+- **Self-imitation off by default** (`--sil-buffer 0`). At weight 1.0 on v1 it went with KL past the guard and entropy 2.35 -> 1.9; a cut to 0.2 still overshot. Now dosed as `--sil-steps 8` minibatches per update with the pull capped at `--sil-clip 1` PPO standard deviations and a Huber critic loss. A 2-core test couldn't separate its effect from noise (16-game rounds: entropy fell with it on *and* off), so turning it back on waits for an A/B test at full size: two runs from the same checkpoint, `--sil-buffer 64` vs `0`.
+
+### Checked (2-core cloud, unmodded 1.0.1o, from v1 round 325)
+- Overlap: rounds pipelined, evals and replays interleaved, 32/32 saved games replay exactly. Early stop at 5-8 minibatches; injected NaN at an overlapped round caught, reverted and counted as a strike.
+
 ## [0.5.0] - 2026-11-01
 
 ### Added

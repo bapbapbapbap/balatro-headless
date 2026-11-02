@@ -96,10 +96,11 @@ def worker_main(wid, args, in_q, out_q):
         msg = in_q.get()
         if msg is None:
             return
+        ticket = msg[5]
         try:
-            out_q.put(("done", wid, play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at)))
+            out_q.put(("done", wid, play_games(sim, model, reward_fn, rng, args, wid, msg[:5], crash_at), ticket))
         except Exception:
-            out_q.put(("error", wid, traceback.format_exc()))
+            out_q.put(("error", wid, traceback.format_exc(), ticket))
 
 
 def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
@@ -222,9 +223,28 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
     adv_scale = float(adv.std() + 1e-8)        # SIL advantages on the same scale as PPO's
     if sil is not None:
         stats.update(sil_pi=0.0, sil_v=0.0, sil_pos=0.0, sil_adv=0.0)
-    nb = 0
+    stats.update(early_stop=0.0, kl_end=0.0)
+    # Self-imitation runs on only --sil-steps of the update's minibatches, spread evenly: one step
+    # per minibatch (~225 a round) sharpened the policy (entropy 2.07 -> 1.48 in 3 rounds).
+    planned = args.epochs * max(1, math.ceil(n / args.minibatch))
+    sil_every = max(1, planned // max(1, args.sil_steps))
+    # Log-probs of the taken actions under the weights this update starts from. PPO's ratio uses the
+    # policy that played (one update older with --overlap); early stopping measures how far this
+    # update itself has moved, so it compares against these.
+    start_lp = np.zeros(n, np.float32)
+    if args.target_kl:
+        model.eval()
+        with torch.no_grad():
+            for i in range(0, n, 256):
+                idx = order_by_size[i:i + 256]
+                lg, _ = model(*collate([obs[j] for j in idx], device))
+                start_lp[idx] = torch.log_softmax(lg, -1).gather(
+                    1, torch.tensor([acts[j] for j in idx], device=device).unsqueeze(1)).squeeze(1).cpu().numpy()
+    nb, stop = 0, False
     model.train()
     for _ in range(args.epochs):
+        if stop:
+            break
         chunks = [order_by_size[i:i + args.minibatch] for i in range(0, n, args.minibatch)]
         random.shuffle(chunks)
         for idx in chunks:
@@ -237,20 +257,32 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
             A = torch.tensor(adv_n[idx], device=device)
             R = torch.tensor(ret[idx], device=device)
             ratio = torch.exp(lp - olp)
+            # Early stop (as in common PPO implementations): once this round's updates have moved the
+            # policy past 1.5x the KL target on fresh data, stop here instead of overshooting.
+            with torch.no_grad():
+                r0 = torch.exp(lp - torch.tensor(start_lp[idx], device=device))
+                k3 = ((r0 - 1) - torch.log(r0)).mean().item()          # low-variance KL estimate, vs. update start
+            stats["kl_end"] = k3
+            if args.target_kl and nb > 0 and k3 > 1.5 * args.target_kl:
+                stats["early_stop"] = 1.0
+                stop = True
+                break
             pi_loss = -torch.min(ratio * A, ratio.clamp(1 - args.clip, 1 + args.clip) * A).mean()
             v_loss = 0.5 * (value - R).pow(2).mean()
             p_all = torch.softmax(logits, -1)
             ent = -(p_all * logp_all.masked_fill(~amask, 0)).sum(-1).mean()
             loss = pi_loss + args.vf * v_loss - args.ent * ent
-            if sil is not None:
+            if sil is not None and nb % sil_every == 0:
                 sobs, sact, sret = sil
                 sidx = np.random.randint(0, len(sobs), size=min(args.minibatch, len(sobs)))
                 sk = collate([sobs[i] for i in sidx], device)
                 slog, sval = model(*sk)
                 slp = torch.log_softmax(slog, -1).gather(1, torch.tensor(sact[sidx], device=device).unsqueeze(1)).squeeze(1)
                 sadv = (torch.tensor(sret[sidx], device=device) - sval).clamp(min=0)
-                sil_pi = -(slp * (sadv / adv_scale).detach()).mean()
-                sil_v = 0.5 * sadv.pow(2).mean()
+                # capped: one high-return game can't pull a move harder than --sil-clip PPO std devs
+                w = (sadv / adv_scale).clamp(max=args.sil_clip).detach()
+                sil_pi = -(slp * w).mean()
+                sil_v = torch.nn.functional.smooth_l1_loss(sval, torch.max(torch.tensor(sret[sidx], device=device), sval).detach())
                 loss = loss + args.sil_weight * (sil_pi + args.sil_value * sil_v)
                 with torch.no_grad():
                     stats["sil_pi"] += sil_pi.item(); stats["sil_v"] += sil_v.item()
@@ -265,7 +297,22 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
                 stats["clipfrac"] += ((ratio - 1).abs() > args.clip).float().mean().item()
             nb += 1
     model.eval()
-    return {k: v / max(nb, 1) for k, v in stats.items()} | {"decisions": n}
+    # How far this update moved the policy, on up to 2048 of its steps (what the reject-guard checks).
+    kl_update = 0.0
+    if args.target_kl:
+        sample = order_by_size[np.linspace(0, n - 1, min(n, 2048)).astype(int)]
+        tot = 0.0
+        with torch.no_grad():
+            for i in range(0, len(sample), 256):
+                idx = sample[i:i + 256]
+                lg, _ = model(*collate([obs[j] for j in idx], device))
+                lp1 = torch.log_softmax(lg, -1).gather(1, torch.tensor([acts[j] for j in idx], device=device).unsqueeze(1)).squeeze(1)
+                r1 = torch.exp(lp1 - torch.tensor(start_lp[idx], device=device))
+                tot += ((r1 - 1) - torch.log(r1)).sum().item()
+        kl_update = tot / len(sample)
+    stats["kl_update"] = kl_update
+    once = {"early_stop", "kl_end", "kl_update"}
+    return {k: (v if k in once else v / max(nb, 1)) for k, v in stats.items()} | {"decisions": n, "minibatches": nb}
 
 
 # ---------------- bookkeeping ----------------
@@ -340,6 +387,7 @@ class Pool:
 
     def start(self, timeout=600):
         self.gen += 1
+        self.stash = {}
         W = self.args.workers
         self.in_qs = [self.ctx.Queue() for _ in range(W)]
         self.out_q = self.ctx.Queue()
@@ -372,29 +420,42 @@ class Pool:
                 p.terminate()
         self.procs = []
 
-    def play(self, state, seeds_per_worker, mode, it, timeout, should_stop=lambda: None):
+    # Requests are numbered (tickets), so a round can be sent, left running while the learner works,
+    # and collected later; replies to other requests that arrive meanwhile are kept for them.
+    def send(self, state, seeds_per_worker, mode, it):
+        self.ticket = getattr(self, "ticket", 0) + 1
         for w in range(self.args.workers):
-            self.in_qs[w].put((state, seeds_per_worker[w], mode, it, self.gen))
-        eps, errors, deadline = [], [], time.time() + timeout
-        for _ in range(self.args.workers):
-            while True:                       # wait in 1 s slices so a stop request is seen at once
-                why = should_stop()
-                if why:
-                    raise Stop(why)
-                try:
-                    tag, wid, e = self.out_q.get(timeout=1)
-                    break
-                except queue.Empty:
-                    if time.time() > deadline:
-                        dead = [i for i, p in enumerate(self.procs) if not p.is_alive()]
-                        raise WorkerFailure(f"round timed out after {timeout}s (dead workers: {dead or 'none, hung'})")
-            if tag == "error":
-                errors.append(f"worker {wid}:\n{e}")
+            self.in_qs[w].put((state, seeds_per_worker[w], mode, it, self.gen, self.ticket))
+        return (self.gen, self.ticket)
+
+    def collect(self, ticket, timeout, should_stop=lambda: None):
+        gen, t = ticket
+        if gen != self.gen:
+            raise WorkerFailure("workers were restarted after this round was sent")
+        got = self.stash.pop(t, [])
+        deadline = time.time() + timeout
+        while len(got) < self.args.workers:
+            why = should_stop()               # wait in 1 s slices so a stop request is seen at once
+            if why:
+                raise Stop(why)
+            try:
+                tag, wid, e, rt = self.out_q.get(timeout=1)
+            except queue.Empty:
+                if time.time() > deadline:
+                    dead = [i for i, p in enumerate(self.procs) if not p.is_alive()]
+                    raise WorkerFailure(f"round timed out after {timeout}s (dead workers: {dead or 'none, hung'})")
+                continue
+            if rt == t:
+                got.append((tag, wid, e))
             else:
-                eps.extend(e)
+                self.stash.setdefault(rt, []).append((tag, wid, e))
+        errors = [f"worker {wid}:\n{e}" for tag, wid, e in got if tag == "error"]
         if errors:
             raise WorkerFailure("\n".join(errors))
-        return eps
+        return [x for tag, wid, e in got for x in e]
+
+    def play(self, state, seeds_per_worker, mode, it, timeout, should_stop=lambda: None):
+        return self.collect(self.send(state, seeds_per_worker, mode, it), timeout, should_stop)
 
 
 def main():
@@ -436,6 +497,10 @@ def main():
                     help="on resume, go back to --lr instead of the (possibly halved) rate in the checkpoint")
     # safety
     ap.add_argument("--max-kl", type=float, default=0.2, help="reject an update that moves the policy further than this")
+    ap.add_argument("--overlap", type=int, default=1,
+                    help="1 = workers play the next round while the learner updates (games use weights one update old)")
+    ap.add_argument("--target-kl", type=float, default=0.04,
+                    help="stop an update early once its KL passes 1.5x this (0 = off); pre-SIL v1 ran at ~0.035")
     ap.add_argument("--max-strikes", type=int, default=3, help="consecutive rejected updates before stopping")
     ap.add_argument("--round-timeout", type=float, default=1200, help="seconds before a round counts as hung")
     ap.add_argument("--min-mem-gb", type=float, default=1.0, help="stop cleanly below this much free memory")
@@ -447,12 +512,16 @@ def main():
     # saved games and self-imitation
     ap.add_argument("--save-games", choices=["all", "wins", "none"], default="all",
                     help="write every game exactly (seed + actions) to <out>/games/; wins also go to wins.jsonl")
-    ap.add_argument("--sil-buffer", type=int, default=64,
-                    help="self-imitation: keep the N highest-return training games (0 = off)")
+    ap.add_argument("--sil-buffer", type=int, default=0,
+                    help="self-imitation: keep the N highest-return training games (0 = off; off by default until an A/B "
+                         "test at full size, see CHANGELOG 0.6.0; 64 is the tested setting)")
     ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
     ap.add_argument("--sil-weight", type=float, default=0.2,
                     help="1.0 pushed KL past the guard and entropy 2.35 -> 1.9 within 10 rounds on v1 (rounds 307-320)")
     ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
+    ap.add_argument("--sil-steps", type=int, default=8, help="self-imitation minibatches per update")
+    ap.add_argument("--sil-clip", type=float, default=1.0,
+                    help="cap on a saved move's pull, in PPO advantage standard deviations")
     # second drive
     ap.add_argument("--mirror-dir", help="also append every win to <dir>/wins.jsonl (e.g. an external drive)")
     ap.add_argument("--spill-dir", help="when the main drive runs low, write saved games and checkpoints here")
@@ -756,6 +825,7 @@ def main():
     rates = []                     # decisions per second of play, for the throttling flag
     reason = "finished"
     try:
+        pending = None
         for it in range(start_it, args.iterations):
             if stop_requested:
                 raise Stop(stop_requested[0])
@@ -795,9 +865,24 @@ def main():
                 health["best_eval_blinds"] = best_eval
 
             t0 = time.time()
-            seeds, source = train_seeds()
-            prev_entries = {sd: dict(pools[a][sd]) for sd, a in source.items()}
-            eps = run_round(seeds, "train", it)
+            if pending is None:
+                seeds, source = train_seeds()
+                prev_entries = {sd: dict(pools[a][sd]) for sd, a in source.items()}
+                eps = run_round(seeds, "train", it)
+            else:
+                # sent last round, before the update: played with weights one update old
+                ticket, seeds, source, prev_entries = pending
+                pending = None
+                try:
+                    eps = pool.collect(ticket, args.round_timeout, lambda: stop_requested[0] if stop_requested else None)
+                except WorkerFailure as e:
+                    alert(f"workers failed in overlapped round {it}: {str(e)[-1500:]}; restarting and replaying the round")
+                    pool.stop()
+                    try:
+                        pool.start()
+                    except WorkerFailure as e2:
+                        raise Stop(f"workers could not restart: {e2}")
+                    eps = run_round(seeds, "train", it)
             t1 = time.time()
             for e in eps:
                 e["retry"] = e["seed"] in source
@@ -806,6 +891,11 @@ def main():
             record(it, "train", eps)
             sil, sil_info = sil_data(it)
             add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
+            if args.overlap and not stop_requested:
+                # Send the next round now, so the workers play while the learner updates.
+                nseeds, nsource = train_seeds()
+                nprev = {sd: dict(pools[a][sd]) for sd, a in nsource.items()}
+                pending = (pool.send(weights(), nseeds, "train", it + 1), nseeds, nsource, nprev)
 
             # Update guard: keep a copy, reject the update if it is non-finite or moves too far.
             snap_m = {k: v.detach().clone() for k, v in model.state_dict().items()}
@@ -816,13 +906,14 @@ def main():
                     next(model.parameters()).fill_(float("nan"))
             finite = all(torch.isfinite(p).all() for p in model.parameters()) and \
                 all(math.isfinite(v) for v in st.values())
-            if not finite or abs(st["kl"]) > args.max_kl:
+            moved = st["kl_update"] if args.target_kl else abs(st["kl"])   # this update's own change
+            if not finite or moved > args.max_kl:
                 model.load_state_dict(snap_m)
                 opt.load_state_dict(snap_o)
                 for g in opt.param_groups:
                     g["lr"] *= 0.5
                 strikes += 1
-                why = "non-finite loss or weights" if not finite else f"kl {st['kl']:.3f} > {args.max_kl}"
+                why = "non-finite loss or weights" if not finite else f"kl {moved:.3f} > {args.max_kl}"
                 alert(f"update {it} rejected ({why}); "
                       f"reverted, learning rate now {opt.param_groups[0]['lr']:.2e} (strike {strikes}/{args.max_strikes})")
                 if strikes >= args.max_strikes:
@@ -862,7 +953,7 @@ def main():
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
             print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
-                  f"ent {st['entropy']:.2f} kl {st['kl']:.4f} | {rec['games_per_hour']} games/h "
+                  f"ent {st['entropy']:.2f} kl {st['kl']:.4f} moved {st.get('kl_update', 0):.4f}{' (stopped early at ' + str(st['minibatches']) + ' minibatches)' if st.get('early_stop') else ''} | {rec['games_per_hour']} games/h "
                   f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)"
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
