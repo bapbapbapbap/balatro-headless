@@ -7,6 +7,17 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.4.0] - 2026-11-01
+
+### Added
+- **Every game saved exactly** (`--save-games all`, default): seed, setup and every action, as its index into the legal list and as text (`play 1,3,5`, `buy 2`), plus a hash of the final observation, one gzipped file per round in `<run>/games/` with `meta.jsonl` recording what they were played on. Wins also go to `<run>/wins.jsonl`. About 4 MB per hour of training at 14 workers.
+- **Wins verified on the spot**: the worker replays each won game from its seed and actions before it is saved; a win that doesn't reproduce is saved, flagged `verified: false` and raises an alert.
+- **`train/verify_games.py`**: replays saved games in a fresh runtime (`--fresh-each`), optionally on the untouched game (`--full`), checking every move, the step count, the final state and the outcome.
+- **Self-imitation learning** (Oh et al. 2018; `--sil-buffer 64 --sil-games 8`, `--sil-buffer 0` turns it off): the highest-return training games are kept as routes, replayed by the workers into exact training data every round, and pull the policy toward their moves by max(R - V, 0), inside the same guarded update as PPO. Selected by return under the reward of record, so no new goal enters. The buffer is saved in checkpoints.
+
+### Checked
+- Recording: 12 random-play games replayed with 0 mismatches in both the fast and the untouched sim; 48 games from a short training run (resumed from v1 round 260) replayed with 0 mismatches, a fresh runtime per game.
+
 ## [0.3.3] - 2026-11-01
 
 ### Added

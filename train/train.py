@@ -8,6 +8,7 @@ metrics go to runs/<run>/. Nothing here prefers one outcome over another except 
 """
 import argparse
 import copy
+import gzip
 import hashlib
 import json
 import math
@@ -106,6 +107,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
         # scores are comparable between rounds), "greedy" (most likely action; can loop forever
         # on free actions like dragging jokers, so it is a diagnostic only).
         state, seeds, mode, it, gen = msg
+        if mode == "replay":
+            return replay_games(sim, reward_fn, args, seeds)
         greedy = mode == "greedy"
         if it in crash_at and gen == 0 and wid == 0 and mode == "train":
             raise RuntimeError(f"injected worker crash at iteration {it}")
@@ -137,10 +140,43 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if not done:
                     o = sim.observe()
-            episodes.append({"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
-                             "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
-                             "return": sum(s[5] for s in steps)})
+            ep = {"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
+                  "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
+                  "return": sum(s[5] for s in steps),
+                  # the exact game: seed + every action (index into the legal list, and as text)
+                  "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None}
+            if ep["progress"]["won"]:
+                ep["verified"] = verify_route(sim, args, ep)
+            episodes.append(ep)
         return episodes
+
+
+def verify_route(sim, args, ep):
+    """Plays a won game again from its saved seed and actions; True only if every step is the same
+    move and the game ends in the same state. (The game is deterministic, so this must hold.)"""
+    prog, n, final, problems = sim.replay(ep["seed"], args.back, args.stake, ep["acts"], ep["desc"])
+    return not problems and n == ep["n"] and final == ep["final"] and prog == ep["progress"]
+
+
+def replay_games(sim, reward_fn, args, routes):
+    """Self-imitation: replays saved games into training data (observation, action, reward per step).
+    Saved routes are exact, so this regenerates the very states the bot saw when it played them."""
+    out = []
+    for r in routes:
+        o = sim.reset(r["seed"], args.back, args.stake)
+        steps, done, bad = [], False, None
+        for k, a in enumerate(r["acts"]):
+            if done or a >= len(o["act"]) or sim.H.action_desc(a + 1) != r["desc"][k]:
+                bad = f"step {k} differs from the saved game"
+                break
+            prev, cur, done = sim.step(a)
+            steps.append((o, a, reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)))
+            if not done:
+                o = sim.observe()
+        if bad is None and sim.final_hash() != r["final"]:
+            bad = "final state differs from the saved game"
+        out.append({"key": r["key"], "steps": None if bad else steps, "problem": bad})
+    return out
 
 
 # ---------------- PPO ----------------
@@ -156,7 +192,20 @@ def gae(rewards, values, gamma, lam):
     return adv
 
 
-def ppo_update(model, opt, episodes, args, device):
+def discounted(rewards, gamma):
+    out, g = np.zeros(len(rewards), np.float32), 0.0
+    for t in reversed(range(len(rewards))):
+        g = rewards[t] + gamma * g
+        out[t] = g
+    return out
+
+
+def ppo_update(model, opt, episodes, args, device, sil=None):
+    """sil: optional (obs, actions, returns) from replayed saved games. Self-imitation (Oh et al.
+    2018): each step pulls the policy toward the saved action by how much the game's actual return
+    beat the critic's estimate, max(R - V, 0), and the critic toward R where it underestimated.
+    Steps the critic already expected contribute nothing, so this reuses only what the bot
+    undervalued. The return is the same reward (+ shaping) the bot is trained on: no new goal."""
     obs, acts, oldlp, adv, ret = [], [], [], [], []
     for ep in episodes:
         r = [s[4] for s in ep["steps"]]
@@ -170,6 +219,9 @@ def ppo_update(model, opt, episodes, args, device):
     n = len(obs)
     order_by_size = np.argsort([len(o["act"]) for o in obs])   # batch similar sizes: less padding
     stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0}
+    adv_scale = float(adv.std() + 1e-8)        # SIL advantages on the same scale as PPO's
+    if sil is not None:
+        stats.update(sil_pi=0.0, sil_v=0.0, sil_pos=0.0, sil_adv=0.0)
     nb = 0
     model.train()
     for _ in range(args.epochs):
@@ -190,6 +242,19 @@ def ppo_update(model, opt, episodes, args, device):
             p_all = torch.softmax(logits, -1)
             ent = -(p_all * logp_all.masked_fill(~amask, 0)).sum(-1).mean()
             loss = pi_loss + args.vf * v_loss - args.ent * ent
+            if sil is not None:
+                sobs, sact, sret = sil
+                sidx = np.random.randint(0, len(sobs), size=min(args.minibatch, len(sobs)))
+                sk = collate([sobs[i] for i in sidx], device)
+                slog, sval = model(*sk)
+                slp = torch.log_softmax(slog, -1).gather(1, torch.tensor(sact[sidx], device=device).unsqueeze(1)).squeeze(1)
+                sadv = (torch.tensor(sret[sidx], device=device) - sval).clamp(min=0)
+                sil_pi = -(slp * (sadv / adv_scale).detach()).mean()
+                sil_v = 0.5 * sadv.pow(2).mean()
+                loss = loss + args.sil_weight * (sil_pi + args.sil_value * sil_v)
+                with torch.no_grad():
+                    stats["sil_pi"] += sil_pi.item(); stats["sil_v"] += sil_v.item()
+                    stats["sil_pos"] += (sadv > 0).float().mean().item(); stats["sil_adv"] += sadv.mean().item()
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
@@ -377,6 +442,14 @@ def main():
     ap.add_argument("--stall-hours", type=float, default=3.0,
                     help="stop if the 10-round average training score hasn't improved in this long")
     ap.add_argument("--inject", help="test the safety checks: nan:<it>,crash:<it>")
+    # saved games and self-imitation
+    ap.add_argument("--save-games", choices=["all", "wins", "none"], default="all",
+                    help="write every game exactly (seed + actions) to <out>/games/; wins also go to wins.jsonl")
+    ap.add_argument("--sil-buffer", type=int, default=64,
+                    help="self-imitation: keep the N highest-return training games (0 = off)")
+    ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
+    ap.add_argument("--sil-weight", type=float, default=1.0)
+    ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -448,7 +521,7 @@ def main():
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
-              "lr": opt.param_groups[0]["lr"]}
+              "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer}
         tmp = os.path.join(out, f".{tag}.pt.tmp")
         torch.save(ck, tmp)
         os.replace(tmp, os.path.join(out, f"{tag}.pt"))      # never leaves a half-written file
@@ -473,6 +546,78 @@ def main():
         wins_total = resumed.get("wins_total", 0)
         alert(f"resumed from {args.resume} at round {start_it} (best eval {best_eval:.2f} blinds/game, "
               f"{games_total:,} games and {wins_total:,} wins so far)")
+    sil_buffer = list(resumed.get("sil_buffer", [])) if resumed else []
+    sil_rng = random.Random(f"sil-{args.seed}-{start_it}")
+    games_dir = os.path.join(out, "games")
+    if args.save_games != "none":
+        os.makedirs(games_dir, exist_ok=True)
+        with open(os.path.join(games_dir, "meta.jsonl"), "a") as f:   # what every saved game was played on
+            f.write(json.dumps({"from_iteration": start_it, "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                "back": args.back, "stake": args.stake, "mode": "subsets",
+                                "profile": "unlocked", "fast": True, "provenance": prov}) + "\n")
+    saved = {"games": 0, "wins": 0, "wins_verified": 0}
+
+    def record(it, mode, eps):
+        """Writes each game exactly. Wins also go to wins.jsonl, flagged if they didn't replay."""
+        if args.save_games == "none":
+            return
+        keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"]]
+        recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
+                 "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
+                 "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"]} for e in keep]
+        if recs:
+            path = os.path.join(games_dir, f"r{it:05d}_{mode}.jsonl.gz")
+            tmp = path + ".tmp"
+            with gzip.open(tmp, "wt") as f:
+                for r in recs:
+                    f.write(json.dumps(r) + "\n")
+            os.replace(tmp, path)
+            saved["games"] += len(recs)
+        for r in recs:
+            if r["progress"]["won"]:
+                with open(os.path.join(out, "wins.jsonl"), "a") as f:
+                    f.write(json.dumps(r | {"commit": prov["commit"][:12]}) + "\n")
+                saved["wins"] += 1
+                if r["verified"]:
+                    saved["wins_verified"] += 1
+                else:
+                    alert(f"won game (seed {r['seed']}, round {it}) did NOT replay exactly; saved, flagged unverified")
+
+    def add_to_buffer(it, eps):
+        """Keeps the highest-return training games (return under the reward of record), as routes."""
+        if args.sil_buffer <= 0:
+            return
+        for k, e in enumerate(eps):
+            if e["capped"]:
+                continue
+            sil_buffer.append({"key": f"{it}-{k}", "seed": e["seed"], "acts": e["acts"], "desc": e["desc"],
+                               "final": e["final"], "return": e["return"], "won": e["progress"]["won"], "it": it})
+        sil_buffer.sort(key=lambda r: (r["return"], r["it"]), reverse=True)
+        del sil_buffer[args.sil_buffer:]
+
+    def sil_data(it):
+        if args.sil_buffer <= 0 or not sil_buffer:
+            return None, {}
+        pick = [sil_buffer[sil_rng.randrange(len(sil_buffer))] for _ in range(args.sil_games)]
+        split = [pick[w::args.workers] for w in range(args.workers)]
+        got = run_round(split, "replay", it)
+        obs, act, ret, bad = [], [], [], set()
+        for g in got:
+            if g["problem"]:
+                bad.add(g["key"])
+                alert(f"saved game {g['key']} no longer replays ({g['problem']}); dropped from the buffer")
+                continue
+            for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], args.gamma)):
+                obs.append(o); act.append(a); ret.append(R)
+        if bad:
+            sil_buffer[:] = [r for r in sil_buffer if r["key"] not in bad]
+        if not obs:
+            return None, {}
+        info = {"buffer": len(sil_buffer), "buffer_wins": sum(r["won"] for r in sil_buffer),
+                "buffer_min_return": min(r["return"] for r in sil_buffer),
+                "replayed_games": len(got) - len(bad), "replayed_steps": len(obs)}
+        return (obs, np.array(act), np.array(ret, np.float32)), info
+
     rates = []                     # decisions per second of play, for the throttling flag
     reason = "finished"
     try:
@@ -496,6 +641,7 @@ def main():
                 split = [esd[w::args.workers] for w in range(args.workers)]
                 eval_eps = run_round(split, "eval", it)
                 ev = summarize(eval_eps)
+                record(it, "eval", eval_eps)
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
@@ -515,11 +661,14 @@ def main():
             t0 = time.time()
             eps = run_round([[None] * args.games_per_worker for _ in range(args.workers)], "train", it)
             t1 = time.time()
+            record(it, "train", eps)
+            sil, sil_info = sil_data(it)
+            add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
 
             # Update guard: keep a copy, reject the update if it is non-finite or moves too far.
             snap_m = {k: v.detach().clone() for k, v in model.state_dict().items()}
             snap_o = copy.deepcopy(opt.state_dict())
-            st = ppo_update(model, opt, eps, args, device)
+            st = ppo_update(model, opt, eps, args, device, sil)
             if it in nan_at:
                 with torch.no_grad():
                     next(model.parameters()).fill_(float("nan"))
@@ -562,15 +711,18 @@ def main():
             rec = {"iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
-                   "hours": round((time.time() - t_start) / 3600, 3)}
+                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
             print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
                   f"ent {st['entropy']:.2f} kl {st['kl']:.4f} | {rec['games_per_hour']} games/h "
-                  f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)", flush=True)
+                  f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)"
+                  + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
+                     f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
+                  + f" | saved {saved['games']:,} games, {saved['wins_verified']}/{saved['wins']} wins verified", flush=True)
             save(it, "latest")
             write_health(iteration=it, hours=rec["hours"], games_total=games_total, wins_total=wins_total, last_train=s,
-                         decisions_per_second=rec["decisions_per_second"])
+                         decisions_per_second=rec["decisions_per_second"], saved=dict(saved), sil=sil_info)
     except Stop as e:
         reason = str(e)
     except Exception:
