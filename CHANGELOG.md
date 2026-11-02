@@ -7,6 +7,17 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.7.1] - 2026-11-02
+
+### Added
+- **Behavior cloning before RL** (`--bc games.jsonl ... --bc-epochs 2`): workers replay saved games into exact training data; the policy learns the move that was made (cross-entropy), the critic the game's actual discounted return. Runs once on a fresh model (skipped on resume), then evals and continues with RL; saves `bc.pt`. Meant for starting v2 from v1's play: v1's games converted to v2's action list.
+- `convert_routes.py`: reads `games/` directories and `.jsonl.gz`, newest rounds first; `--train-only` (eval-seed games stay out of anything v2 learns from), `--max-games`, `--jobs` (parallel).
+- **`train/run_v2.sh`**: pre-flight (saved win on the untouched game, ordered-action checks, fast vs untouched under encoder v2), converts v1's most recent training games (default 3,000) plus converted wins, clones, then RL at full power; resumes from `runs/v2/latest.pt` later.
+- **Time per decision** in the log: model vs sim, in the workers (whether moving move choice to the GPU would pay).
+
+### Checked (cloud)
+- Behavior cloning trains (2-core run cut short: move loss 3.68, saved move matched 23.7% after the first 8 games). Converted games whose saved final hash predates a v2 encoding change are refused, as they should be.
+
 ## [0.7.0] - 2026-11-02
 
 ### Added: v2 (opt-in; v1 defaults unchanged, its encoding byte-identical)

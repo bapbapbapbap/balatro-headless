@@ -6,9 +6,15 @@ only if it ends the same way, and is written with its v2 actions, v2 final-state
 record it came from.
 
     python3 convert_routes.py --src DIR wins.jsonl [more.jsonl ...] --out wins_v2.jsonl [--wins-only]
+    python3 convert_routes.py --src DIR runs/v1/games --out v1_games_v2.jsonl --train-only --max-games 5000 --jobs 14
+
+Inputs can be .jsonl / .jsonl.gz files or a games/ directory (newest rounds first).
 """
 import argparse
+import glob
+import gzip
 import json
+import multiprocessing as mp
 import os
 import sys
 
@@ -70,37 +76,78 @@ def convert(sim, r):
     return out, None
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("files", nargs="+")
-    ap.add_argument("--src", required=True)
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--wins-only", action="store_true")
-    args = ap.parse_args()
-    sim = Sim(args.src, mode="ordered", enc=2)
-    sim.env.lua.execute(FIND, sim.H)
-    done, bad, seen = 0, 0, set()
-    with open(args.out, "w") as fo:
-        for f in args.files:
-            for line in open(f):
+_sim = None
+
+
+def _init(src):
+    global _sim
+    _sim = Sim(src, mode="ordered", enc=2)
+    _sim.env.lua.execute(FIND, _sim.H)
+
+
+def _work(r):
+    out, why = convert(_sim, r)
+    return out, why, r["seed"], r.get("mode"), r.get("iteration")
+
+
+def records(paths, args):
+    files = []
+    for p in paths:
+        if os.path.isdir(p):
+            files += sorted(glob.glob(os.path.join(p, "*.jsonl.gz")), reverse=True)    # newest rounds first
+        else:
+            files.append(p)
+    seen, n = set(), 0
+    for f in files:
+        op = gzip.open if f.endswith(".gz") else open
+        with op(f, "rt") as fh:
+            for line in fh:
                 if not line.strip():
                     continue
                 r = json.loads(line)
                 if args.wins_only and not r["progress"]["won"]:
                     continue
+                if args.train_only and r.get("mode") != "train":
+                    continue                      # eval-seed games stay out of anything v2 learns from
                 if r.get("actions", "subsets") != "subsets" or r.get("enc", 1) != 1:
                     continue
                 key = (r["seed"], tuple(r["acts"]))
                 if key in seen:
                     continue
                 seen.add(key)
-                out, why = convert(sim, r)
-                if out is None:
-                    bad += 1
-                    print(f"NOT CONVERTED seed {r['seed']} ({r.get('mode')} round {r.get('iteration')}): {why}")
-                    continue
-                fo.write(json.dumps(out) + "\n")
-                done += 1
+                yield r
+                n += 1
+                if args.max_games and n >= args.max_games:
+                    return
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("files", nargs="+")
+    ap.add_argument("--src", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--wins-only", action="store_true")
+    ap.add_argument("--train-only", action="store_true", help="skip eval-mode games (eval seeds)")
+    ap.add_argument("--max-games", type=int, default=0)
+    ap.add_argument("--jobs", type=int, default=1)
+    args = ap.parse_args()
+    done, bad = 0, 0
+    with open(args.out, "w") as fo:
+        if args.jobs > 1:
+            pool = mp.get_context("spawn").Pool(args.jobs, initializer=_init, initargs=(args.src,))
+            results = pool.imap(_work, records(args.files, args), chunksize=4)
+        else:
+            _init(args.src)
+            results = map(_work, records(args.files, args))
+        for out, why, seed, mode, it in results:
+            if out is None:
+                bad += 1
+                print(f"NOT CONVERTED seed {seed} ({mode} round {it}): {why}")
+                continue
+            fo.write(json.dumps(out) + "\n")
+            done += 1
+            if done % 500 == 0:
+                print(f"{done} converted", flush=True)
     print(f"{done} games converted, {bad} not")
     raise SystemExit(0 if done and not bad else 1)
 
