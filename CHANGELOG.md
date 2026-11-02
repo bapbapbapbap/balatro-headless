@@ -2,6 +2,21 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.3.2] - 2026-11-01
+
+### Fixed
+- **Boss counting.** `Blind.boss` is already cleared when the cash-out screen shows, so bosses beaten read 0. Now uses the game's own test from `end_round` (the beaten blind is neither Small nor Big). Checked with the laptop's round-19 weights: bosses beaten = ante - 1 in every game.
+- **Evaluation by seeded sampling, not argmax.** The argmax evaluation looped on free actions (dragging a joker back and forth): 73-82% of evaluation games hit the 1,500-decision cap while training improved from 0 to ~7 blinds per game. Evaluation now samples like training, with a fixed RNG per evaluation seed.
+- **Stall stop reads the training score** (10-round average), which has never looped; evaluation still picks `best.pt`. Sampled evaluation on the laptop still capped 116/200 games, not reproducible on another machine; capped evaluation games now log their last 30 states and moves to `eval_capped.jsonl`.
+
+### Added
+- **Auto-resume**: `run_v1.sh` continues from `latest.pt`; checkpoints carry the best eval and games so far.
+- **`--max-games`**: stop after a total number of training games; `run_v1.sh` defaults to 100,000 and 14 workers.
+- **`docs/hypotheses.md`**: pre-registered hypotheses for the v1 run, shaping, and the main experiment, plus what has to be done before the main training. Committed while the v1 run was in progress, before its results.
+
+### Results so far (laptop, Core Ultra 9 285H, RTX 40 learner)
+- v1, Red Deck / White Stake, reward `blinds` + shaping: training average 0 -> ~7 blinds per game in ~5,000 games; sampled eval 5.58 blinds per game at round 50; games reaching ante 6-7; 0 wins yet. ~13-15k games per hour on 12 workers.
+
 ## [0.3.1] - 2026-11-01
 
 ### Added
