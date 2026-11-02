@@ -7,6 +7,13 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.6.1] - 2026-11-02
+
+### Fixed
+- **Crash on games that end at ante 0** (a Hieroglyph voucher sets the ante back by 1): the retry pools had no ante-0 bucket (`KeyError: '0'`). Such seeds now go with ante 1. Crashed v1 at 23:59, 00:07, 00:26 and 00:47; after five restarts the watcher stopped relaunching and the run was down from 00:47.
+- **GPU out of memory** in the KL measurements added in 0.6.0 (start-of-update log-probs and the guard's sample): they ran 256 states at a time, and states with ~2,000 legal plays don't fit; now the training minibatch size. Crashed v1 at 00:02.
+- **Early stopping fired on noise**: it compared one 64-step minibatch's KL with the threshold (67 early stops in 100 rounds while the average update moved 0.011). Now the mean of the last 4 minibatches, and never before the 4th.
+
 ## [0.6.0] - 2026-11-01
 
 ### Added

@@ -235,8 +235,8 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
     if args.target_kl:
         model.eval()
         with torch.no_grad():
-            for i in range(0, n, 256):
-                idx = order_by_size[i:i + 256]
+            for i in range(0, n, args.minibatch):   # training's batch size: big action lists run out of GPU memory at 256
+                idx = order_by_size[i:i + args.minibatch]
                 lg, _ = model(*collate([obs[j] for j in idx], device))
                 start_lp[idx] = torch.log_softmax(lg, -1).gather(
                     1, torch.tensor([acts[j] for j in idx], device=device).unsqueeze(1)).squeeze(1).cpu().numpy()
@@ -305,8 +305,8 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
         sample = order_by_size[np.linspace(0, n - 1, min(n, 2048)).astype(int)]
         tot = 0.0
         with torch.no_grad():
-            for i in range(0, len(sample), 256):
-                idx = sample[i:i + 256]
+            for i in range(0, len(sample), args.minibatch):
+                idx = sample[i:i + args.minibatch]
                 lg, _ = model(*collate([obs[j] for j in idx], device))
                 lp1 = torch.log_softmax(lg, -1).gather(1, torch.tensor([acts[j] for j in idx], device=device).unsqueeze(1)).squeeze(1)
                 r1 = torch.exp(lp1 - torch.tensor(start_lp[idx], device=device))
