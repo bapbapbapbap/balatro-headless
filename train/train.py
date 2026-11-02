@@ -432,6 +432,8 @@ def main():
     ap.add_argument("--device", default="auto")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", help="checkpoint to continue from")
+    ap.add_argument("--reset-lr", action="store_true",
+                    help="on resume, go back to --lr instead of the (possibly halved) rate in the checkpoint")
     # safety
     ap.add_argument("--max-kl", type=float, default=0.2, help="reject an update that moves the policy further than this")
     ap.add_argument("--max-strikes", type=int, default=3, help="consecutive rejected updates before stopping")
@@ -448,7 +450,8 @@ def main():
     ap.add_argument("--sil-buffer", type=int, default=64,
                     help="self-imitation: keep the N highest-return training games (0 = off)")
     ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
-    ap.add_argument("--sil-weight", type=float, default=1.0)
+    ap.add_argument("--sil-weight", type=float, default=0.2,
+                    help="1.0 pushed KL past the guard and entropy 2.35 -> 1.9 within 10 rounds on v1 (rounds 307-320)")
     ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
     # second drive
     ap.add_argument("--mirror-dir", help="also append every win to <dir>/wins.jsonl (e.g. an external drive)")
@@ -503,6 +506,9 @@ def main():
         ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start_it = ck["iteration"] + 1
+        if args.reset_lr:
+            for g in opt.param_groups:
+                g["lr"] = args.lr
         resumed = ck
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)

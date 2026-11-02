@@ -14,6 +14,10 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 - **Second drive**: `--mirror-dir` appends every win to `<dir>/wins.jsonl` as well (a second copy of the beaten seeds); `--spill-dir` takes new saved games and checkpoints once the main drive is under `--spill-at-gb` (default 50) free. Both alert instead of failing if the drive isn't there. `run_v1.sh` points both at `/mnt/f/balatro data` (override with `MIRROR_DIR` / `SPILL_DIR`).
 
+### Changed
+- **Self-imitation weight 1.0 -> 0.2.** On v1 (rounds 307-320) weight 1.0 raised KL from ~0.035 to 0.1-0.26 (two updates rejected, learning rate halved twice to 7.5e-5), entropy fell 2.35 -> 1.9, and 6 of 200 eval games at round 320 looped on joker drags to the decision cap.
+- `--reset-lr` restores `--lr` on resume; `run_v1.sh` passes `TRAIN_ARGS` through for one launch.
+
 ### Fixed
 - `run_v1.sh` pulls the repo first and then restarts itself from the updated script. Before, a pull that changed the script mid-run made bash skip lines (the new pre-flight replay didn't run on the 22:48 launch).
 

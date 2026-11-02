@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Trains model v1 overnight on this machine. Run after tools/setup_linux.sh.
 #   bash run_v1.sh <shared folder for results> [hours, default 168] [workers, default 14]
+# Extra train.py flags for one launch: TRAIN_ARGS="--reset-lr" bash run_v1.sh ...
 # Stops at MAX_WINS won games (default 1,000,000: runs that beat the ante 8 boss), MAX_GAMES total
 # games (default 0 = no limit), the hours cap, or any safety stop, whichever comes first.
 # Weights (ckpt_*.pt, best.pt, latest.pt, final.pt), metrics.jsonl, health.json, provenance.json
@@ -47,5 +48,5 @@ RESUME=()
 if [ -f "$OUT/latest.pt" ]; then RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"; fi
 python3 train.py --src "$W/local/source" --run v1 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
   --reward blinds --back b_red --stake 1 --max-games "${MAX_GAMES:-0}" --max-wins "${MAX_WINS:-1000000}" \
-  --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" "${RESUME[@]}"
+  --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" "${RESUME[@]}" ${TRAIN_ARGS:-}
 echo "== exited $(date)"
