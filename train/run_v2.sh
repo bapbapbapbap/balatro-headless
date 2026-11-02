@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Trains model v2 (encoding 2, ordered actions, 1.6M parameters) on this machine.
+#   bash run_v2.sh <shared folder> [hours, default 168] [workers, default 14]
+# First launch: converts v1's most recent training games (and every converted win) to v2's action
+# list, imitates them (behavior cloning), then continues with RL. Later launches resume from
+# runs/v2/latest.pt and skip straight to RL. Results in <shared folder>/runs/v2.
+set -uo pipefail
+SHARED="${1:?usage: run_v2.sh <shared folder> [hours] [workers]}"
+OUT="$SHARED/runs/v2"
+HOURS="${2:-168}"
+WORKERS="${3:-14}"
+W="${BALATRO_HOME:-$HOME/balatro}"
+R="$W/balatro-headless"
+mkdir -p "$OUT"
+if [ -z "${RUN_V2_UPDATED:-}" ]; then
+  git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
+  RUN_V2_UPDATED=1 exec bash "$R/train/run_v2.sh" "$@"
+fi
+exec > >(tee -a "$OUT/train.log") 2>&1
+echo "== run_v2 $(date)"
+. "$W/venv/bin/activate"
+git -C "$R" log --oneline -1
+python3 -c "import torch; print('torch', torch.__version__, 'cuda' if torch.cuda.is_available() else 'cpu')"
+
+echo "== pre-flight checks"
+( cd "$R/train" && python3 verify_games.py --src "$W/local/source" "$R/tests/fixtures/win_v1_r250_9MN9TD5T.jsonl" --wins-only --full --fresh-each | tail -1 | grep -q PASS ) \
+  && echo "saved win replays exactly (untouched game): PASS" || { echo "PRE-FLIGHT FAILED: saved-game replay"; exit 1; }
+python3 "$R/tests/ordered_semantics.py" "$W/local/source" | tail -1 | grep -q "ALL PASS" \
+  && echo "ordered actions do what they say (lead, Death, boss reroll): PASS" || { echo "PRE-FLIGHT FAILED: ordered actions"; exit 1; }
+( cd "$R/harness" && python3 diff_check.py --src "$W/local/source" --runs 5 --mode ordered --encode --enc 2 | tail -1 | grep -q PASS ) \
+  && echo "fast vs untouched game, ordered + encoder v2: PASS" || { echo "PRE-FLIGHT FAILED: differential check"; exit 1; }
+
+RESUME=(); BC=()
+if [ -f "$OUT/latest.pt" ]; then
+  RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"
+else
+  BCG="$SHARED/v2/bc_games.jsonl"
+  if [ ! -s "$BCG" ]; then
+    echo "== converting v1's recent training games to v2 (${BC_GAMES:-3000} games, $WORKERS processes)"
+    mkdir -p "$SHARED/v2"
+    ( cd "$R/train" && python3 convert_routes.py --src "$W/local/source" "$SHARED/runs/v1/games" --out "$BCG" \
+        --train-only --max-games "${BC_GAMES:-3000}" --jobs "$WORKERS" | tail -2 )
+  fi
+  BC=(--bc "$BCG")
+  [ -s "$SHARED/v2/wins_v2.jsonl" ] && BC+=("$SHARED/v2/wins_v2.jsonl")
+  echo "behavior cloning from: ${BC[*]:1}"
+fi
+
+echo "== training"
+cd "$R/train"
+python3 train.py --src "$W/local/source" --run v2 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
+  --enc 2 --actions ordered --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
+  --reward blinds --back b_red --stake 1 --max-wins "${MAX_WINS:-1000000}" \
+  --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data/v2}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" \
+  "${BC[@]}" --bc-epochs "${BC_EPOCHS:-2}" "${RESUME[@]}" ${TRAIN_ARGS:-}
+echo "== exited $(date)"

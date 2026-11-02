@@ -123,9 +123,12 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             srng = random.Random(f"eval-{seed}") if mode == "eval" else trng
             o = sim.reset(seed, args.back, args.stake)
             steps, done, tail = [], False, []
+            t_model = t_sim = 0.0
             while not done and sim.steps < args.max_steps:
+                tm = time.time()
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
+                t_model += time.time() - tm
                 p = torch.softmax(logits[0], -1).numpy().astype(np.float64)
                 if not np.isfinite(p).all():
                     raise FloatingPointError("non-finite action probabilities")
@@ -138,16 +141,19 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 if mode != "train" and sim.steps >= args.max_steps - 30:
                     tail.append((sim.H.state_name(), int(o["act"][a][0]), int(o["act"][a][1]),
                                  int(o["act"][a][2]), round(float(p[a]), 4), len(p)))
+                ts = time.time()
                 prev, cur, done = sim.step(a)
                 r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if not done:
                     o = sim.observe()
+                t_sim += time.time() - ts
             ep = {"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
                   "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
-                  "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None}
+                  "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
+                  "t_model": t_model, "t_sim": t_sim}
             if ep["progress"]["won"]:
                 ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
@@ -517,6 +523,10 @@ def main():
     ap.add_argument("--stall-hours", type=float, default=3.0,
                     help="stop if the 10-round average training score hasn't improved in this long")
     ap.add_argument("--inject", help="test the safety checks: nan:<it>,crash:<it>")
+    # behavior cloning before RL: imitate the moves in saved games (e.g. v1's, converted to v2)
+    ap.add_argument("--bc", nargs="*", default=[], help="saved games (jsonl) to imitate before RL starts")
+    ap.add_argument("--bc-epochs", type=float, default=2.0, help="passes over the --bc games")
+    ap.add_argument("--bc-chunk", type=int, default=0, help="games replayed per step (default: 4 per worker)")
     # saved games and self-imitation
     ap.add_argument("--save-games", choices=["all", "wins", "none"], default="all",
                     help="write every game exactly (seed + actions) to <out>/games/; wins also go to wins.jsonl")
@@ -860,7 +870,85 @@ def main():
 
     rates = []                     # decisions per second of play, for the throttling flag
     reason = "finished"
+
+    def bc_phase():
+        """Behavior cloning: replays the --bc games into exact training data (observation, the move
+        that was made, the reward) and trains the policy to make that move (cross-entropy) and the
+        critic to predict the game's actual discounted return. Runs before RL on a fresh model."""
+        routes = []
+        for path in args.bc:
+            for line in open(path):
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                if (r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
+                        or r["back"] != args.back or r["stake"] != args.stake):
+                    continue
+                routes.append({"key": f"bc-{len(routes)}", "seed": r["seed"], "acts": r["acts"], "desc": r["desc"],
+                               "final": r["final"]})
+        if not routes:
+            alert("behavior cloning: no usable games in --bc; skipped")
+            return
+        chunk = args.bc_chunk or 4 * args.workers
+        total = int(len(routes) * args.bc_epochs)
+        rng = random.Random(f"bc-{args.seed}")
+        order = []
+        while len(order) < total:
+            o = list(range(len(routes)))
+            rng.shuffle(o)
+            order += o
+        order = order[:total]
+        alert(f"behavior cloning: {len(routes):,} games x {args.bc_epochs} epochs = {total:,} game replays")
+        model.train()
+        done, t0, stats = 0, time.time(), {"loss": 0.0, "acc": 0.0, "v": 0.0, "n": 0}
+        for c in range(0, total, chunk):
+            if stop_requested:
+                raise Stop(stop_requested[0])
+            pick = [routes[i] for i in order[c:c + chunk]]
+            got = run_round([pick[w::args.workers] for w in range(args.workers)], "replay", -1)
+            obs, act, ret = [], [], []
+            for g in got:
+                if g["problem"]:
+                    alert(f"behavior cloning: game {g['key']} didn't replay ({g['problem']}); skipped")
+                    continue
+                for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], args.gamma)):
+                    obs.append(o); act.append(a); ret.append(R)
+            idx = np.argsort([len(o["act"]) for o in obs])
+            batches = [idx[i:i + args.minibatch] for i in range(0, len(idx), args.minibatch)]
+            rng.shuffle(batches)
+            for b in batches:
+                kind, vocab_, feat, tmask, act_t, amask = collate([obs[i] for i in b], device)
+                logits, value = model(kind, vocab_, feat, tmask, act_t, amask)
+                a = torch.tensor([act[i] for i in b], device=device)
+                R = torch.tensor([ret[i] for i in b], device=device)
+                ce = torch.nn.functional.cross_entropy(logits, a)
+                v_loss = 0.5 * (value - R).pow(2).mean()
+                loss = ce + args.vf * v_loss
+                opt.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+                opt.step()
+                with torch.no_grad():
+                    stats["loss"] += ce.item(); stats["v"] += v_loss.item(); stats["n"] += 1
+                    stats["acc"] += (logits.argmax(-1) == a).float().mean().item()
+            done += len(pick)
+            if stats["n"] and (c // chunk) % 10 == 0:
+                n = stats["n"]
+                line = (f"[bc] {done:,}/{total:,} games  move loss {stats['loss'] / n:.3f}  "
+                        f"same move as saved {stats['acc'] / n:.1%}  value loss {stats['v'] / n:.2f}  "
+                        f"{(time.time() - t0) / 60:.1f} min")
+                print(line, flush=True)
+                metrics.write(json.dumps({"bc": {"games": done, "ce": stats["loss"] / n, "acc": stats["acc"] / n,
+                                                 "v_loss": stats["v"] / n}}) + "\n")
+                metrics.flush()
+                write_health(status="running: behavior cloning", bc_games=done, bc_total=total)
+                stats = {"loss": 0.0, "acc": 0.0, "v": 0.0, "n": 0}
+        model.eval()
+        save(-1, "bc")
+        alert(f"behavior cloning done: {total:,} game replays in {(time.time() - t0) / 60:.1f} min; saved bc.pt")
     try:
+        if args.bc and resumed is None:
+            bc_phase()
         pending = None
         for it in range(start_it, args.iterations):
             if stop_requested:
@@ -972,6 +1060,8 @@ def main():
                 raise Stop(f"training score flat for {args.stall_hours} h (best 10-round average "
                            f"{best_roll:.2f} blinds/game)")
             decisions = sum(e["n"] for e in eps)
+            ms_model = 1000 * sum(e.get("t_model", 0) for e in eps) / max(decisions, 1)   # per decision, in a worker
+            ms_sim = 1000 * sum(e.get("t_sim", 0) for e in eps) / max(decisions, 1)
             rate = decisions / max(t1 - t0, 1e-6)
             rates.append((time.time() - t_start, rate))
             early = [r for t, r in rates if t < 1800]
@@ -983,14 +1073,14 @@ def main():
             rec = {"iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
-                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved),
+                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved), "ms_model": round(ms_model, 2), "ms_sim": round(ms_sim, 2),
                    "retry": sr, "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},
                    "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
             print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
                   f"ent {st['entropy']:.2f} kl {st['kl']:.4f} moved {st.get('kl_update', 0):.4f}{' (stopped early at ' + str(st['minibatches']) + ' minibatches)' if st.get('early_stop') else ''} | {rec['games_per_hour']} games/h "
-                  f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)"
+                  f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s; per decision: model {ms_model:.1f} ms, sim {ms_sim:.1f} ms)"
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
                   + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
