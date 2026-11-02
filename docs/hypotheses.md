@@ -109,3 +109,15 @@ without saying so.
   win rate is higher than the ~1 in 1,200 of the last ~11,000 games before it. Weak prediction:
   the comparison is before/after in one run, so the policy's own improvement is a confound; a
   clean test is two runs from the same checkpoint with `--sil-buffer 64` vs `--sil-buffer 0`.
+
+### Seed retries (requested by chud, ~22:50; allocation by ante ~22:56)
+The deliverable is empirically beaten seeds: a seed plus a route that replays to a win. From the
+next restart, lost seeds are kept by the latest ante they reached (1-8) and replayed with fresh
+sampling until beaten or after 30 attempts. Each round's games are split across 9 arms (fresh
+seeds; retries of ante-1..8 seeds) by Thompson sampling on wins per game, with at least half of
+each round on fresh seeds. Which seeds to revisit is graded by ante and by wins, not by the
+reward. The training curve (blinds/game, A1, A6) is reported on fresh seeds only; eval is
+unchanged (fixed fresh seeds). New count: **unique beaten seeds**.
+- **A7.** Once the arms have separated, the late-ante arms (6-8) get most of the retry share, and
+  wins per game on retries beat wins per game on fresh seeds. *Falsified* if, after 50,000 retry
+  games, fresh seeds convert at least as well as every retry arm.

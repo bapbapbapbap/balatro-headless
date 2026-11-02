@@ -432,6 +432,8 @@ def main():
     ap.add_argument("--device", default="auto")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", help="checkpoint to continue from")
+    ap.add_argument("--reset-lr", action="store_true",
+                    help="on resume, go back to --lr instead of the (possibly halved) rate in the checkpoint")
     # safety
     ap.add_argument("--max-kl", type=float, default=0.2, help="reject an update that moves the policy further than this")
     ap.add_argument("--max-strikes", type=int, default=3, help="consecutive rejected updates before stopping")
@@ -448,8 +450,23 @@ def main():
     ap.add_argument("--sil-buffer", type=int, default=64,
                     help="self-imitation: keep the N highest-return training games (0 = off)")
     ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
-    ap.add_argument("--sil-weight", type=float, default=1.0)
+    ap.add_argument("--sil-weight", type=float, default=0.2,
+                    help="1.0 pushed KL past the guard and entropy 2.35 -> 1.9 within 10 rounds on v1 (rounds 307-320)")
     ap.add_argument("--sil-value", type=float, default=0.01, help="weight of the critic's self-imitation loss")
+    # second drive
+    ap.add_argument("--mirror-dir", help="also append every win to <dir>/wins.jsonl (e.g. an external drive)")
+    ap.add_argument("--spill-dir", help="when the main drive runs low, write saved games and checkpoints here")
+    ap.add_argument("--spill-at-gb", type=float, default=50.0, help="free space on the main drive that triggers spilling")
+    # seed retries: the solver side. Lost seeds are kept by the latest ante they reached (1-8) and
+    # replayed with fresh sampling. Each round's games are split across 9 arms (fresh seeds, and
+    # retries of seeds whose best was ante 1..8) by Thompson sampling on wins per game, so effort
+    # goes where it actually turns into beaten seeds.
+    ap.add_argument("--retry", type=int, default=1, help="1 = split games across the arms, 0 = fresh seeds only")
+    ap.add_argument("--fresh-min", type=float, default=0.5, help="share of each round always on fresh seeds")
+    ap.add_argument("--arm-prior", type=float, default=100.0,
+                    help="prior losses per arm, Beta(1, prior): how many games before an arm's record dominates")
+    ap.add_argument("--retry-max", type=int, default=30, help="attempts per seed before it is dropped")
+    ap.add_argument("--retry-pool", type=int, default=500, help="most seeds waiting per ante")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -489,6 +506,9 @@ def main():
         ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start_it = ck["iteration"] + 1
+        if args.reset_lr:
+            for g in opt.param_groups:
+                g["lr"] = args.lr
         resumed = ck
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
@@ -521,12 +541,53 @@ def main():
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
-              "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer}
-        tmp = os.path.join(out, f".{tag}.pt.tmp")
+              "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
+              "beaten_seeds": sorted(beaten)}
+        d = out
+        if tag.startswith("ckpt_") and spilling():
+            d = os.path.join(args.spill_dir, "runs", args.run)
+            os.makedirs(d, exist_ok=True)
+        tmp = os.path.join(d, f".{tag}.pt.tmp")
         torch.save(ck, tmp)
-        os.replace(tmp, os.path.join(out, f"{tag}.pt"))      # never leaves a half-written file
+        os.replace(tmp, os.path.join(d, f"{tag}.pt"))      # never leaves a half-written file
 
     health = {"status": "running", "started": time.strftime("%Y-%m-%d %H:%M:%S")}
+    drive_note = {}
+
+    def usable(d):
+        try:
+            os.makedirs(d, exist_ok=True)
+            t = os.path.join(d, ".write_test")
+            open(t, "w").write("ok"); os.remove(t)
+            return True
+        except OSError:
+            return False
+
+    def spilling():
+        """True when the main drive is low and the spill drive is writable."""
+        if not args.spill_dir or disk_free_gb(out) >= args.spill_at_gb:
+            return False
+        ok = usable(args.spill_dir)
+        if drive_note.get("spill") != ok:
+            drive_note["spill"] = ok
+            alert(f"main drive under {args.spill_at_gb} GB free; " + (f"writing games and checkpoints to {args.spill_dir}"
+                  if ok else f"spill drive {args.spill_dir} not writable, staying on the main drive"))
+        return ok
+
+    def mirror_win(line):
+        if not args.mirror_dir:
+            return
+        try:
+            os.makedirs(args.mirror_dir, exist_ok=True)
+            with open(os.path.join(args.mirror_dir, "wins.jsonl"), "a") as f:
+                f.write(line)
+            if drive_note.get("mirror") is False:
+                alert(f"mirror {args.mirror_dir} writable again")
+            drive_note["mirror"] = True
+        except OSError as ex:
+            if drive_note.get("mirror") is not False:
+                alert(f"couldn't copy a win to {args.mirror_dir} ({ex}); the main copy is saved")
+            drive_note["mirror"] = False
 
     def write_health(**kw):
         health.update(kw, alerts=log_alerts[-10:], mem_available_gb=round(mem_available_gb(), 2),
@@ -556,6 +617,75 @@ def main():
                                 "back": args.back, "stake": args.stake, "mode": "subsets",
                                 "profile": "unlocked", "fast": True, "provenance": prov}) + "\n")
     saved = {"games": 0, "wins": 0, "wins_verified": 0}
+    if args.mirror_dir:
+        alert(f"wins also copied to {args.mirror_dir}" if usable(args.mirror_dir)
+              else f"mirror {args.mirror_dir} not writable now; wins stay on the main drive until it is")
+    # retry pools: ante -> {seed: {"attempts", "best_blinds", "first_it"}}; arms: wins and games per arm
+    ARMS = ["fresh"] + [str(a) for a in range(1, 9)]
+    pools = {a: dict(v) for a, v in (resumed.get("retry_pools", {}) if resumed else {}).items()}
+    for a in ARMS[1:]:
+        pools.setdefault(a, {})
+    arms = dict(resumed.get("arms", {})) if resumed else {}
+    for a in ARMS:
+        arms.setdefault(a, {"games": 0, "wins": 0})
+    beaten = set(resumed.get("beaten_seeds", [])) if resumed else set()
+    arm_rng = random.Random(f"arms-{args.seed}-{start_it}")
+
+    def train_seeds():
+        """Splits this round's games across the arms. Fresh keeps at least --fresh-min; every other
+        slot goes to the arm with the highest draw from Beta(1 + wins, prior + losses), among arms
+        with seeds waiting. Within an arm, seeds with the fewest attempts go first."""
+        n = args.workers * args.games_per_worker
+        if not args.retry:
+            return [[None] * args.games_per_worker for _ in range(args.workers)], {}
+        floor = int(math.ceil(n * args.fresh_min))
+        left = {a: len(pools[a]) for a in ARMS[1:]}
+        alloc = {a: 0 for a in ARMS}
+        alloc["fresh"] = floor
+        for _ in range(n - floor):
+            best, bv = "fresh", -1.0
+            for a in ARMS:
+                if a != "fresh" and alloc[a] >= left[a]:
+                    continue
+                st = arms[a]
+                v = arm_rng.betavariate(1 + st["wins"], args.arm_prior + st["games"] - st["wins"])
+                if v > bv:
+                    best, bv = a, v
+            alloc[best] += 1
+        source = {}
+        flat = []
+        for a in ARMS[1:]:
+            order = sorted(pools[a].items(), key=lambda kv: (kv[1]["attempts"], -kv[1]["best_blinds"]))
+            for sd, _ in order[:alloc[a]]:
+                flat.append(sd)
+                source[sd] = a
+        flat += [None] * (n - len(flat))
+        return [flat[w::args.workers] for w in range(args.workers)], source
+
+    def update_retries(it, eps, source):
+        for e in eps:
+            sd, p = e["seed"], e["progress"]
+            arm = source.get(sd, "fresh")
+            e["arm"] = arm
+            arms[arm]["games"] += 1
+            arms[arm]["wins"] += int(p["won"])
+            if arm != "fresh":
+                pools[arm].pop(sd, None)
+            if p["won"]:
+                beaten.add(sd)
+                continue
+            if sd in beaten:
+                continue
+            prev = None if arm == "fresh" else e.get("_prev_entry")
+            attempts = (prev or {}).get("attempts", 0) + (0 if arm == "fresh" else 1)
+            if arm != "fresh" and attempts >= args.retry_max:
+                continue
+            a = str(max(int(arm) if arm != "fresh" else 0, min(p["ante"], 8)))   # best ante reached so far
+            pools[a][sd] = {"attempts": attempts, "best_blinds": max(p["blinds_beaten"], (prev or {}).get("best_blinds", 0)),
+                            "first_it": (prev or {}).get("first_it", it)}
+            if len(pools[a]) > args.retry_pool:     # full: drop the most-tried, then the oldest
+                worst = max(pools[a].items(), key=lambda kv: (kv[1]["attempts"], -kv[1]["first_it"]))[0]
+                del pools[a][worst]
 
     def record(it, mode, eps):
         """Writes each game exactly. Wins also go to wins.jsonl, flagged if they didn't replay."""
@@ -564,9 +694,12 @@ def main():
         keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"]]
         recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
-                 "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"]} for e in keep]
+                 "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
+                 "retry": e.get("retry", False), "arm": e.get("arm")} for e in keep]
         if recs:
-            path = os.path.join(games_dir, f"r{it:05d}_{mode}.jsonl.gz")
+            gd = os.path.join(args.spill_dir, "runs", args.run, "games") if spilling() else games_dir
+            os.makedirs(gd, exist_ok=True)
+            path = os.path.join(gd, f"r{it:05d}_{mode}.jsonl.gz")
             tmp = path + ".tmp"
             with gzip.open(tmp, "wt") as f:
                 for r in recs:
@@ -575,8 +708,10 @@ def main():
             saved["games"] += len(recs)
         for r in recs:
             if r["progress"]["won"]:
+                line = json.dumps(r | {"commit": prov["commit"][:12]}) + "\n"
                 with open(os.path.join(out, "wins.jsonl"), "a") as f:
-                    f.write(json.dumps(r | {"commit": prov["commit"][:12]}) + "\n")
+                    f.write(line)
+                mirror_win(line)
                 saved["wins"] += 1
                 if r["verified"]:
                     saved["wins_verified"] += 1
@@ -642,6 +777,7 @@ def main():
                 eval_eps = run_round(split, "eval", it)
                 ev = summarize(eval_eps)
                 record(it, "eval", eval_eps)
+                beaten.update(e["seed"] for e in eval_eps if e["progress"]["won"])
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
@@ -659,8 +795,14 @@ def main():
                 health["best_eval_blinds"] = best_eval
 
             t0 = time.time()
-            eps = run_round([[None] * args.games_per_worker for _ in range(args.workers)], "train", it)
+            seeds, source = train_seeds()
+            prev_entries = {sd: dict(pools[a][sd]) for sd, a in source.items()}
+            eps = run_round(seeds, "train", it)
             t1 = time.time()
+            for e in eps:
+                e["retry"] = e["seed"] in source
+                e["_prev_entry"] = prev_entries.get(e["seed"])
+            update_retries(it, eps, source)
             record(it, "train", eps)
             sil, sil_info = sil_data(it)
             add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
@@ -690,8 +832,11 @@ def main():
             t2 = time.time()
 
             games_total += len(eps)
-            s = summarize(eps)
-            wins_total += s["wins"]
+            fresh = [e for e in eps if not e["retry"]]
+            s = summarize(fresh or eps)       # the learning curve stays on fresh seeds only
+            sr = summarize([e for e in eps if e["retry"]]) if source else None
+            round_alloc = {a: sum(1 for e in eps if e["arm"] == a) for a in ARMS}
+            wins_total += sum(e["progress"]["won"] for e in eps)
             train_hist.append(s["blinds_mean"])
             roll = float(np.mean(train_hist[-10:]))
             if len(train_hist) >= 10 and roll > best_roll + 0.05:
@@ -711,7 +856,9 @@ def main():
             rec = {"iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
-                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved)}
+                   "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved),
+                   "retry": sr, "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},
+                   "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
             print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
@@ -719,10 +866,15 @@ def main():
                   f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s)"
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
+                  + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
+                  + " | alloc " + " ".join(f"{a[0] if a == 'fresh' else a}:{round_alloc[a]}" for a in ARMS if round_alloc[a])
+                  + f" | waiting {sum(len(v) for v in pools.values())} beaten seeds {len(beaten)}"
                   + f" | saved {saved['games']:,} games, {saved['wins_verified']}/{saved['wins']} wins verified", flush=True)
             save(it, "latest")
             write_health(iteration=it, hours=rec["hours"], games_total=games_total, wins_total=wins_total, last_train=s,
-                         decisions_per_second=rec["decisions_per_second"], saved=dict(saved), sil=sil_info)
+                         decisions_per_second=rec["decisions_per_second"], saved=dict(saved), sil=sil_info,
+                         last_retry=sr, alloc=round_alloc, arms={a: dict(v) for a, v in arms.items()},
+                         pools={a: len(v) for a, v in pools.items()}, beaten_seeds=len(beaten))
     except Stop as e:
         reason = str(e)
     except Exception:

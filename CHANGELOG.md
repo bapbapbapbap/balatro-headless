@@ -7,6 +7,20 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.5.0] - 2026-11-01
+
+### Added
+- **Seed retries, allocated by ante** (`--retry 1 --fresh-min 0.5 --arm-prior 100 --retry-max 30 --retry-pool 500`): lost seeds are kept by the latest ante they reached (1-8) and replayed with fresh sampling until beaten or out of attempts. Each round's games are split across 9 arms (fresh, ante 1..8) by Thompson sampling on wins per game, Beta(1 + wins, prior + losses), with at least `--fresh-min` on fresh seeds. Training stats stay on fresh seeds; per-arm games and wins, the round's split and unique beaten seeds go to the log, `metrics.jsonl` and `health.json`; saved games carry `retry` and `arm`. Pools, arm records and beaten seeds are saved in checkpoints.
+
+- **Second drive**: `--mirror-dir` appends every win to `<dir>/wins.jsonl` as well (a second copy of the beaten seeds); `--spill-dir` takes new saved games and checkpoints once the main drive is under `--spill-at-gb` (default 50) free. Both alert instead of failing if the drive isn't there. `run_v1.sh` points both at `/mnt/f/balatro data` (override with `MIRROR_DIR` / `SPILL_DIR`).
+
+### Changed
+- **Self-imitation weight 1.0 -> 0.2.** On v1 (rounds 307-320) weight 1.0 raised KL from ~0.035 to 0.1-0.26 (two updates rejected, learning rate halved twice to 7.5e-5), entropy fell 2.35 -> 1.9, and 6 of 200 eval games at round 320 looped on joker drags to the decision cap.
+- `--reset-lr` restores `--lr` on resume; `run_v1.sh` passes `TRAIN_ARGS` through for one launch.
+
+### Fixed
+- `run_v1.sh` pulls the repo first and then restarts itself from the updated script. Before, a pull that changed the script mid-run made bash skip lines (the new pre-flight replay didn't run on the 22:48 launch).
+
 ## [0.4.0] - 2026-11-01
 
 ### Added
