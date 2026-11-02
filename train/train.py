@@ -240,7 +240,7 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
                 lg, _ = model(*collate([obs[j] for j in idx], device))
                 start_lp[idx] = torch.log_softmax(lg, -1).gather(
                     1, torch.tensor([acts[j] for j in idx], device=device).unsqueeze(1)).squeeze(1).cpu().numpy()
-    nb, stop = 0, False
+    nb, stop, kl_seen = 0, False, []
     model.train()
     for _ in range(args.epochs):
         if stop:
@@ -262,8 +262,10 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
             with torch.no_grad():
                 r0 = torch.exp(lp - torch.tensor(start_lp[idx], device=device))
                 k3 = ((r0 - 1) - torch.log(r0)).mean().item()          # low-variance KL estimate, vs. update start
-            stats["kl_end"] = k3
-            if args.target_kl and nb > 0 and k3 > 1.5 * args.target_kl:
+            kl_seen.append(k3)
+            recent = float(np.mean(kl_seen[-4:]))      # one 64-step minibatch alone is too noisy to stop on
+            stats["kl_end"] = recent
+            if args.target_kl and nb >= 4 and recent > 1.5 * args.target_kl:
                 stats["early_stop"] = 1.0
                 stop = True
                 break
@@ -749,7 +751,8 @@ def main():
             attempts = (prev or {}).get("attempts", 0) + (0 if arm == "fresh" else 1)
             if arm != "fresh" and attempts >= args.retry_max:
                 continue
-            a = str(max(int(arm) if arm != "fresh" else 0, min(p["ante"], 8)))   # best ante reached so far
+            # best ante reached so far; a Hieroglyph voucher can end a game at ante 0, kept with ante 1
+            a = str(max(int(arm) if arm != "fresh" else 1, min(max(p["ante"], 1), 8)))
             pools[a][sd] = {"attempts": attempts, "best_blinds": max(p["blinds_beaten"], (prev or {}).get("best_blinds", 0)),
                             "first_it": (prev or {}).get("first_it", it)}
             if len(pools[a]) > args.retry_pool:     # full: drop the most-tried, then the oldest
