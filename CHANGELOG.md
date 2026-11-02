@@ -7,6 +7,31 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Added
 - **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
+## [0.7.0] - 2026-11-02
+
+### Added: v2 (opt-in; v1 defaults unchanged, its encoding byte-identical)
+- **`--actions ordered`**: the subsets action list plus what card order can change.
+  - A play whose score can depend on order is offered once per scoring card as the lead (dragged to the front of the selection, as a player would): when Hanging Chad is held, or a per-card x-mult source (Glass, Polychrome, Photograph, The Idol, Bloodstone, Ancient Joker, Triboulet) meets a per-card +mult source (Mult, Lucky, Holographic, Smiley Face, Scholar, Walkie Talkie, Fibonacci, Even Steven, Onyx Agate, the four suit jokers); Blueprint/Brainstorm count as both. Only the lead is chosen. Stone cards and Splash's extra scoring cards aren't offered as leads.
+  - **Death** is offered with each selected card as the one copied (the game copies the rightmost; before, the bot could only copy the lower card onto the higher).
+  - **Boss reroll** (Director's Cut / Retcon), with the game's own condition.
+  - Checked in the real game (`harness` test): the lead card scores first; each Death direction copies the named card; boss reroll changes the boss, costs $10, only with the voucher.
+- **`--enc 2`**:
+  - **Joker numbers in fixed slots**: current mult, x-mult, t_mult, t_chips, hand/discard size, `extra` (scalar or up to 3 named values), Canio/Invisible/Loyalty/Yorick counters, sell value. v1 kept the first 8 numeric fields alphabetically, which for all 150 jokers are mostly constant and drop `mult` and `x_mult`: v1 sees which scaling joker it holds but not how far it has scaled.
+  - Hand table: per-level increments (`l_chips`, `l_mult`); Planets carry the hand they level (as plays carry theirs).
+  - Every candidate play carries its scoring cards, the HUD's chips x mult for that hand and the scoring cards' chips.
+  - Interest: per-$5 amount (To the Moon), the no-interest flag (Green Deck), and the projected interest from money held, as the game computes it.
+- **Model v2** (`--enc 2`, default size used: `--d 192 --layers 4 --heads 6`, 1.6M parameters vs 250k): reads the new action fields.
+- **`train/convert_routes.py`**: translates saved games from the v1 action list to the v2 one move by move (a play keeps its lead, Death keeps copying the rightmost card); kept only if it ends the same way. 33/33 laptop-recorded wins converted on the cloud sim.
+- **`train/publish_wins.py`** and **`wins/`**: the public record of beaten seeds, one proof per seed (the shortest win), each replayed before it is kept.
+
+### Checked (cloud, unmodded 1.0.1o)
+- v1 unchanged: the committed win replays to the identical final-state hash; `check_env --mode subsets` passes on a logged run.
+- Ordered mode: 10 fuzz runs (no crash, stall, no-op or leak); fast vs untouched game identical with the v2 encoder running every step (8 runs).
+- v2 training runs end to end (1.6M parameters, converted wins replayed into self-imitation), and its saved games replay exactly.
+
+### Results
+- **Stage 2 A/B, self-imitation** (v1 round 494, side by side, 25 min, buffer pre-loaded with 79 saved wins): evals 10.76/11.08/10.85 off vs 10.94/10.75 on (400 seeds), no difference beyond noise; only ~3% of replayed moves had R > V; throughput 10,700 vs 4,100 games/h. Stays off.
+
 ## [0.6.2] - 2026-11-02
 
 ### Added

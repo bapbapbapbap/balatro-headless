@@ -144,11 +144,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", required=True)
     ap.add_argument("--runs", type=int, default=50)
-    ap.add_argument("--mode", choices=["controls", "subsets"], default="subsets")
+    ap.add_argument("--mode", choices=["controls", "subsets", "ordered"], default="subsets")
     ap.add_argument("--rng", type=int, default=1)
     ap.add_argument("--greedy", type=float, default=0.85)
     ap.add_argument("--max-steps", type=int, default=3000)
     ap.add_argument("--candidate", default="fast", help="fast | fast+<opt>,<opt> (see OPTIMIZATIONS)")
+    ap.add_argument("--enc", type=int, choices=[1, 2], default=1, help="encoding version for --encode")
     ap.add_argument("--encode", action="store_true",
                     help="run the learner's encoder (encode.lua) before every comparison, candidate only: "
                          "proves encoding never changes the game")
@@ -161,6 +162,7 @@ def main():
             cand.lua.execute(OPTIMIZATIONS[o], cand.H)
     if args.encode:
         import os
+        cand.H.enc = args.enc
         cand.lua.execute(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "encode.lua")).read(), cand.H)
     rng = random.Random(args.rng)
     t0, steps, bad, states = time.time(), 0, [], collections.Counter()

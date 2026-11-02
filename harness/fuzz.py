@@ -107,6 +107,9 @@ def greedy_plan(env):
     want = set(lua_list(best))
     if env.H.mode == "subsets":
         return [("play", None, None, tuple(sorted(want)))]
+    if env.H.mode == "ordered":      # any lead for that selection
+        plays = [a for a in env.legal_actions() if a[0] == "play" and a[3] == tuple(sorted(want))]
+        return plays[:1]
     have = set(lua_list(env.H.selected()))
     plan = [("toggle", i, None, ()) for i in sorted(have - want)]   # deselect first (limit is 5)
     plan += [("toggle", i, None, ()) for i in sorted(want - have)]
@@ -120,7 +123,7 @@ def main():
     ap.add_argument("--greedy", type=float, default=0.85)
     ap.add_argument("--rng", type=int, default=1)
     ap.add_argument("--max-steps", type=int, default=6000)
-    ap.add_argument("--mode", choices=["controls", "subsets"], default="controls")
+    ap.add_argument("--mode", choices=["controls", "subsets", "ordered"], default="controls")
     args = ap.parse_args()
 
     env = BalatroEnv(args.src, mode=args.mode)
