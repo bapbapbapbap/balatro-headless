@@ -424,3 +424,40 @@ Scored once, at the end of the registered window.
   v2 rounds 493–504: 22.0% and 124. The cap holds, but drags didn't fall.
 - **Eval:** mean of the 36 evals in the window is **12.03** blinds per game (range 11.36–12.79),
   against v2's 6 evals in rounds 445–504, mean 11.10.
+
+---
+
+## Added 2026-11-03 ~16:15 CST: R. Re-solve: model 1.0 on the published won seeds (registered after the run started, before any of its output was read)
+
+### Setup
+`analysis/resolve.py` (PR #48, commit `27d1c3b`), started by chud on his machine at ~16:14 CST.
+Model 1.0 plays each of the 1,549 published won seeds 10 times (sample seeds 0–9, sampled as in
+`train/play.py`), and 1,549 control seeds 10 times: fresh seeds from the fixed RNG
+`resolve-control-v1`, excluding every published seed and the 200 eval seeds. Red Deck, White
+Stake, unmodded 1.0.1o, move cap 1,500. Games already on disk when this was written had not been
+opened by chud or Claude. Scored with `resolve.py summary` on the complete run (k = 10 for every
+seed); if the run stops early, scored on the games played, with the count stated.
+
+### R0 (chud's, reviewed by Claude): proven seeds clear more often
+- **Claim:** 1.0's clear rate on the seeds training proved beatable is higher than its average
+  clear rate, 2.5% (5 of 200 eval seeds).
+- **Test:** published minus control, mean per-seed win rate, one-sided; seed-level bootstrap.
+  **Pass** if the lower end of the 95% interval is above 0 and the published rate is above 2.5%.
+  *Falsified* otherwise.
+
+### Claude's, reviewed by chud
+Reasoning: if each seed has its own win chance p under 1.0, a seed found by winning it once is
+selected in proportion to p, so its expected rate is E[p²]/E[p] = mean × (1 + CV²). Claude
+expects large spread between seeds (early shops and tags decide much of a run).
+- **R1. Control:** 2.0–3.5% of games won. *Falsified* outside that range.
+- **R2. Published:** about 11% of games won, predicted 7–16%. *Falsified* below 5% or above 25%.
+- **R3. Seeds matter without selection:** on the control seeds, dispersion index ≥ 1.5 with
+  p < 0.01 (the summary's test). *Falsified* if the index is below 1.2.
+- **R4. Retry-found seeds re-solve less** than fresh-found ones: retry ≤ 0.7 × fresh (rates per
+  game). *Falsified* if retry ≥ fresh.
+- **R5. Seeds first won by 0.1 re-solve most:** 0.1 > 0.2 ≥ 0.3. *Falsified* if 0.1 is lowest.
+- **R6. No memorization:** the seeds 1.0 never trained on (0.3 wins after round 810 on a fresh
+  seed, 97 seeds) re-solve at a rate within the interval of the rest. *Falsified* if the rest is
+  significantly higher (non-overlapping 95% intervals). Weak test: 97 seeds.
+- **R7.** 35–55% of published seeds are won at least once in 10.
+- **R8.** Published seeds average at least 2 more blinds per game than control.
