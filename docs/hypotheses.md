@@ -343,6 +343,17 @@ run, and buys anyway. An agent holds an ought the same way. In chud's words (23:
   weights too.
 - "there are only specific domains and the deep structure that can be generalized from them."
 
+**Scope of the grouping** (chud, 23:11: "I am a grouper ... I am an agent psychologist"). Humans and
+models are grouped at the level of behavior, the level psychology studies, not of mechanism.
+- **Claimed:** both are agents whose weights are revised by prediction error. Evidence at that
+  level: dopamine neurons signal reward prediction error (Schultz, Dayan & Montague 1997), the
+  same quantity as the TD error the bot's critic learns from.
+- **Not claimed:** the same learning algorithm (brains learn by local rules, not backpropagation
+  as such), or the same timing (humans revise while acting; a deployed LLM's weights are fixed;
+  the bot revises in training and is frozen at eval).
+- **Precedent:** comparative psychology groups agents across substrates by shared learning laws,
+  e.g. the Rescorla-Wagner model (1972), a prediction-error rule applied across species.
+
 The idea and the framing are chud's (see also the clarification at ~11:05). Sections C and G test
 the first half: same facts, different oughts.
 - Status: in C and G the ought is picked by the experimenter for a whole run; the bot doesn't buy
