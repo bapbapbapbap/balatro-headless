@@ -25,6 +25,14 @@ seed produce the same run, ending in a win.
 
 A win is the game's own: `G.GAME.won`, set when the Ante 8 Boss Blind is beaten.
 
+## Independent check on the untouched game (2026-11-03)
+The 850 seeds published on 2026-11-02 (every seed after the first 121) were published as
+training-verified: each win had been replayed exactly in the training sim, which strips visuals.
+They were then all replayed again on the **untouched** game (`--full`, nothing stripped), move by
+move, in the cloud. **850 of 850 reproduced the same win: the same moves, the same number of moves,
+and the same final state.** The first 121 were replayed on the untouched game when they were
+published.
+
 ## Checking a route
 With the game source extracted from your own copy (see [`../docs/REPRODUCE.md`](../docs/REPRODUCE.md); no game code is in
 this repository):
