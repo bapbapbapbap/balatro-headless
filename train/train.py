@@ -5,6 +5,8 @@
 W worker processes each own a sim and a copy of the model. Every iteration they play games with
 the current weights; the learner runs PPO and sends the new weights back. Checkpoints, config and
 metrics go to runs/<run>/. Nothing here prefers one outcome over another except --reward.
+--pin-hand (expert runs) prefers no outcome either: it limits which plays the bot may make, and
+the reward stays the same.
 """
 import argparse
 import copy
@@ -63,7 +65,7 @@ def collate(obs, device="cpu"):
     for i, o in enumerate(obs):
         n, m = len(o["kind"]), len(o["act"])
         kind[i, :n], vocab[i, :n], feat[i, :n], tmask[i, :n] = o["kind"], o["vocab"], o["feat"], True
-        act[i, :m], amask[i, :m] = o["act"], True
+        act[i, :m], amask[i, :m] = o["act"], o["allow"] if "allow" in o else True
     t = lambda x: torch.from_numpy(x).to(device)
     return t(kind), t(vocab), t(feat), t(tmask), t(act), t(amask)
 
@@ -117,11 +119,17 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             raise RuntimeError(f"injected worker crash at iteration {it}")
         model.load_state_dict(state)
         trng = random.Random(f"{args.seed}-{wid}-{it}")      # reproducible sampling per worker+iteration
+        pin_id = pin_vocab_id(sim.vocab, args.pin_hand)
         episodes = []
         for seed in seeds:
             seed = seed or rand_seed(rng)
             srng = random.Random(f"eval-{seed}") if mode == "eval" else trng
+            # The pin's own coin, apart from the sampling RNG, so pinning doesn't shift eval sampling.
+            prng = random.Random(f"pin-eval-{seed}" if mode == "eval" else f"pin-{args.seed}-{wid}-{it}-{seed}")
+            pst = new_pin_stats() if pin_id is not None else None
             o = sim.reset(seed, args.back, args.stake)
+            if pst is not None:
+                apply_pin(o, pin_id, args.pin_rate, prng, pst)
             steps, done, tail = [], False, []
             t_model = t_sim = 0.0
             while not done and sim.steps < args.max_steps:
@@ -136,7 +144,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                     a = int(p.argmax())
                     logp = float(math.log(max(p[a], 1e-30)))
                 elif mode == "train" and args.explore_hands > 0:
-                    a, logp = explore_sample(p, o["act"], args.explore_hands, srng)
+                    a, logp = explore_sample(p, o["act"], args.explore_hands, srng, o.get("allow"))
                 else:
                     a = int(np.searchsorted(np.cumsum(p), srng.random() * p.sum()))
                     a = min(a, len(p) - 1)
@@ -148,22 +156,75 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 prev, cur, done = sim.step(a)
                 r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
+                if pst is not None:
+                    count_pin_move(o, a, pin_id, pst)
                 if not done:
                     o = sim.observe()
+                    if pst is not None:
+                        apply_pin(o, pin_id, args.pin_rate, prng, pst)
                 t_sim += time.time() - ts
             ep = {"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
                   "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
-                  "t_model": t_model, "t_sim": t_sim}
+                  "t_model": t_model, "t_sim": t_sim, "pin": pst}
             if ep["progress"]["won"]:
                 ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
         return episodes
 
 
-def explore_sample(p, act, eps, rng):
+# ---------------- hand pin (strategy experts, docs/hypotheses.md section I) ----------------
+# An expert is pinned to one poker hand type. At a decision where a play of that type is on offer,
+# the pin binds with probability --pin-rate: the bot may then make only plays of that type.
+# Discards and every non-play move stay allowed, and when no play of the type is on offer nothing
+# is restricted. The pin goes into the observation as o["allow"]; collate() turns it into the
+# action mask, so the policy that plays and the policy PPO updates are the same masked
+# distribution. The game's legal list is untouched, so saved routes replay exactly as before.
+
+PLAY, DISCARD = 1, 2          # action type codes (harness/encode.lua ACTION)
+HAND_COL = 8                  # action row column: vocab id of "hand:<type>" for plays
+
+
+def pin_vocab_id(vocab, hand):
+    if not hand:
+        return None
+    key = "hand:" + hand
+    assert key in vocab, f"--pin-hand {hand!r}: no such poker hand in this game's vocabulary"
+    return vocab.index(key)
+
+
+def new_pin_stats():
+    # offered: decisions with a play of the pinned type on offer; bound: of those, where the pin
+    # applied; plays / plays_pinned: every play, and plays of the pinned type; discard_offered:
+    # discards made while a play of the type was on offer (dodging the hand, see section I review).
+    return {"offered": 0, "bound": 0, "plays": 0, "plays_pinned": 0, "discard_offered": 0}
+
+
+def apply_pin(o, pin_id, rate, rng, st):
+    act = o["act"]
+    play = act[:, 0] == PLAY
+    target = play & (act[:, HAND_COL] == pin_id)
+    if not target.any():
+        return
+    st["offered"] += 1
+    o["offered"] = True
+    if rate >= 1.0 or rng.random() < rate:
+        o["allow"] = ~play | target
+        st["bound"] += 1
+
+
+def count_pin_move(o, a, pin_id, st):
+    row = o["act"][a]
+    if row[0] == PLAY:
+        st["plays"] += 1
+        st["plays_pinned"] += int(row[HAND_COL] == pin_id)
+    elif row[0] == DISCARD and o.get("offered"):
+        st["discard_offered"] += 1
+
+
+def explore_sample(p, act, eps, rng, allow=None):
     """Training games only. With probability eps at a decision with plays of two or more poker hand
     types on offer, picks one of those hand types uniformly, then a play of that type in proportion
     to the policy; otherwise samples the policy.
@@ -179,6 +240,8 @@ def explore_sample(p, act, eps, rng):
     the policy almost never makes): the same expected push as never exploring. The cost is a small
     bias, since eps of the decisions are not the policy's own."""
     play = act[:, 0] == 1
+    if allow is not None:
+        play = play & allow                  # a hand pin (apply_pin) is never explored around
     ht = act[:, 8]
     types = np.unique(ht[play])
     if len(types) >= 2 and rng.random() < eps:
@@ -393,7 +456,9 @@ def summarize(episodes):
             "return_mean": float(np.mean([e["return"] for e in episodes])),
             "decisions_mean": float(np.mean([e["n"] for e in episodes])),
             "capped": sum(e["capped"] for e in episodes),
-            "final_ante": dict(sorted(antes.items()))}
+            "final_ante": dict(sorted(antes.items())),
+            **({"pin": {k: sum(e["pin"][k] for e in episodes) for k in episodes[0]["pin"]}}
+               if episodes and episodes[0].get("pin") else {})}
 
 
 # ---------------- safety ----------------
@@ -536,6 +601,13 @@ def main():
     ap.add_argument("--explore-hands", type=float, default=0.0,
                     help="training games: share of decisions where a poker hand type on offer is picked uniformly "
                          "before the play (see explore_sample); 0 = off")
+    ap.add_argument("--pin-hand", default=None,
+                    help="strategy expert: poker hand type to pin, as the game names it (e.g. 'Full House'); "
+                         "see apply_pin. Off by default")
+    ap.add_argument("--pin-rate", type=float, default=1.0,
+                    help="share of decisions with that hand on offer where the pin binds (1.0 = every time)")
+    ap.add_argument("--init-weights",
+                    help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)
     ap.add_argument("--grad-clip", type=float, default=0.5)
     ap.add_argument("--device", default="auto")
@@ -642,6 +714,18 @@ def main():
             for g in opt.param_groups:
                 g["lr"] = args.lr
         resumed = ck
+    elif args.init_weights:
+        w = torch.load(args.init_weights, map_location=device, weights_only=True)
+        assert list(w["vocab"]) == vocab, "weights file vocabulary differs from this game"
+        arch = w.get("arch", {})
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc)):
+            assert arch.get(k) == v, f"weights file has {k}={arch.get(k)}, this run has {k}={v}"
+        have = arch.get("actions")
+        assert have == args.actions or (have, args.actions) == ("ordered", "ordered-capped"), \
+            f"weights file has actions={have}, this run has actions={args.actions}"
+        model.load_state_dict(w["state_dict"])
+        print(f"starting from weights {os.path.basename(args.init_weights)} (model {w.get('model_version')}), "
+              f"fresh optimizer, round 0", flush=True)
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
     print(f"model {param_count(model):,} params on {device}; {args.workers} workers; reward '{args.reward}' "
@@ -848,7 +932,9 @@ def main():
         recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
-                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc} for e in keep]
+                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 **({"pin_hand": args.pin_hand, "pin_rate": args.pin_rate, "pin": e.get("pin")} if args.pin_hand else {})}
+                for e in keep]
         if recs:
             gd = os.path.join(args.spill_dir, "runs", args.run, "games") if spilling() else games_dir
             os.makedirs(gd, exist_ok=True)
