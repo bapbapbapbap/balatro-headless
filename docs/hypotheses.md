@@ -544,3 +544,56 @@ Review findings:
    possible later version, not this one.
 
 Status of I1: **proposed**, unchanged.
+
+### Design interview (2026-11-03 ~17:16-17:33 CST, chud's answers; recorded at his request)
+chud asked to be interviewed so the record represents his design, not Claude's: "you gotta
+represent me well or the epyrical value decreases." His answers, in his words where quoted. Where
+he handed a choice to Claude, it is marked as Claude's. Nothing above is edited; where an answer
+changes a proposal above, the answer stands.
+
+- **Why it should work (chud, 17:19):** "balatro is deterministic. so that means for you to have
+  gotten to blinds at 3 or 4 or some specified trigger turn, you had to have passed all the
+  valued behind it. and you gotta get a certain strategy to get big enough numbers to pass. so
+  then there are certain jokers that should corelate with different hand strategies."
+  - Note: the pinned game is already known to be deterministic given seed and moves (every
+    published route replays), so this is a premise, not a prediction.
+  - The joker-to-hand correlation is testable on saved games now. Whether to register it as a
+    prediction: *(chud to confirm)*.
+- **Trigger (chud, 17:19):** "once a certain hand is prefered say past the 4th blind, make the
+  agent asume the weights of the expert of that hand." (17:21) The handoff is by ante: "ante 4, or maybe 3, or maybe 5. it is to be
+  determined the exact right hand off ante." How "preferred" is measured: *(open)*. If the ante is tuned, it is
+  tuned on seeds apart from the test seeds and fixed before the test.
+- **Steering (chud, 17:15):** "early play can steer." The generalist's own play before the handoff
+  decides which build forms and so which expert takes over. (Review finding 7 above overstated
+  this: what the generalist can't do, unless trained with the experts in place, is aim for the
+  builds a given expert plays best.)
+- **The generalist (chud, 17:23):** "we haven't trained the generalist. 1.0 is a proxy currently."
+- **Experts (17:19):** "a bot trained a ton of games with a built in bias for that hand." Eight: Pair, Two
+  Pair, Three of a Kind, Straight, Flush, Full House, Four of a Kind, Straight Flush. No High Card
+  ("lets skip training high card"); no secret hands ("secret hands are for challenge points for
+  psychos like me").
+  - **Pair (17:31):** "pair is very strong early game, so we need to at least attempt a pair expert", and
+    "pair can be half encouraged."
+  - **Full House (17:31, 17:33):** "0.1 must be forced to take full house every time it shows up"; "full house
+    is full house expert. the others are other experts."
+- **The pin (chud, 17:33: "you decide pin rate for all of them. go. guess. keep the pin rate
+  high."; the choices are Claude's):** a hard pin on plays. When a play of the expert's hand is on offer, the pin binds
+  with probability 0.5 for Pair (his "half encouraged") and 1.0 for the other seven; when it binds,
+  only plays of that hand are allowed. Discards and non-play moves stay free, so an expert could
+  discard to dodge its hand; that is logged per game (`discard_offered`).
+- **Not 1.0 (chud, 17:28):** "lets not use 1.0. even if that is counterintuitive, my gut says not
+  to." Reason given earlier (17:22): "I say we train the experts untainted. 1.0 refuses full
+  house, one of the best hands in the game."
+- **Architecture (chud, 17:32):** "whatever you do use the upgraded 1.0 architecture" (d=192,
+  4 layers, 6 heads, 1.6M parameters, encoding 2, ordered moves); "if we gotta train from scratch
+  we gotta train from scratch."
+- **Starting weights (Claude's pick, approved by chud's "go"):** model 0.2, the earliest posted
+  weights already on that architecture. 0.1 is a different architecture and can't be loaded into it
+  without retraining by imitation. 0.2 never plays Full House either (0 of 2,274); the hard pin
+  overrides that at play time, and the shop and critic relearn.
+- **Compute (chud, 17:23):** "I have days." Experts get far more than the 10,000 first floated; proposed
+  12 hours each (about 96,000 games, close to 1.0's 90,720), run one after another.
+
+Built for this (CHANGELOG 0.10.0): `train.py --pin-hand/--pin-rate/--init-weights`,
+`train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`. The generalist, the handoff
+at play time, and the test of I1 are not built and not registered.

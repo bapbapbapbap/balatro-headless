@@ -2,6 +2,14 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.10.0] - 2026-11-03
+
+### Added
+- **Hand pin for strategy experts** (`docs/hypotheses.md` section I, chud's design). `train.py --pin-hand "<hand>" --pin-rate R`: at a decision where a play of that poker hand type is on offer, with probability R the bot may play only that type. Discards and every non-play move stay allowed; with no such play on offer nothing is restricted. The pin enters the action mask (`collate`), so the policy that plays and the policy PPO updates are the same; hand-type exploration never goes around it. The game's legal list is untouched, so saved routes replay as before. Games and metrics log, per game: decisions with the hand on offer, how many the pin bound, plays, plays of the pinned type, and discards made while it was on offer. Off by default; every existing run is unchanged.
+- `train.py --init-weights FILE`: start from a released weights file (fresh optimizer, round 0); vocabulary and architecture are checked.
+- `train/run_expert.sh <shared> "<hand>" [hours] [workers]`: one expert from model 0.2's weights and architecture, pin rate 0.5 for Pair and 1.0 for the rest, otherwise v2b's settings (ordered-capped, exploration 0.05, lr 1e-5, reward `blinds`). `train/run_experts.sh` runs all eight in turn, Full House first. `run_v2.sh` takes `INIT_WEIGHTS`, `PIN_HAND`, `PIN_RATE`.
+- `tests/pin_check.py`: pre-flight on the real sim (the pin's moves, the model's mask, exact replay); `run_expert.sh` runs it before training.
+
 ## [0.9.10] - 2026-11-03
 
 ### Documented
