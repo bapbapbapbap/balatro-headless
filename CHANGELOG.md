@@ -5,7 +5,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ## [0.9.8] - 2026-11-03
 
 ### Added
-- **Released weights: model 1.0** (`weights/balatro-bot-1.0.pt`, SHA-256 `3e75d85a…3beb64cf`): the final weights of the 0.3 (v2b) run, its `best.pt` when the run ended. Round 810, 90,720 games, eval 12.79 blinds per game on the 200 fixed seeds. Exported by chud with `train/export_weights.py`. Named 1.0 by chud; the seeds the run beat stay counted under 0.3.
+- **Released weights: model 1.0** (`weights/balatro-bot-1.0.pt`, SHA-256 `3e75d85a…3beb64cf`): the final weights of the 0.3 (v2b) run, its `best.pt` when the run ended. Round 810, 90,720 games, eval 12.79 blinds per game and 5 wins on the 200 fixed seeds (0.3-beta: 12.035, 7 wins; `best.pt` is chosen by blinds). Exported by chud with `train/export_weights.py`. Named 1.0 by chud; the seeds the run beat stay counted under 0.3.
 - README, `docs/models.md`, `weights/README.md`: 1.0 is the released model; its hash is in the model card.
 
 ## [0.9.7] - 2026-11-03
