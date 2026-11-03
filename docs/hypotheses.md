@@ -508,3 +508,39 @@ seeds).
   conditional binomial on fresh-seed wins per 1,000) plus paired held-out seeds.
 - **Known way to lose:** 1.0 already sees hand levels and jokers in its input and may already
   play each build differently; I1 bets that separate weights per build beat that.
+
+### Attribution and review (added 2026-11-03 ~17:05 CST, requested by chud)
+**Design: chud's.** Specialists per hand-type strategy, handed control once a strategy is going,
+is his design, from how a roguelike is played. The prediction I1 is his. **Reviewed by Claude**
+(Opus 5.5). The review below is Claude's; nothing in it is confirmed until chud confirms it, and
+the registered text above is not edited by it.
+
+Review findings:
+1. **A concurrent control is free.** Model 1.0 is frozen, so it can play the same seeds as the
+   specialist system at test time. That removes the gap H1 had (a historical baseline, no
+   concurrent control). Proposed primary test: paired held-out seeds never used in training or
+   eval, both systems sampled with the same RNG per seed, one-sided exact McNemar on per-seed
+   wins. The 24.4 per 1,000 from H is a training-game rate under 5% exploration and seed retries,
+   so it is not comparable to a system played without them; report it alongside, not as the test.
+2. **Power.** At 1.0's eval rate (~2.5%), detecting a rise to 3.5% at 80% power, one-sided
+   alpha 0.05, needs roughly 3,600 paired seeds (one game each); a rise to 4.0% needs roughly
+   1,700. Several sampled games per seed (as in R) cut the seed count but not the game count much.
+3. **Two questions, two controls.** I1 as stated ("beats the best design so far") needs only
+   frozen 1.0. Whether *specialization* is the reason needs a second control: 1.0 trained on for
+   the same number of games the specialists used, same reward and settings. Without it, a pass
+   could be more training, as H1's caveat says.
+4. **Score every run, not committed ones.** The test is on all held-out seeds. Runs that never
+   reach the trigger are played start to finish by the generalist and count. Comparing only runs
+   that commit would select on survival (a run has to live long enough to build).
+5. **Specialists' training data is selected the same way.** Committed runs are runs that got far
+   enough to commit; fine-tuning on them is fine, but their win rate isn't a measure of the
+   specialist and shouldn't be reported as one.
+6. **Pin the trigger before training.** The trigger decides which games each specialist trains
+   on, so it is fixed in the registration of the test, not tuned after looking at specialist
+   results.
+7. **The handoff is one-way and the generalist doesn't know about it.** Pre-commit play is
+   unchanged 1.0, so any difference comes from post-commit play. Good for attribution; it also
+   means the design can't steer early play toward a build a specialist plays well. That is a
+   possible later version, not this one.
+
+Status of I1: **proposed**, unchanged.
