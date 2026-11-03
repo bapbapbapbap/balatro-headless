@@ -1,6 +1,6 @@
 # Model weights
 
-**Beta.** Trained weights of the Balatro bot, snapshot of 2026-11-02 at about 21:13 CST. Training is still running.
+**Beta.** Trained weights of the Balatro bot. The 0.3 file is a snapshot of 2026-11-02 at about 21:13 CST, taken mid-training. The 0.3 run has since ended (2026-11-03); its final weights aren't exported yet.
 
 | File | Model | Eval: blinds per game (wins in 200 fixed seeds) |
 |---|---|---|
@@ -12,8 +12,8 @@ All three were trained on Red Deck, White Stake, with the reward "blinds beaten"
 
 It was trained on one laptop: Core Ultra 9 285H (16 cores), RTX 40-series laptop GPU, about 23 GB RAM, under WSL2.
 
-The model card covers what it has learned, what it hasn't (it never plays Full House, for one), file hashes, and how to watch it play a seed: [docs/models.md](https://github.com/bapbapbapbap/balatro-headless/blob/main/docs/models.md).
+The model card covers what it has learned, what it hasn't (it never plays Full House, for one), file hashes, and how to watch it play a seed: [docs/models.md](../docs/models.md).
 
 You need your own copy of Balatro to run it. The files contain no game code.
 
-To check a download: `sha256sum weights/*.pt` and compare with the table in docs/models.md.
+To check a download: `sha256sum weights/*.pt` and compare with the table in [docs/models.md](../docs/models.md#files).

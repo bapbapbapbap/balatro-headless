@@ -58,7 +58,7 @@ reordering (Photograph-style plays) needs controls mode, later. No boss reroll, 
 - Seeds: training seeds random; evaluation seeds a fixed disjoint list; every result records
   its seeds.
 
-## 5. Reward (the ought: the user's decision)
+## 5. Reward (the ought: chud's decision)
 A named setting, recorded in every checkpoint and every result file:
 - `blinds`: +1 per blind beaten (placeholder for the smoke test)
 - `antes`: +1 per ante cleared
@@ -86,7 +86,8 @@ check with the encoder running, or nothing starts. During training (`train/train
   twice in a row → stop.
 - **Resources**: pool sized to free memory (`--worker-mem-gb`); stop below `--min-mem-gb` free
   memory or `--min-disk-gb` free disk.
-- **Not learning**: no eval improvement in `--stall-hours` (3) → stop.
+- **Not learning**: training score (10-round average) flat for `--stall-hours` (3) → stop. (The
+  first version read the eval; it was changed on 2026-11-01, see CHANGELOG 0.3.2.)
 - **Heat**: play speed under 60% of the first half hour's → flagged (WSL can't read temperatures;
   the CPU throttles and protects itself in hardware).
 - **Stop button**: Ctrl+C or SIGTERM stops within seconds; every stop saves `final.pt`.
