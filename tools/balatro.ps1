@@ -174,5 +174,5 @@ switch ($Command.ToLower()) {
     "watch"  { Cmd-Watch }
     "verify" { Cmd-Verify }
     "publish" { Cmd-Publish }
-    default  { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 22 | ForEach-Object { $_ -replace '^# ?', '' } }
+    default  { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 21 | ForEach-Object { $_ -replace '^# ?', '' } }
 }
