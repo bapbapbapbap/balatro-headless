@@ -493,7 +493,8 @@ How a roguelike is played: stay open early, commit once a build forms, then play
   specialization is the only change. The alternative (a reward per hand type) also varies the
   ought, and would be scored as a section C/aims design, not this one.
 - **Which hand types get a specialist.** Depends on how 1.0's games split by archetype; rare ones
-  (Full House: 5 of 497 plays in 0.3 wins) may not have enough games without more training on them.
+  (Full House: played 5 of the 497 times it was the best hand on offer, in the H window's
+  262-game sample) may not have enough games without more training on them.
 - **Compute match** between the specialists' total training games and the generalist's continued
   training, and whether the control runs concurrently.
 
