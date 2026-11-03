@@ -2,6 +2,16 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.3] - 2026-11-02
+
+### Added
+- **Running tally of seeds proven beatable**, the project's production count: a badge at the top of README.md (`wins/badge.json`, a shields.io endpoint) and a counts line in README.md and `wins/README.md` (total, by model, by deck and stake). `train/tally.py` writes all three from `wins/routes.jsonl`, so the number shown is always the number anyone can replay.
+- `tools/balatro.ps1 publish`: replays every new win from every run under the work folder (`runs/*/wins.jsonl`), adds the ones that replay exactly to `wins/`, updates the tally, commits and pushes.
+
+### Changed
+- `publish_wins.py` skips a line that training is still writing instead of failing on it.
+- README: the results list and F1 point to the tally instead of fixed counts.
+
 ## [0.9.2] - 2026-11-02
 
 ### Changed

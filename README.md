@@ -1,5 +1,7 @@
 # balatro-headless
 
+[![seeds proven beatable](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge.json)](wins/README.md)
+
 > ## Balatro is not ours.
 > **Balatro** was created by **LocalThunk** and is published by **Playstack**. The game, its
 > code, art, audio, card text and name belong to them. This project isn't affiliated with or
@@ -12,6 +14,10 @@
 > grants nothing about Balatro.
 
 ---
+
+<!-- tally:start -->
+**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`wins/`](wins/) that replays to a win on the untouched game. This is the project's production count; `tools/balatro.ps1 publish` updates it.
+<!-- tally:end -->
 
 Runs Balatro's real game logic with no window, sound or Steam, so runs can be stepped,
 replayed and searched from code. We didn't rewrite the rules. The harness loads the game's
@@ -33,8 +39,8 @@ PowerShell controller for every step.
 All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
 Every claim below links to its data or its pre-registration.
 
-- **Seeds proven beatable:** 121 listed so far in [`wins/`](wins/README.md) (`beaten_seeds.csv`).
-  Each route is replayed on the untouched game before it is listed.
+- **Seeds proven beatable:** the tally at the top, listed in [`wins/`](wins/README.md)
+  (`beaten_seeds.csv`). Each route is replayed on the untouched game before it is listed.
 - **Best model: 0.3-beta** ([`weights/`](weights/README.md), [model card](docs/models.md)). It beats
   12.0 blinds per game on average (out of 24) on 200 fixed evaluation seeds, and wins 7 of them.
   It ran on one laptop at about 6,000–8,000 games an hour.
@@ -42,7 +48,7 @@ Every claim below links to its data or its pre-registration.
   seeds 2.15 times as fast as 0.1 (v1): 90.8 vs 42.3 per hour, one-sided exact test p = 2×10⁻¹².
   The prediction, window and test were committed before the run produced results
   ([`docs/hypotheses.md`](docs/hypotheses.md)). Each of 0.2's 545 new seeds was replayed before it
-  counted, but their routes aren't in `wins/` yet; it currently lists 0.1's 121 seeds.
+  counted; the tally at the top shows how many of each model's seeds are published in `wins/`.
 - **What it has learned, from 709 wins replayed move by move**
   ([`docs/won_games_analysis.md`](docs/won_games_analysis.md)):
   - **Learned:** it picks planets for the hand it plays (91% of the time, against 25% by chance),
