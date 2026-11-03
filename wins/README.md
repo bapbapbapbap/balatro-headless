@@ -40,4 +40,7 @@ state and the win. `--full` runs the game with nothing stripped.
   `off`/`on` = the arms of the learning-rate and self-imitation A/B tests, which played from v1's
   weights), `commit` (the trainer's code version).
 
-Multiple wins on one seed: the shortest is kept. No model weights are published.
+Multiple wins on one seed: the shortest is kept.
+
+So far this list holds model 0.1's seeds only (`subsets`). Model 0.2's routes (`ordered`) aren't
+published yet. Released model weights are in [`../weights/`](../weights/README.md).
