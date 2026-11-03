@@ -130,7 +130,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             o = sim.reset(seed, args.back, args.stake)
             if pst is not None:
                 apply_pin(o, pin_id, args.pin_rate, prng, pst)
-            steps, done, tail = [], False, []
+            steps, done, tail, reached = [], False, [], False
             t_model = t_sim = 0.0
             while not done and sim.steps < args.max_steps:
                 tm = time.time()
@@ -154,6 +154,9 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                                  int(o["act"][a][2]), round(float(p[a]), 4), len(p)))
                 ts = time.time()
                 prev, cur, done = sim.step(a)
+                if args.stop_ante and not done and cur["ante"] >= args.stop_ante \
+                        and cur["bosses_beaten"] >= args.stop_ante - 1:
+                    done, reached = True, True        # early-game model: its run ends here (see --stop-ante)
                 r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if pst is not None:
@@ -168,7 +171,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
-                  "t_model": t_model, "t_sim": t_sim, "pin": pst}
+                  "t_model": t_model, "t_sim": t_sim, "pin": pst, "reached": reached}
             if ep["progress"]["won"]:
                 ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
@@ -451,6 +454,7 @@ def summarize(episodes):
         antes[a] = antes.get(a, 0) + 1
     return {"games": n,
             "wins": sum(e["progress"]["won"] for e in episodes),
+            "reached": sum(e.get("reached", False) for e in episodes),
             "blinds_mean": float(np.mean([e["progress"]["blinds_beaten"] for e in episodes])),
             "bosses_mean": float(np.mean([e["progress"]["bosses_beaten"] for e in episodes])),
             "return_mean": float(np.mean([e["return"] for e in episodes])),
@@ -606,6 +610,11 @@ def main():
                          "see apply_pin. Off by default")
     ap.add_argument("--pin-rate", type=float, default=1.0,
                     help="share of decisions with that hand on offer where the pin binds (1.0 = every time)")
+    ap.add_argument("--stop-ante", type=int, default=0,
+                    help="early-game model: a game ends once this ante is reached (the boss before it beaten), "
+                         "counted as 'reached', not as a win; 0 = off")
+    ap.add_argument("--best-by", choices=["blinds", "reached"], default="blinds",
+                    help="what picks best.pt from the evals: blinds per game, or share of games reaching --stop-ante")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)
@@ -933,6 +942,7 @@ def main():
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
                  "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 **({"stop_ante": args.stop_ante, "reached": e.get("reached", False)} if args.stop_ante else {}),
                  **({"pin_hand": args.pin_hand, "pin_rate": args.pin_rate, "pin": e.get("pin")} if args.pin_hand else {})}
                 for e in keep]
         if recs:
@@ -1103,8 +1113,9 @@ def main():
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
                 save(it, f"ckpt_{it:05d}")
-                if ev["blinds_mean"] > best_eval:
-                    best_eval = ev["blinds_mean"]
+                score = ev["reached"] / max(ev["games"], 1) if args.best_by == "reached" else ev["blinds_mean"]
+                if score > best_eval:
+                    best_eval = score
                     save(it, "best")
                 capped = [e for e in eval_eps if e["capped"]][:20]
                 if capped:

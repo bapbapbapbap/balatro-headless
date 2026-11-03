@@ -35,6 +35,8 @@ def main():
     ap.add_argument("--games", type=int, default=3)
     ap.add_argument("--max-steps", type=int, default=400)
     ap.add_argument("--actions", default="ordered-capped")
+    ap.add_argument("--back", default="b_red")
+    ap.add_argument("--stake", type=int, default=1)
     ap.add_argument("--allow-unbound", action="store_true",
                     help="pass even if the pin never bound (rare hands in a short check)")
     a = ap.parse_args()
@@ -54,7 +56,7 @@ def main():
         seed = f"PINCHK{g:02d}"
         rng, prng = random.Random(f"pin-check-{g}"), random.Random(f"pin-check-coin-{g}")
         st = new_pin_stats()
-        o = sim.reset(seed, "b_red", 1)
+        o = sim.reset(seed, a.back, a.stake)
         apply_pin(o, pin_id, a.rate, prng, st)
         done = False
         while not done and sim.steps < a.max_steps:
@@ -75,7 +77,7 @@ def main():
                 o = sim.observe()
                 apply_pin(o, pin_id, a.rate, prng, st)
         route, desc, final, n = list(sim.route), list(sim.desc), sim.final_hash(), sim.steps
-        _, n2, final2, problems = fresh.replay(seed, "b_red", 1, route, desc)
+        _, n2, final2, problems = fresh.replay(seed, a.back, a.stake, route, desc)
         if problems or n2 != n or final2 != final:
             fails.append(f"{seed}: route does not replay ({problems[:1] or 'final state differs'})")
         print(f"{seed}: {n} moves, ante {sim.progress['ante']}, pin {st}")

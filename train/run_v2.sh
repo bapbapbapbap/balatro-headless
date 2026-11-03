@@ -7,7 +7,8 @@
 # Env: RUN (run name, default v2), ACTIONS (default ordered), RESUME_FROM (checkpoint to continue
 # from when the run has no latest.pt yet, e.g. runs/v2/latest.pt for v2b; see run_v2b.sh), INIT_WEIGHTS
 # (a released weights file to start from instead, fresh optimizer; see run_expert.sh), PIN_HAND and
-# PIN_RATE (strategy-expert hand pin; see run_expert.sh).
+# PIN_RATE (strategy-expert hand pin; see run_expert.sh), FROM_SCRATCH=1 (random weights, no cloning;
+# see run_early.sh), STAKE (1-8, default 1 = White) and BACK (deck, default b_red).
 set -uo pipefail
 SHARED="${1:?usage: run_v2.sh <shared folder> [hours] [workers]}"
 RUN="${RUN:-v2}"
@@ -40,6 +41,8 @@ if [ -f "$OUT/latest.pt" ]; then
   RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"
 elif [ -n "${RESUME_FROM:-}" ]; then
   RESUME=(--resume "$RESUME_FROM"); echo "starting $RUN from $RESUME_FROM"
+elif [ -n "${FROM_SCRATCH:-}" ]; then
+  echo "starting $RUN from scratch (random weights, no behavior cloning)"
 elif [ -n "${INIT_WEIGHTS:-}" ]; then
   RESUME=(--init-weights "$INIT_WEIGHTS"); echo "starting $RUN from released weights $INIT_WEIGHTS"
 else
@@ -62,7 +65,7 @@ echo "== training"
 cd "$R/train"
 python3 train.py --src "$W/local/source" --run "$RUN" --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
   --enc 2 --actions "${ACTIONS:-ordered}" --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
-  --reward blinds --back b_red --stake 1 --max-wins "${MAX_WINS:-1000000}" \
+  --reward blinds --back "${BACK:-b_red}" --stake "${STAKE:-1}" --max-wins "${MAX_WINS:-1000000}" \
   --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data/$RUN}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" \
   "${BC[@]}" --bc-epochs "${BC_EPOCHS:-2}" "${RESUME[@]}" "${PIN[@]}" ${TRAIN_ARGS:-}
 echo "== exited $(date)"

@@ -598,6 +598,29 @@ changes a proposal above, the answer stands.
   only the eight experts are trained. How the experts are combined or compared at test time (who
   plays before ante 4 without a generalist) is *(open)*.
 
-Built for this (CHANGELOG 0.10.0): `train.py --pin-hand/--pin-rate/--init-weights`,
+- **Who plays before the handoff (chud, 17:43):** "we're going to farm the perfect early game
+  weights. we'll have to run from scratch an unpinned strategy and make it's win rate only to get
+  to 4. grow a handfull enough to know when you found a good one."
+- **Cutoff (chud, 17:45):** "it looks like 4 is a reasonable cutoff? with 5 being a slight
+  reprieve." (On White Stake each ante's blinds are about 2.5x the last through ante 4, then 2.2x
+  into ante 5; Claude's figures from the game's blind table, not re-read from the pinned source.)
+- **Early-game model, as built (the choices are Claude's):** 1.0's architecture from random
+  weights, no pin, hand-type exploration 0.05, lr 1e-4, fresh seeds only (no retries).
+  - Its run ends the moment the ante-3 boss is beaten, so the expert makes the cash-out and shop
+    going into ante 4.
+  - Reward `blinds` (at most 9 before the stop), not a 0/1 reward for reaching ante 4, which would
+    be sparse for a model starting from random weights. Reaching ante 4 means beating all 9.
+  - Several seeds (default 5, 8 h each); best.pt for each is picked by the share of the 200 fixed
+    eval seeds that reach ante 4, and the best seed is the one with the highest share. Because
+    that picks on the eval seeds, any test of I1 uses other seeds.
+  - Open: the experts are trained on whole runs from ante 1 (pinned throughout), while in play they
+    would start from the states the early-game model hands them. Whether to train or fine-tune
+    them from those handoff states instead *(chud to decide)*.
+- **Stake (chud, 17:46):** "also I want the ability to change the stake without planning any higher
+  stake runs." Built as a setting (`STAKE`, `BACK`); every planned run stays on White Stake, Red
+  Deck. Runs at another stake or deck get their own run folder. Higher stakes are not covered by
+  the differential check yet.
+
+Built for this (CHANGELOG 0.10.0, 0.11.0): `train.py --pin-hand/--pin-rate/--init-weights`,
 `train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`. The handoff at play time
 and the test of I1 are not built and not registered.
