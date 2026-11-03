@@ -4,7 +4,7 @@
 #   bash start_v2b.sh [shared folder] [hours, default 168] [workers, default 14]
 # Env: EXPLORE (default 0.05)
 set -uo pipefail
-SHARED="${1:-/mnt/c/Users/Jacobi/balatro-work}"
+SHARED="${1:?usage: start_v2b.sh <shared folder, e.g. /mnt/c/Users/<you>/balatro-work> [hours] [workers]}"
 if pgrep -f "train.py .*--run v2 " >/dev/null; then
   echo "stopping v2 cleanly (it saves latest.pt)..."; pkill -INT -f "train.py .*--run v2 "
   for i in $(seq 1 120); do pgrep -f "train.py .*--run v2 " >/dev/null || break; sleep 1; done

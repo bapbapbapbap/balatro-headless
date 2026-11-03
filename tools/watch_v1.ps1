@@ -1,7 +1,7 @@
 # watch_v1.ps1
 # Keeps this PC awake, prints a run's training status at a steady interval, and restarts training
 # if it died unexpectedly. Run it in its own PowerShell window and leave it open:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\Jacobi\balatro-work\watch_v1.ps1
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools\watch_v1.ps1 -Run v2b
 #   ... -Run v2      watch (and restart) v2 instead of v1 (or -Run v2b)
 # Options: -Interval 60       seconds between status lines
 #          -StaleMinutes 15   no health update for this long, and no training process = died
@@ -13,7 +13,7 @@
 # training window, the win target, the time cap, or the not-learning stop).
 
 param(
-    [string]$Work = "C:\Users\Jacobi\balatro-work",
+    [string]$Work = (Join-Path $env:USERPROFILE "balatro-work"),
     [string]$Distro = "Ubuntu-24.04",
     [ValidateSet("v1", "v2", "v2b")][string]$Run = "v1",
     [int]$Interval = 60,

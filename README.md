@@ -24,14 +24,36 @@ seeing only what a player sees. Every seed it beats is saved with its route, eve
 the seed to the win, and replayed before it counts. The list and the routes are in
 [`wins/`](wins/README.md); anyone with the same game version can replay a route and check it.
 
-**Models:** trained weights are in [`weights/`](weights/README.md). **0.3-beta** (1.6M parameters,
-2026-11-02) beats 12.0 of 24 blinds per game on 200 fixed evaluation seeds and wins 7 of them.
-What it has learned and what it hasn't, its training machine, and how to watch it play a seed:
-[docs/models.md](docs/models.md).
-
 **To set it up from your own Steam copy**, see [docs/REPRODUCE.md](docs/REPRODUCE.md): the full
 dependency list, the mods (only for logging your own games), and `tools\balatro.ps1`, one
 PowerShell controller for every step.
+
+## Results so far (2026-11-02)
+
+All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
+Every claim below links to its data or its pre-registration.
+
+- **Seeds proven beatable** are listed in [`wins/`](wins/README.md) (`beaten_seeds.csv`). Each route is replayed on the
+  untouched game before it is listed.
+- **Best model: 0.3-beta** ([`weights/`](weights/README.md), [model card](docs/models.md)). It beats
+  12.0 blinds per game on average (out of 24) on 200 fixed evaluation seeds, and wins 7 of them.
+  It ran on one laptop at about 6,000–8,000 games an hour.
+- **Pre-registered test F1: passed.** Model 0.2 found new beaten seeds 2.15 times as fast as 0.1
+  (90.8 vs 42.3 per hour, one-sided exact test p = 2×10⁻¹²). The prediction, window and test
+  were committed before the run produced results ([`docs/hypotheses.md`](docs/hypotheses.md)).
+- **What it has learned, from 709 wins replayed move by move**
+  ([`docs/won_games_analysis.md`](docs/won_games_analysis.md)):
+  - **Learned:** it picks planets for the hand it plays (91% of the time, against 25% by chance),
+    and picks jokers that fit its Two Pair play.
+  - **Not learned:** Full House (played 0 times in 2,274 chances), playing around three of the
+    bosses, and spending money past the interest cap.
+- **Open:**
+  - Hypothesis H: does 0.3's exploration and drag cap raise the solved rate? It is being scored now.
+  - Standing goal: a model that reaches naneinf ([`naneinf/`](naneinf/README.md)).
+
+**The larger aim (chud's):** to exhibit Hume's is-ought gap. Hold the facts fixed (pinned game,
+same seeds, same sim) and vary only the ought (the reward). Whatever changes in what the bot
+does then came from the reward, not from the facts. See `docs/hypotheses.md`, sections C and G.
 
 ## Why
 We're building a Balatro bot. A bot needs a simulator, and every simulator we found is a
@@ -124,15 +146,15 @@ and makes no network connections. It's plain text; read it before you run it.
 powershell -NoProfile -ExecutionPolicy Bypass -File bundle_balatro.ps1
 ```
 
-## Status: research preview
+## Harness validation
 - **Validated on 2 logged runs**, Windows Steam 1.0.1o with Lovely 0.10.0, Steamodded
   26.1002.0 and Antelytics 1.3.0-alpha, with **0 mismatches**:
   - Tutorial run, Red Deck, White Stake: all 322 decisions. Covers packs, Death, Hanged Man, Cryptid copies, DNA, Sixth Sense, Buy & Use, vouchers, rerolls and selling. The sim wins at ante 9, same as the real run.
   - Ghost Deck, Purple Stake: 10 decisions, including Steamodded's own RNG streams.
 - Not yet covered: challenges, Erratic Deck, seeded runs, quit-and-continue runs, Mac/mobile.
 - Runs on Linux (or WSL).
-- Speed: ~60 ms per action with `--fast`. Fine for replays and search, not for millions of
-  RL episodes. A fast rewrite of the rules could use this harness as its reference.
+- Speed: ~12 ms per step (controls mode) to ~35 ms per move (ordered moves, with the encoder),
+  visuals stripped. Training runs 14 sims in parallel.
 - **Playable from code** (see [Playing it from code](#playing-it-from-code)): legal actions and
   player-visible observations at every decision. Both fixtures can be driven entirely through
   it with 0 mismatches.
@@ -187,7 +209,7 @@ re-record fixtures against your own setup.
 `harness/env.py` exposes legal actions and observations at every decision, so an agent can play.
 ```python
 from env import BalatroEnv
-env = BalatroEnv("./local/source")            # mode="controls" (default) or "subsets"
+env = BalatroEnv("./local/source")            # mode="controls" (default), "subsets" or "ordered"
 env.reset(seed="ABC123", back="b_red", stake=1)
 while not env.done:
     acts = env.legal_actions()                # [(type, i, j, cards), ...]
@@ -196,9 +218,10 @@ while not env.done:
 **Two action modes, same game:**
 - `controls` (default): the game's own controls. `toggle` a hand card, `move_hand` / `move_joker` (drag from slot i to j), `sort_rank` / `sort_suit`, then `play`, `discard`, `use_consumable` or `pick` with whatever is selected. Played cards score left to right in hand order, as in the game.
 - `subsets`: the selection is part of the action (`play` with cards (1,3,5)). Fewer steps, ~200–2000 actions per hand.
+- `ordered` (what models 0.2 and 0.3 play): `subsets` plus what card order can change. That covers which scoring card leads, which card Death copies, and boss rerolls (Director's Cut / Retcon). `ordered-capped` (0.3) also stops long chains of joker drags.
 - Both: `select_blind`, `skip_blind`, `end_shop`, `reroll`, `buy`, `buy_and_use`, `redeem`, `open_pack`, `pick`, `skip_pack`, `sell_joker`, `sell_consumable`, `cash_out`, `move_joker`.
 - Legality is the game's own: the checks its buttons use (`can_play`, `can_discard`, `can_buy`, `can_redeem`, `can_open`, `can_reroll`, `can_skip_booster`, `can_select_card`, `Card:can_use_consumeable`, `Card:can_sell_card`, `check_for_buy_space`, Cerulean Bell's forced selection, sort buttons only when they'd change something). Actions go through the same `G.FUNCS` calls `replay.py` validates.
-- Not offered yet: boss reroll (Director's Cut / Retcon), endless mode after a win.
+- Not offered yet: endless mode after a win (needed for the naneinf goal).
 
 **Observation = what a player can see.** Face-up cards; face-down cards (The Fish, House, Wheel, Mark; jokers under Amber Acorn) masked; the deck view as sets (remaining and full deck, never draw order); joker and card values shown on hover; HUD, blind and its effect, shop and pack contents, tags, vouchers, hand levels, the round's Idol / Mail-In / Ancient / Castle targets. Never RNG state.
 

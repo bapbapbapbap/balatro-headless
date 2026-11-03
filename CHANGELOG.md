@@ -2,6 +2,14 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.1] - 2026-11-02
+
+### Changed
+- README: a results section near the top covers seeds proven beatable, the best model, the F1 test, what the won games show, open questions, and the larger aim (Hume's is-ought gap, chud's idea). Stale lines fixed: the speed figures, "research preview", and boss reroll, which is offered in `ordered`. The `ordered` and `ordered-capped` action sets are now documented.
+- The watcher defaults to `%USERPROFILE%\balatro-work`. `start_v2b.sh` requires the shared folder as an argument. Neither has a personal path anymore.
+- The CHANGELOG entry 0.3.4 is back in version order.
+- `docs/models.md`: model versions (0.1–0.3) are separate from tooling versions.
+
 ## [0.9.0] - 2026-11-02
 
 ### Added
@@ -54,11 +62,6 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 - `ordered_semantics.py` ALL PASS; `diff_check.py --mode ordered --encode --enc 2`, 5 runs, PASS; 30 saved v2 wins replay with 0 mismatches (cap off, as recorded).
 - Exploration sampler on a real decision with a Full House on offer (381 plays, 5 hand types): at EPS 0.05 each type gets ~1% of draws on top of the policy; returned log-probabilities match the policy's.
 - Not run here: the trainer itself (no torch in this container). The laptop's pre-flight and first round are the smoke test.
-
-## [0.3.4] - 2026-11-01
-
-### Added
-- **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
 ## [0.7.1] - 2026-11-02
 
@@ -151,6 +154,11 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ### Checked
 - Recording: 12 random-play games replayed with 0 mismatches in both the fast and the untouched sim; 48 games from a short training run (resumed from v1 round 260) replayed with 0 mismatches, a fresh runtime per game.
+
+## [0.3.4] - 2026-11-01
+
+### Added
+- **`tools/watch_v1.ps1`**: Windows watcher for unattended runs. Keeps the PC awake (`SetThreadExecutionState`, re-applied every check), prints a status line every 60 s (games, wins, 10-round training average, best eval, speed, free memory, new alerts), and restarts training only after an unexpected death (status stale 15 min with no training process, or a crashed/worker-failure stop), at most 5 times. Never restarts after a deliberate stop.
 
 ## [0.3.3] - 2026-11-01
 

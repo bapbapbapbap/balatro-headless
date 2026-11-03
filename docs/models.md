@@ -6,7 +6,8 @@ and `Balatro.exe` hash it was trained against, and its evaluation. There is no g
 training state. Load with `torch.load(path, weights_only=True)`.
 
 Version names: **0.1**, **0.2** and **0.3** are the models called v1, v2 and v2b in the logs,
-the CHANGELOG and `docs/hypotheses.md`.
+the CHANGELOG and `docs/hypotheses.md`. Model versions are separate from the tooling versions
+in the CHANGELOG.
 
 All three are in `weights/`.
 
