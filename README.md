@@ -16,7 +16,7 @@
 ---
 
 <!-- tally:start -->
-**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`wins/`](wins/) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
+**Seeds proven beatable: 971** (134 by model 0.1, 673 by model 0.2, 164 by model 0.3; 971 on Red Deck, White Stake). Each one is a route in [`wins/`](wins/) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
 <!-- tally:end -->
 
 Runs Balatro's real game logic with no window, sound or Steam, so runs can be stepped,
