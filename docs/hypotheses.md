@@ -223,3 +223,52 @@ holding the facts fixed (the pinned game, same seeds, same sim) and varying only
 reward). The framing of oughts as things to strategize over, like jokers, is also his. Section C
 and section G both apply that idea. Section G's specific predictions (G1–G4) are Claude's; the
 question they test is chud's.
+
+---
+
+## Added 2026-11-02 ~18:25 CST: F1 result (v2 vs v1)
+
+Scored once, at the end of the registered window, as registered. Nothing above is edited.
+
+### Window
+v2 RL began at iteration 0 (~11:17 CST, after behavior cloning). Warm-up: RL hours 0-1. Window:
+RL hours 1.0-7.0 (~12:17-18:17 CST), iterations 71-438. Settings were unchanged for the whole
+window (lr 5e-5 throughout, after the one automatic halving at iteration 6, which is in warm-up).
+Hours are the trainer's own clock (`hours` in `runs/v2/metrics.jsonl`, minus its value at
+iteration 0).
+
+### F1 (primary): new beaten seeds per hour — **PASS**
+- **New beaten seeds in the window:** 545. Training wins only (evaluation seeds excluded); a seed
+  counts once, at its first v2 win; "new" excludes every seed in v1's `wins.jsonl`, the A/B runs
+  (`ab/`, `ab2/`), `test-retry/` and `wins/routes.jsonl` (142 seeds in all, eval-won included).
+- **Rate:** 545 / 6.0 h = **90.8 per hour**, vs v1's 42.3 per hour (80 in 1.89 h).
+  Rate ratio 2.15 (approx. 95% CI 1.70-2.71).
+- **Test:** one-sided exact Poisson rate comparison (conditional binomial: n = 625,
+  p0 = 6.0 / 7.89 = 0.760), **p = 2 x 10^-12** < 0.05.
+- **Decision (as registered):** v1 is retired as the producer of beaten seeds; v2 continues.
+  v1's weights and games are kept.
+- **Prediction:** v2 passes. Confirmed.
+
+### Reported alongside (not decisive)
+- **Wins per hour:** 91.7 (550 in the window, fresh and retry arms) vs v1 52.4.
+- **Fresh-seed wins per 1,000 games:** 8.78 (181 / 20,608) vs v1 4.73.
+- **Eval blinds/game** (fixed 200 seeds, sampled): mean of the 36 evals in the window **10.66**
+  (range 9.69-11.51; best 11.505 at iteration 300) vs v1's last six, mean 10.87. v2 doubles the
+  win rate without beating v1 on average depth. Not tested; worth a look (more of v2's gain may be
+  in closing out deep runs, which ordered actions make expressible, than in getting further on
+  average).
+- **Throughput:** median 8,054 games per hour; per decision, model 6.2 ms vs sim 29.4 ms
+  (medians). The sim dominates, so a faster GPU would not speed v2 up; more sim processes would.
+- **Level straight after behavior cloning** (`[eval 0]`): 9.905 blinds/game, 1 win in 200.
+
+### What happens next (changes after the window)
+- **Section G start checkpoint fixed now.** G says both arms start from v2's `best.pt` when the F1
+  window closes. That file (iteration 300 eval, 11.505) is copied to
+  `runs/v2/g_start_best_at_f1_close.pt`, SHA-256
+  `70a49a7c2c563fb56a2eca4a238867706a279fb62f2f57358962584e0ea021de`, before v2 trains further
+  and can overwrite `best.pt`.
+- **v2 learning rate lowered after the window** (5e-5 -> 1e-5, resumed from `latest.pt` with
+  `--reset-lr`; `restart_v2_lr.sh`). Reason: during the window nearly every PPO update hit the KL
+  early stop, most after 15-90 of ~580 planned minibatches, so a typical update used under ~15% of
+  the games it had just played. Not a pre-registered change, and made only after F1 was scored; any v2 result
+  from here on is on the new learning rate and is reported that way.
