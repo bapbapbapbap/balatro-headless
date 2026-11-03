@@ -321,3 +321,33 @@ and the result is reported as such.
   (v2: 0 of 2,274 in its wins). Measured by replaying v2b's training games in the window.
 - **Joker drags:** share of moves, and moves per game (v2: 22.0%, 124).
 - **Eval blinds/game:** mean of the evals in the window vs v2's evals in rounds 445–504.
+
+---
+
+## Added 2026-11-02 ~23:05 CST: the project's aims (stated by chud)
+
+### Authorship
+The three aims are chud's, in the order he gave them (23:01–23:03 CST). The write-up is Claude's.
+Nothing above is edited. This section names what the sections above are for.
+
+### 1. Primary: exhibit Hume's is-ought gap
+Hold the facts fixed (the pinned game, same seeds, same sim) and vary only the ought (the reward).
+Oughts are a category to have strategy towards, like jokers. The idea and that framing are chud's
+(see the clarification at ~11:05). Sections C and G test it.
+- Status: no registered hypothesis yet tests whether strategy over oughts generalizes.
+
+### 2. Prove a naneinf seed
+A seed plus a route that replays move for move to a played hand after which `G.GAME.chips` is not
+finite, on the pinned game. The measure, what has to be built first (endless mode, a reward for
+it, inf/nan-safe scoring and shaping, a longer move cap, the encoding at inf/nan) and the
+community seeds checked so far are in `naneinf/README.md`. A proven seed goes in `wins/` with
+its route, like every beaten seed.
+- Whether a route has to come from a trained model playing only what a player sees (the standing
+  goal in `naneinf/README.md`), or a route found any other way also proves the seed: *(chud to confirm)*.
+- No prediction is registered.
+
+### 3. Third: generalizability to 100% completion from a new save
+A model that starts from a fresh profile (nothing unlocked) and plays it to 100% completion.
+- What counts as 100%: *(chud to define)*.
+- Requires the env to carry one profile's unlock and discovery state from run to run.
+- No prediction is registered.

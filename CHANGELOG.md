@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.5] - 2026-11-02
+
+### Added
+- `docs/hypotheses.md`: a dated section recording the project's three aims, as chud stated them: exhibit Hume's is-ought gap (primary), prove a naneinf seed, and generalizability to 100% completion from a new save. Open definitions are marked *(chud to confirm)* / *(chud to define)*; no predictions are added.
+
 ## [0.9.4] - 2026-11-02
 
 ### Changed
