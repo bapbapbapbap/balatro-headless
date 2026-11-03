@@ -18,6 +18,9 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 - `naneinf/README.md`: no longer says the drag cap cut wasted moves (H's report shows it didn't).
 - `wins/README.md`: says which published seeds have had the untouched-game replay.
 
+### Added
+- `tools/verify_new.sh <commit> [jobs]`: replays on the untouched game only the routes added to `wins/routes.jsonl` after a commit, split across parallel processes, and prints one PASS/FAIL total. Checks a publish without replaying every route again.
+
 ## [0.9.6] - 2026-11-02
 
 ### Added
