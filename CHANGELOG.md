@@ -5,7 +5,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ## [0.9.0] - 2026-11-02
 
 ### Added
-- **Released weights: model 0.3-beta** (`weights/`, tag `model-0.3-beta`), plus 0.1 and 0.2. Version names: 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b. Model card: `docs/models.md`.
+- **Released weights: model 0.3-beta** (`weights/`), plus 0.1 and 0.2. Version names: 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b. Model card: `docs/models.md`.
 - `train/export_weights.py`: checkpoint to a model-only weights file (float32 weights, vocabulary, architecture, reward, commit, game hash, evaluation). Drops training state and anything identifying the machine (host name, local paths), and refuses to write if any remain. Loads with `weights_only=True`.
 - `train/play.py`: plays a seed with released weights, prints the moves, and can save the game as a route that `verify_games.py` replays.
 

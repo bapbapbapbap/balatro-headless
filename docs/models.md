@@ -8,7 +8,7 @@ training state. Load with `torch.load(path, weights_only=True)`.
 Version names: **0.1**, **0.2** and **0.3** are the models called v1, v2 and v2b in the logs,
 the CHANGELOG and `docs/hypotheses.md`.
 
-All three are in `weights/` (tag `model-0.3-beta`).
+All three are in `weights/`.
 
 | Model | Params | Actions / encoding | Snapshot (`best.pt`) | Eval: blinds/game (wins in 200) |
 |---|---|---|---|---|
