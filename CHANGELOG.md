@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.8.2] - 2026-11-02
+
+### Added
+- **Standing goal: a model that reaches naneinf** (`naneinf/README.md`), set by chud: what counts (a hand after which `G.GAME.chips` is not finite, in a route that replays), what the game's source does with inf and nan, and what the bot still needs (endless mode, a reward of record, inf/nan-safe scores and shaping, a longer move cap, encoding checks).
+- **Community naneinf seeds checked on 1.0.1o** (`naneinf/community_seeds.json`, `probe.py`, `community_seeds_probe.json`): eight published seeds; the published openings of five match on this version (Perkeo from a Charm Tag's Soul on four Ghost seeds; Baron and Blank in a first shop; Blank on the Plasma seed); three not confirmed.
+
 ## [0.8.1] - 2026-11-02
 
 ### Added
