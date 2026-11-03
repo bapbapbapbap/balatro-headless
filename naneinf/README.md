@@ -37,7 +37,8 @@ deck, stake, ante, and the hand's move number.
    update, which the safety checks would then reject. Scores and shaping need explicit
    inf/nan handling first.
 4. **Longer games.** The move cap is 1,500. A naneinf run is long, so the cap has to rise.
-   The joker-drag cap in v2b already cuts the wasted moves.
+   The joker-drag cap in v2b stops long drag chains, but it hasn't cut the share of moves
+   spent on drags (see `docs/hypotheses.md`, the H result).
 5. **Its encoding.** Score features are `slog(x)`. Their behavior at `inf`/`nan` needs a
    check (and a clamp) before the model ever sees one.
 

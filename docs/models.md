@@ -36,8 +36,13 @@ optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window.
   - 0.3 continues 0.2 from round 504 with two changes: a cap on chains of joker drags, and 5%
     hand-type exploration in training games.
 - **Game:** Balatro 1.0.1o-FULL, unmodded, all unlocked. `Balatro.exe` SHA-256 `0D75FE16…DE93F47`.
-- **Beta:** training is still running. Whether 0.3's changes raised the solved rate is under a
-  pre-registered test (hypothesis H in `docs/hypotheses.md`), not yet scored.
+- **Beta:** this file is a snapshot from round 550, taken while 0.3 was still training. The run
+  stopped itself on 2026-11-03, when its training score had not improved for 3 hours. Its best
+  evaluation was 12.79 blinds per game; those final weights haven't been exported yet.
+- **Pre-registered test H1** (chud's prediction that 0.3 raises the solved rate): **passed**,
+  24.4 vs 17.9 fresh-seed wins per 1,000 games against 0.2, p = 0.011. There was no concurrent
+  control, so the changes and the extra training can't be told apart
+  ([result](hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)).
 
 ## What it does and doesn't do (from 0.2's 709 wins, `docs/won_games_analysis.md`)
 - **Does:** picks planets for the hand it plays (91% vs 25% chance). Its play leans on Two Pair,

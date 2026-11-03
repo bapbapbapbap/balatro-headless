@@ -2,6 +2,22 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.7] - 2026-11-03
+
+### Results
+- **Hypothesis H1 scored: pass** (chud's prediction; `docs/hypotheses.md`, new dated section). Model 0.3 (v2b) solved 24.4 fresh seeds per 1,000 training games against 0.2's 17.9 (ratio 1.37, approx. 95% CI 1.04–1.79), one-sided exact test p = 0.011, over the registered window (rounds 540–882, 20,045 games). No concurrent control, so 0.3's changes and its extra training can't be separated.
+- **All 850 seeds published on 2026-11-02 replayed on the untouched game**: 850 of 850 reproduced the same win (`wins/README.md`).
+- **Published 578 more beaten seeds, all model 0.3's: 1,549 in total.** Each was replayed exactly in the training sim before it was saved; the untouched-game replay of these 578 is still to do.
+- The 0.3 run stopped itself when its training score had been flat for 3 hours. Best evaluation: 12.79 blinds per game. Its final weights aren't exported yet; the released file is still the 0.3-beta snapshot.
+
+### Changed
+- **README rewritten for a first-time reader:** a summary at the top, results as of 2026-11-03 (seeds, a table of the pre-registered tests F1 and H1, models, what the bot has learned, what's open), the research question, and a map of the repository. The technical sections that follow are unchanged apart from headings and links.
+- `docs/models.md`, `weights/README.md`: training is no longer described as running; H1's result added; the model card link is relative.
+- `docs/REPRODUCE.md`: `publish` in the command list and in "Checking the output", how v2b is launched, and the 3-hour stall stop.
+- `docs/model_v1.md`: the stall stop reads the training score, not the eval (changed in 0.3.2; the design doc still said eval). The reward section names chud as the one who picks the ought.
+- `naneinf/README.md`: no longer says the drag cap cut wasted moves (H's report shows it didn't).
+- `wins/README.md`: says which published seeds have had the untouched-game replay.
+
 ## [0.9.6] - 2026-11-02
 
 ### Added

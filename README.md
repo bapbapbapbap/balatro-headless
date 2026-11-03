@@ -4,7 +4,21 @@
 [![naneinf seeds proven](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_naneinf.json)](naneinf/README.md)
 [![highest stake beaten](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_stake.json)](wins/README.md)
 
-> ## Balatro is not ours.
+**Balatro's real game logic, run headless; a bot trained on it that sees only what a player
+sees; and a public record of every seed the bot has beaten, each with a route anyone can replay.**
+
+- **The harness** runs the game's own Lua from your install, with no window, sound or Steam, so
+  runs can be stepped, replayed and searched from code. Nothing is reimplemented. It is checked
+  against runs logged in the real game, decision by decision, with zero mismatches.
+- **The bot** is a transformer trained by reinforcement learning on the harness. It sees cards
+  face up, the deck as a set, and never the draw order or the game's random state.
+- **The output** is seeds proven beatable. Each beaten seed is saved with its route, every move
+  from the seed to the win, and replayed before it counts. The game is deterministic, so the
+  route is the proof.
+- **The research aim** (chud's) is to exhibit Hume's is-ought gap in an agent: hold the facts
+  fixed and vary only the ought, the reward. [More below](#the-research-question).
+
+> ### Balatro is not ours.
 > **Balatro** was created by **LocalThunk** and is published by **Playstack**. The game, its
 > code, art, audio, card text and name belong to them. This project isn't affiliated with or
 > endorsed by either of them.
@@ -12,7 +26,7 @@
 > **This repository contains none of the game.** No code, no art, no audio, no text. Everything
 > here is our own tooling. It works only with **your own purchased copy** of Balatro, and it
 > reads the game from your install on your machine. If you use it, keep the files it extracts
-> private and never commit or share them. Our MIT license (LICENSE) covers our tooling only; it
+> private and never commit or share them. Our [MIT license](LICENSE) covers our tooling only; it
 > grants nothing about Balatro.
 
 ---
@@ -25,52 +39,101 @@
 **Highest stake beaten: 1 of 8 (White Stake).**
 <!-- tally:end -->
 
-Runs Balatro's real game logic with no window, sound or Steam, so runs can be stepped,
-replayed and searched from code. We didn't rewrite the rules. The harness loads the game's
-own Lua from your install and runs it, so it behaves exactly like the game, including
-Steamodded games as Lovely patches them. A validator replays runs you logged in the real
-game and checks every decision matches.
-
-**What it produces: seeds proven beatable.** A bot trained on this harness plays Balatro seeds
-seeing only what a player sees. Every seed it beats is saved with its route, every move from
-the seed to the win, and replayed before it counts. The list and the routes are in
-[`wins/`](wins/README.md); anyone with the same game version can replay a route and check it.
-
-**To set it up from your own Steam copy**, see [docs/REPRODUCE.md](docs/REPRODUCE.md): the full
-dependency list, the mods (only for logging your own games), and `tools\balatro.ps1`, one
-PowerShell controller for every step.
-
-## Results so far (2026-11-02)
+## Results (as of 2026-11-03)
 
 All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
-Every claim below links to its data or its pre-registration.
+Every claim links to its data or its pre-registration.
 
-- **Seeds proven beatable:** the tally at the top, listed in [`wins/`](wins/README.md)
-  (`beaten_seeds.csv`). Each route was replayed exactly before it was listed (when it was won, or at publishing), and
-  `train/verify_games.py --full` replays all of them on the untouched game.
-- **Best model: 0.3-beta** ([`weights/`](weights/README.md), [model card](docs/models.md)). It beats
-  12.0 blinds per game on average (out of 24) on 200 fixed evaluation seeds, and wins 7 of them.
-  It ran on one laptop at about 6,000–8,000 games an hour.
-- **Pre-registered test F1: passed.** Model 0.2 (called v2 in `hypotheses.md`) found new beaten
-  seeds 2.15 times as fast as 0.1 (v1): 90.8 vs 42.3 per hour, one-sided exact test p = 2×10⁻¹².
-  The prediction, window and test were committed before the run produced results
-  ([`docs/hypotheses.md`](docs/hypotheses.md)). Each of 0.2's 545 new seeds was replayed before it
-  counted; the tally at the top shows how many of each model's seeds are published in `wins/`.
-- **What it has learned, from 709 wins replayed move by move**
-  ([`docs/won_games_analysis.md`](docs/won_games_analysis.md)):
-  - **Learned:** it picks planets for the hand it plays (91% of the time, against 25% by chance),
-    and picks jokers that fit its Two Pair play.
-  - **Not learned:** Full House (played 0 times in 2,274 chances), playing around three of the
-    bosses, and spending money past the interest cap.
-- **Open:**
-  - Hypothesis H: does 0.3's exploration and drag cap raise the solved rate? It is being scored now.
-  - Standing goal: a model that reaches naneinf ([`naneinf/`](naneinf/README.md)).
+### Seeds proven beatable
+The count is at the top; the list (`beaten_seeds.csv`) and the routes (`routes.jsonl`) are in
+[`wins/`](wins/README.md).
+- Every route was replayed exactly before it was listed.
+- The first 971 were also replayed a second time on the **untouched** game (nothing stripped):
+  all reproduced the same win, move for move.
+- The 578 published on 2026-11-03 have had the training sim's replay only so far. The
+  untouched-game replay is one command: `train/verify_games.py --full`.
 
-**The larger aim (chud's):** to exhibit Hume's is-ought gap. Hold the facts fixed (pinned game,
-same seeds, same sim) and vary only the ought (the reward). Whatever changes in what the bot
-does then came from the reward, not from the facts. See `docs/hypotheses.md`, sections C and G.
+### Pre-registered tests
+Each prediction, window and test was committed to [`docs/hypotheses.md`](docs/hypotheses.md)
+before the data it is scored on existed. The commit is the timestamp, and earlier sections are
+never edited; results are added as new dated sections.
 
-## Why
+| Test | Prediction | Result |
+|---|---|---|
+| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Pass.** 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
+| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Pass.** 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
+
+H1 has no concurrent control (one machine), so 0.3's two changes and its extra training can't be
+told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b in
+`hypotheses.md`.
+
+### Models
+- **Released: 0.3-beta** ([`weights/`](weights/README.md), [model card](docs/models.md)), 1.6M
+  parameters. On 200 fixed evaluation seeds it beats 12.0 blinds per game on average (out of 24)
+  and wins 7.
+- **The 0.3 run has ended.** It stopped itself on 2026-11-03 when its training score had not
+  improved for 3 hours, as its safety rules require. Its best evaluation was 12.79 blinds per
+  game. Those final weights have not been exported yet.
+- Everything ran on one laptop, at about 6,000–8,000 games an hour. The game, not the network,
+  is the bottleneck: about 35 ms per move against about 8 ms for the model.
+
+### What the bot has learned
+From 709 of 0.2's wins, replayed move by move and tested against baselines
+([`docs/won_games_analysis.md`](docs/won_games_analysis.md)):
+- **Learned:** it picks planets for the hand it plays (91% of the time, against 25% by chance),
+  and picks jokers that fit its Two Pair play.
+- **Not learned:** Full House (played 0 times in 2,274 chances), playing around three of the
+  bosses, and spending money past the interest cap.
+
+### Open
+- **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
+  Registered, not yet run.
+- **Full House:** 0.3 played it 5 times in 497 chances, about the rate its exploration alone
+  would produce. No evidence yet that the policy plays it.
+- **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
+  0.3).
+- **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)).
+
+## The research question
+
+The idea and the framing are chud's. The bot is the agent under study; Balatro is the domain.
+
+**Hume's is-ought gap.** Facts alone don't settle what an agent ought to do. To exhibit that,
+hold the facts fixed (the pinned game, the same seeds, the same sim) and vary only the ought (the
+reward). Whatever then changes in what the bot does came from the reward, not from the facts.
+Sections C and G of [`docs/hypotheses.md`](docs/hypotheses.md) register that experiment.
+
+**Oughts are objects, like jokers.** A player buys a joker without knowing whether it will win
+the run, and buys anyway. An agent holds an ought the same way, and revises by its losses. Humans
+and models are grouped here at the level of behavior, as agents whose weights are revised by
+prediction error, not as the same mechanism.
+
+The project's three aims, in chud's order
+([full text](docs/hypotheses.md#added-2026-11-02-2305-cst-the-projects-aims-stated-by-chud)):
+1. Exhibit Hume's is-ought gap (primary).
+2. Prove a naneinf seed: a route that replays to a hand whose score is no longer a finite number.
+3. Generalize to 100% completion from a new save.
+
+## Repository map
+
+| Folder | What's in it |
+|---|---|
+| [`harness/`](harness/) | The headless game: LÖVE stand-in, boot (unmodded and modded), the replay validator, the playable environment and its checks |
+| [`train/`](train/) | The model, the PPO trainer and its launchers, publishing and verifying wins, exporting weights, playing a seed |
+| [`wins/`](wins/README.md) | Seeds proven beatable, with every route |
+| [`weights/`](weights/README.md) | Released model weights |
+| [`docs/`](docs/) | [Pre-registered hypotheses and results](docs/hypotheses.md), [model card](docs/models.md), [model design](docs/model_v1.md), [won-game analysis](docs/won_games_analysis.md), [reproduction guide](docs/REPRODUCE.md) |
+| [`analysis/`](analysis/README.md) | Scripts behind the won-game analysis |
+| [`naneinf/`](naneinf/README.md) | The naneinf goal, and community naneinf seeds checked on this game version |
+| [`tools/`](tools/) | Windows PowerShell: one controller (`balatro.ps1`), game bundle, update lock, WSL setup |
+| [`tests/`](tests/) | Logged real-game runs (gameplay data only) and the check scripts |
+| [`CHANGELOG.md`](CHANGELOG.md) | Every change, dated |
+
+**To set it up from your own Steam copy**, see [`docs/REPRODUCE.md`](docs/REPRODUCE.md): the
+full dependency list, the mods (only for logging your own games), and `tools\balatro.ps1`, one
+PowerShell controller for every step.
+
+## Why run the real game
 We're building a Balatro bot. A bot needs a simulator, and every simulator we found is a
 reimplementation that only *claims* to match the real game. Even one that's 99% right
 silently gives a bot wrong futures. So we asked: what if the simulator is the game itself,
@@ -249,8 +312,11 @@ while not env.done:
 The unmodded game also replays both fixtures with every vanilla value matching (money, hand, deck order, score, jokers, consumables, tags, hand levels, vanilla RNG streams). The only differences are Steamodded's own streams, which an unmodded game doesn't have.
 
 ## License and contact
-MIT, for **our tooling only**. Use it, fork it, build on it. Balatro itself remains
+[MIT](LICENSE), for **our tooling only**. Use it, fork it, build on it. Balatro itself remains
 LocalThunk's and Playstack's.
 
 Made by chud ([bapbapbapbap](https://github.com/bapbapbapbap)) with Claude (Anthropic).
+chud is the author and answers for any errors; the code Claude wrote is credited to Claude in
+each commit.
+
 Questions and collaboration: jacobhadji05@gmail.com

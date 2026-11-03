@@ -7,7 +7,7 @@ seed to the win) that anyone with the same game version can replay and check
 
 It covers what chud's machine actually ran. Where a version wasn't pinned, it says so.
 
-## The short version: one controller, ten commands
+## The short version: one controller
 
 Get this repository onto Windows (GitHub's **Code → Download ZIP**, or `git clone`), open
 PowerShell in its folder, and run the steps in order. `tools\balatro.ps1` is the controller;
@@ -24,6 +24,7 @@ Set-ExecutionPolicy -Scope Process Bypass   # this window only: lets the scripts
 .\tools\balatro.ps1 watch     # keep the PC awake; restart training only if it crashes
 .\tools\balatro.ps1 stop      # stop a run cleanly (it saves latest.pt)
 .\tools\balatro.ps1 verify    # replay every route in wins\routes.jsonl on the untouched game
+.\tools\balatro.ps1 publish   # add every new win from your runs to wins\, update the tally, commit and push
 .\tools\balatro.ps1 help
 ```
 Options: `-Work C:\Users\<you>\balatro-work` (default), `-Run v1|v2|v2b` (default v2b),
@@ -153,6 +154,10 @@ bash train/run_v2.sh /mnt/c/Users/<you>/balatro-work      # first launch: clones
   minute, and restarts training only after a crash, never after a deliberate stop.
 - v2 needs `runs/v1` to exist for its first launch (it imitates v1's games). From scratch,
   start with `train/run_v1.sh`.
+- v2b (model 0.3) continues v2: its first launch is `tools/start_v2b.sh <work folder>`, which
+  stops v2 cleanly and starts from v2's `latest.pt`; later launches use `train/run_v2b.sh`.
+- A run stops itself when its training score hasn't improved for 3 hours (`--stall-hours`),
+  among other safety stops (see `docs/model_v1.md`, section 7).
 
 ## 4. Checking the output
 
@@ -169,7 +174,15 @@ The seeds were won with every joker, tag and voucher unlocked. The harness unloc
 everything itself. To replay a route by hand in the real game, use a profile with everything
 unlocked, because what can appear depends on unlocks.
 
-To add a run's wins to `wins/`, replay and publish them with `train/publish_wins.py`.
+To add a run's wins to `wins/`, run `.\tools\balatro.ps1 publish` from Windows. It runs
+`train/publish_wins.py` (adds every new win that replays exactly; wins training already replayed
+are trusted) and `train/tally.py` (updates the counts and badges), then commits and pushes. The
+same thing by hand, inside WSL:
+```bash
+cd ~/balatro/balatro-headless/train
+python3 publish_wins.py --src ~/balatro/local/source --out ../wins <work folder>/runs/*/wins.jsonl
+python3 tally.py
+```
 
 ## Versions
 
