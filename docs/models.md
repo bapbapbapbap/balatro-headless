@@ -14,7 +14,7 @@ All four are in `weights/`.
 
 | Model | Params | Actions / encoding | Snapshot (`best.pt`) | Eval: blinds/game (wins in 200) |
 |---|---|---|---|---|
-| **1.0** | 1.61M | ordered-capped / 2 | round 810, 90,720 games; run ended 2026-11-03 | **12.79** (—) |
+| **1.0** | 1.61M | ordered-capped / 2 | round 810, 90,720 games; run ended 2026-11-03 | **12.79** (5) |
 | 0.3-beta | 1.61M | ordered-capped / 2 | round 550, 61,600 games, 2026-11-02 ~21:13 CST | 12.035 (7) |
 | 0.2 | 1.61M | ordered / 2 | round 500, 56,000 games | 11.62 (6) |
 | 0.1 | 249k | subsets / 1 | round 550, 55,840 games | 11.395 (1) |
@@ -23,8 +23,9 @@ All four are in `weights/`.
 a fixed random stream per seed. Blinds/game is the average number of blinds beaten (24 = a win).
 Each model's row is its best eval so far, which is how `best.pt` is chosen. That makes it an
 optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window, and 0.3's averaged
-12.03 in the H window (range 11.36–12.79). The win count of 1.0's eval isn't stored in the file
-and is still to be added.
+12.03 in the H window (range 11.36–12.79). `best.pt` is picked by blinds per game, not wins: 1.0
+goes deeper on average than 0.3-beta (12.79 vs 12.035) but won 5 of the 200 seeds to its 7. With 5
+and 7 wins in 200, that difference is well within chance.
 
 ## What 1.0 is
 - **Network:** a transformer, d=192, 4 layers, 6 heads, over what a player sees. It sees the cards

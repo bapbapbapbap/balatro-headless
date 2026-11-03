@@ -70,7 +70,8 @@ told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b 
 ### Models
 - **Released: model 1.0** ([`weights/`](weights/README.md), [model card](docs/models.md)), 1.6M
   parameters: the final weights of the 0.3 run (round 810, 90,720 games). On 200 fixed evaluation
-  seeds it beats 12.79 blinds per game on average, out of 24.
+  seeds it beats 12.79 blinds per game on average (out of 24) and wins 5. The snapshot is chosen
+  by blinds, not wins; 0.3-beta beat fewer blinds (12.035) but won 7.
 - **The 0.3 run has ended.** It stopped itself on 2026-11-03 when its training score had not
   improved for 3 hours, as its safety rules require. 0.3-beta (12.035) is its mid-run snapshot;
   the seeds the run beat are counted under 0.3.
