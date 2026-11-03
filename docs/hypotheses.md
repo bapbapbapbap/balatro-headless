@@ -272,3 +272,52 @@ iteration 0).
   early stop, most after 15-90 of ~580 planned minibatches, so a typical update used under ~15% of
   the games it had just played. Not a pre-registered change, and made only after F1 was scored; any v2 result
   from here on is on the new learning rate and is reported that way.
+
+---
+
+## Added 2026-11-02 ~20:55 CST: H. v2b vs v2, solved rate (registered before the window opens)
+
+### Authorship
+The hypothesis is chud's: "I bet I will improve the solved rate." The changes are the ones he
+asked for, v2b: the joker-drag cap and hand-type exploration (PR #23). The metrics and the test
+below were picked by Claude at his request.
+
+### What was already seen
+While picking the baseline, Claude counted fresh-seed wins in v2b's first rounds (505–535):
+39 wins in 1,736 fresh games (22.5 per 1,000). Those rounds are **excluded**. The window starts
+after this registration, and nothing in it has been looked at.
+
+### What is compared
+- **v2b:** the run in `runs/v2b` as it is now: ordered-capped actions, exploration 0.05,
+  lr 1e-5, continued from v2's round-504 `latest.pt`.
+- **v2 (baseline):** v2's last stretch on the same learning rate, rounds 445–504. Fresh-seed
+  training games: 60 wins in 3,360 (17.9 per 1,000). This is the latest v2 policy and the closest
+  comparison available. The F1-window rate (8.78 per 1,000) is from an older policy and isn't used.
+- **No concurrent control** (one machine). This compares v2b's changes as a bundle; it can't say
+  which change did it. Exploration plays 5% of play decisions off-policy in training games. That
+  cost counts against v2b here, because these are the games that solve seeds.
+
+### Window
+v2b rounds **540 onward**, until **20,000 fresh-seed training games** or **8 hours** (training
+clock), whichever comes first. One look, at the end; no early stopping. A crash and resume
+inside the window are allowed and reported; a change to v2b's settings ends the window early,
+and the result is reported as such.
+
+### H1 (primary): solved rate, fresh-seed wins per 1,000 training games
+- **Solved rate:** the share of fresh-seed training games (arm `fresh`; retry-arm games and eval
+  games excluded) that win (beat the ante 8 boss), with a saved route that replays.
+- **Test:** one-sided exact rate comparison, conditional binomial (as F1): given the total wins
+  in both, v2b's count is Binomial(total, n_v2b / (n_v2b + n_v2)) under equal rates; p < 0.05 passes.
+- **Power:** v2's 60 baseline wins set a floor. Even with unlimited v2b games, a ratio below
+  about 1.25 can't reach p < 0.05.
+- **Prediction (chud):** v2b's solved rate is higher than v2's.
+
+### Reported alongside (not decisive)
+- **New beaten seeds per hour** (the project's production rate), defined as in F1.
+  - Confound: v2 ran slowly at the end (updates 160–194 s from about round 488, cause unknown).
+    The v2b restart cleared that, so per-hour numbers mix speed with play.
+  - Reported against both v2's F1 rate (90.8 per hour) and v2's rounds 445–504.
+- **Full House:** the share of plays where it was the best hand type on offer and was played
+  (v2: 0 of 2,274 in its wins). Measured by replaying v2b's training games in the window.
+- **Joker drags:** share of moves, and moves per game (v2: 22.0%, 124).
+- **Eval blinds/game:** mean of the evals in the window vs v2's evals in rounds 445–504.
