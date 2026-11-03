@@ -33,9 +33,9 @@ move, in the cloud. **850 of 850 reproduced the same win: the same moves, the sa
 and the same final state.** The first 121 were replayed on the untouched game when they were
 published.
 
-The 578 seeds published on 2026-11-03 (all model 0.3's) are training-verified so far: each win was
-replayed exactly in the training sim. Their replay on the untouched game is still to do
-(`tools\balatro.ps1 verify`, or the command below).
+The 578 seeds published on 2026-11-03 (all model 0.3's) were checked the same way, on chud's
+machine (`tools/verify_new.sh c22251e 12`): **578 of 578 reproduced the same win.** Every one of
+the 1,549 published seeds has now been replayed on the untouched game.
 
 ## Checking a route
 With the game source extracted from your own copy (see [`../docs/REPRODUCE.md`](../docs/REPRODUCE.md); no game code is in

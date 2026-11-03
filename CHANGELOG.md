@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.9] - 2026-11-03
+
+### Checked
+- **The 578 seeds published on 2026-11-03 replay on the untouched game: 578 of 578** (`tools/verify_new.sh c22251e 12`, run by chud on his machine). All 1,549 published seeds have now had the untouched-game replay. README and `wins/README.md` say so.
+
 ## [0.9.8] - 2026-11-03
 
 ### Added

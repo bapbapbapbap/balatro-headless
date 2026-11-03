@@ -48,10 +48,9 @@ Every claim links to its data or its pre-registration.
 The count is at the top; the list (`beaten_seeds.csv`) and the routes (`routes.jsonl`) are in
 [`wins/`](wins/README.md).
 - Every route was replayed exactly before it was listed.
-- The first 971 were also replayed a second time on the **untouched** game (nothing stripped):
-  all reproduced the same win, move for move.
-- The 578 published on 2026-11-03 have had the training sim's replay only so far. The
-  untouched-game replay is one command: `train/verify_games.py --full`.
+- All 1,549 were then replayed a second time on the **untouched** game (nothing stripped): every
+  one reproduced the same win, move for move. Anyone with the game can rerun that check with one
+  command: `train/verify_games.py --full`.
 
 ### Pre-registered tests
 Each prediction, window and test was committed to [`docs/hypotheses.md`](docs/hypotheses.md)
