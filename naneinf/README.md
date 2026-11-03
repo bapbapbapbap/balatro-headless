@@ -16,6 +16,10 @@ beaten?" check is `G.GAME.chips - G.GAME.blind.chips >= 0`.
 
 So naneinf is a score to reach, not a way to win.
 
+**Proven seeds** go in `proven.jsonl`, one route per line, only after the route has been replayed
+move for move to the non-finite hand. The count at the top of the main README (`train/tally.py`)
+is the number of lines in that file. It is 0.
+
 **The measure:** a played hand after which `G.GAME.chips` is not finite (inf or nan), in a
 saved game whose route replays move for move to that hand. It is reported with the seed,
 deck, stake, ante, and the hand's move number.
