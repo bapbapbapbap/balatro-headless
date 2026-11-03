@@ -30,7 +30,7 @@ state and the win. `--full` runs the game with nothing stripped.
 - `seed`, `back`, `stake`: the run to start.
 - `actions` / `enc`: which action list the moves index (absent means `subsets` / `1`, the v1 setup) (`subsets`: one move per play/discard with
   the selected hand positions; `ordered`: the same plus the lead card, Death's direction and boss
-  rerolls) and the encoding version.
+  rerolls; `ordered-capped`: `ordered` with chains of joker drags capped) and the encoding version.
 - `acts`: every move as an index into the legal moves at that point; `desc`: the same moves as text,
   e.g. `select_blind`, `play 1,3,5` (hand positions, left to right), `buy 2`, `use_consumable 1 2,4`.
   The replay checks both, so a route can't silently drift.
