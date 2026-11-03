@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.12.0] - 2026-11-03
+
+### Added
+- **Joint training as a mixture of experts** (`train.py --moe`; `docs/hypotheses.md` section I, chud's design). `model.MoE` holds the early-game model (member 0) and the 8 hand experts as separate networks. Each observation names the member that decides it, so one optimizer and every existing safety check (KL guard, reverts, checkpoints) work unchanged, and a member only learns from its own decisions. In each game the early model plays until the ante-3 boss is beaten. A router then picks the expert for the hand played most in antes 1-3, relative to the early model's own average (`base_rate`, a moving average carried with the weights); 30% of training handoffs go to a random expert (`--moe-random`). Expert pins fall to 0 over `--moe-anneal-games` (100,000). The early model is frozen unless `--moe-train-early 1`. Metrics and saved games record the routing, and per expert: games, wins, blinds, and how often it plays its own hand.
+- `train/run_moe.sh`: picks the early-game run with the best eval and the 8 experts' `best.pt`, runs `tests/moe_check.py` (routing, pins after the handoff, exact replay, through the trainer's own game loop), then trains.
+
+### Changed
+- `collate` adds a 7th tensor (which member decided) only when observations carry one; plain runs are unchanged. `ppo_update` returns zero stats instead of failing when a round has no steps to learn from.
+
 ## [0.11.0] - 2026-11-03
 
 ### Added

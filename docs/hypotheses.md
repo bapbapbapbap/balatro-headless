@@ -621,6 +621,29 @@ changes a proposal above, the answer stands.
   Deck. Runs at another stake or deck get their own run folder. Higher stakes are not covered by
   the differential check yet.
 
-Built for this (CHANGELOG 0.10.0, 0.11.0): `train.py --pin-hand/--pin-rate/--init-weights`,
-`train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`. The handoff at play time
-and the test of I1 are not built and not registered.
+- **Mixture of experts (chud, 17:50):** "MOE isn't a secret." The experts and the handoff are
+  trained jointly, so each expert learns from the runs actually handed to it.
+- **Coverage and organic bias (chud, 17:52):** "I need an expert in all the hand types. would you
+  have a learned bias grow organically until you have ones that naturally have a bias?"
+- **Router (chud, 17:54):** "most played hand, but estimate how many the hand gets played from the
+  starting model and that's how to calculate a preference from early game. what got the early game
+  strategy that far should be the chosen expert."
+- **Joint training, as built (the choices are Claude's):**
+  - One run holds the early-game model (member 0) and the 8 experts, each warm-started from its own
+    run. Each decision updates only the member that made it. The early model is frozen by default
+    (it was picked for reaching ante 4); `MOE_TRAIN_EARLY=1` trains it on the whole run's return.
+  - Router: at the handoff (the ante-3 boss beaten), the expert whose hand has the highest
+    (plays this run + 1) / (early model's average plays + 1), counting antes 1-3. The average is a
+    moving average over recent training games that reached the handoff. High Card has no expert
+    and isn't counted.
+  - Load balancing: 30% of training handoffs go to an expert picked at random; eval games are
+    always routed by the rule.
+  - Organic bias: the pins (Pair 0.5, others 1.0) fall linearly to 0 over the first 100,000 joint
+    games. After that, an expert's bias is whatever its routed runs taught it. Measured per expert
+    (`moe.by_expert` in the metrics): how often it plays its hand when one is on offer, with the
+    pin off. A rate that stays high is a bias the expert keeps; one that falls back was the pin.
+
+Built for this (CHANGELOG 0.10.0, 0.11.0, 0.12.0): `train.py --pin-hand/--pin-rate/--init-weights`,
+`train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`, `train/run_early.sh`,
+`train/run_earlies.sh`, `train.py --moe`, `train/run_moe.sh`, `tests/moe_check.py`. The test of I1
+is not registered.
