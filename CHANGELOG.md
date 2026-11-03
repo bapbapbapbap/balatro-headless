@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.8.3] - 2026-11-02
+
+### Added
+- **`analysis/`** (`replay_events.py`, `analyze.py`) and **`docs/won_games_analysis.md`**: v2's 709 training wins replayed (0 mismatches) and tested against baselines. Learned: planets for its main hand (91% vs 25% chance), Clever Joker raises Two Pair plays (47% to 57.5%), Two Pair-scaling jokers fit its play. Not learned: Full House (0 of 2,274 times it was the best hand on offer), playing a hand after leveling it (+0.4 ± 0.6 points), boss play (about 20% of plays score nothing under Psychic, Mouth, Eye), money far past the interest cap ($122 median at ante 8).
+
+### Found
+- **The joker-drag cap doesn't cut drags.** It holds (no chain over jokers - 1), but in ordinary training games drags were mostly short already: 22.0% of moves in v2 (rounds 493-504) vs 23.6% in v2b (rounds 518-529), 124 vs 127 moves per game. The 42-43% figure is for won games only.
+- **v2's slowdown on 2026-11-02 wasn't the learning rate.** Updates stayed at 25-45 s for an hour after the lr change (18:28), then jumped to 160-194 s around round 488 (about 19:25). Cause unknown; the v2b restart cleared it (40-70 s).
+
 ## [0.8.2] - 2026-11-02
 
 ### Added
