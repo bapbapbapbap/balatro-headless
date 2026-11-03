@@ -33,14 +33,16 @@ PowerShell controller for every step.
 All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
 Every claim below links to its data or its pre-registration.
 
-- **Seeds proven beatable** are listed in [`wins/`](wins/README.md) (`beaten_seeds.csv`). Each route is replayed on the
-  untouched game before it is listed.
+- **Seeds proven beatable:** 121 listed so far in [`wins/`](wins/README.md) (`beaten_seeds.csv`).
+  Each route is replayed on the untouched game before it is listed.
 - **Best model: 0.3-beta** ([`weights/`](weights/README.md), [model card](docs/models.md)). It beats
   12.0 blinds per game on average (out of 24) on 200 fixed evaluation seeds, and wins 7 of them.
   It ran on one laptop at about 6,000–8,000 games an hour.
-- **Pre-registered test F1: passed.** Model 0.2 found new beaten seeds 2.15 times as fast as 0.1
-  (90.8 vs 42.3 per hour, one-sided exact test p = 2×10⁻¹²). The prediction, window and test
-  were committed before the run produced results ([`docs/hypotheses.md`](docs/hypotheses.md)).
+- **Pre-registered test F1: passed.** Model 0.2 (called v2 in `hypotheses.md`) found new beaten
+  seeds 2.15 times as fast as 0.1 (v1): 90.8 vs 42.3 per hour, one-sided exact test p = 2×10⁻¹².
+  The prediction, window and test were committed before the run produced results
+  ([`docs/hypotheses.md`](docs/hypotheses.md)). Each of 0.2's 545 new seeds was replayed before it
+  counted, but their routes aren't in `wins/` yet; it currently lists 0.1's 121 seeds.
 - **What it has learned, from 709 wins replayed move by move**
   ([`docs/won_games_analysis.md`](docs/won_games_analysis.md)):
   - **Learned:** it picks planets for the hand it plays (91% of the time, against 25% by chance),
@@ -101,8 +103,9 @@ Getting to zero mismatches surfaced real subtleties:
 **6. Make it faster.** `--fast` removes work that only produces visuals: animation easing,
 sprite and text movement, particles, button styling. The game hides logic inside some of
 its visual code (the blind-select screen draws the Orbital Tag's hand, and a pack's cards
-wait on its layout), so every cut has to leave both replays at zero mismatches. This went
-from about 165 ms to about 60 ms per action.
+wait on its layout), so every cut has to leave both replays at zero mismatches. This took
+`replay.py` from about 165 ms to about 60 ms per action (the first measurement, on the modded
+game; current figures are under [Harness validation](#harness-validation)).
 
 ## What we found
 1. **The LuaJIT version is part of the game.** LuaJIT 2.0.5 hashes strings
@@ -152,7 +155,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File bundle_balatro.ps1
   - Tutorial run, Red Deck, White Stake: all 322 decisions. Covers packs, Death, Hanged Man, Cryptid copies, DNA, Sixth Sense, Buy & Use, vouchers, rerolls and selling. The sim wins at ante 9, same as the real run.
   - Ghost Deck, Purple Stake: 10 decisions, including Steamodded's own RNG streams.
 - Not yet covered: challenges, Erratic Deck, seeded runs, quit-and-continue runs, Mac/mobile.
-- Runs on Linux (or WSL).
 - Speed: ~12 ms per step (controls mode) to ~35 ms per move (ordered moves, with the encoder),
   visuals stripped. Training runs 14 sims in parallel.
 - **Playable from code** (see [Playing it from code](#playing-it-from-code)): legal actions and
@@ -215,11 +217,11 @@ while not env.done:
     acts = env.legal_actions()                # [(type, i, j, cards), ...]
     env.step(acts[0])
 ```
-**Two action modes, same game:**
+**Action modes, same game:**
 - `controls` (default): the game's own controls. `toggle` a hand card, `move_hand` / `move_joker` (drag from slot i to j), `sort_rank` / `sort_suit`, then `play`, `discard`, `use_consumable` or `pick` with whatever is selected. Played cards score left to right in hand order, as in the game.
 - `subsets`: the selection is part of the action (`play` with cards (1,3,5)). Fewer steps, ~200–2000 actions per hand.
 - `ordered` (what models 0.2 and 0.3 play): `subsets` plus what card order can change. That covers which scoring card leads, which card Death copies, and boss rerolls (Director's Cut / Retcon). `ordered-capped` (0.3) also stops long chains of joker drags.
-- Both: `select_blind`, `skip_blind`, `end_shop`, `reroll`, `buy`, `buy_and_use`, `redeem`, `open_pack`, `pick`, `skip_pack`, `sell_joker`, `sell_consumable`, `cash_out`, `move_joker`.
+- All modes: `select_blind`, `skip_blind`, `end_shop`, `reroll`, `buy`, `buy_and_use`, `redeem`, `open_pack`, `pick`, `skip_pack`, `sell_joker`, `sell_consumable`, `cash_out`, `move_joker`.
 - Legality is the game's own: the checks its buttons use (`can_play`, `can_discard`, `can_buy`, `can_redeem`, `can_open`, `can_reroll`, `can_skip_booster`, `can_select_card`, `Card:can_use_consumeable`, `Card:can_sell_card`, `check_for_buy_space`, Cerulean Bell's forced selection, sort buttons only when they'd change something). Actions go through the same `G.FUNCS` calls `replay.py` validates.
 - Not offered yet: endless mode after a win (needed for the naneinf goal).
 
