@@ -6,23 +6,27 @@ and `Balatro.exe` hash it was trained against, and its evaluation. There is no g
 training state. Load with `torch.load(path, weights_only=True)`.
 
 Version names: **0.1**, **0.2** and **0.3** are the models called v1, v2 and v2b in the logs,
-the CHANGELOG and `docs/hypotheses.md`. Model versions are separate from the tooling versions
-in the CHANGELOG.
+the CHANGELOG and `docs/hypotheses.md`. **1.0** is the final weights of the 0.3 (v2b) run, released
+when the run ended; 0.3-beta is the same run's snapshot from round 550. Seeds that run beat are
+counted under 0.3. Model versions are separate from the tooling versions in the CHANGELOG.
 
-All three are in `weights/`.
+All four are in `weights/`.
 
 | Model | Params | Actions / encoding | Snapshot (`best.pt`) | Eval: blinds/game (wins in 200) |
 |---|---|---|---|---|
-| **0.3-beta** | 1.61M | ordered-capped / 2 | round 550, 61,600 games, 2026-11-02 ~21:13 CST | **12.035 (7)** |
+| **1.0** | 1.61M | ordered-capped / 2 | round 810, 90,720 games; run ended 2026-11-03 | **12.79** (—) |
+| 0.3-beta | 1.61M | ordered-capped / 2 | round 550, 61,600 games, 2026-11-02 ~21:13 CST | 12.035 (7) |
 | 0.2 | 1.61M | ordered / 2 | round 500, 56,000 games | 11.62 (6) |
 | 0.1 | 249k | subsets / 1 | round 550, 55,840 games | 11.395 (1) |
 
 **Eval** means 200 fixed seeds (Red Deck, White Stake), with moves sampled from the policy using
 a fixed random stream per seed. Blinds/game is the average number of blinds beaten (24 = a win).
 Each model's row is its best eval so far, which is how `best.pt` is chosen. That makes it an
-optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window.
+optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window, and 0.3's averaged
+12.03 in the H window (range 11.36–12.79). The win count of 1.0's eval isn't stored in the file
+and is still to be added.
 
-## What 0.3-beta is
+## What 1.0 is
 - **Network:** a transformer, d=192, 4 layers, 6 heads, over what a player sees. It sees the cards
   face up, the deck as a set (never the draw order), joker values, the HUD, shop and packs, and
   never the game's random state. It scores each legal move.
@@ -35,10 +39,11 @@ optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window.
     which card scores first, which way Death copies, and boss rerolls.
   - 0.3 continues 0.2 from round 504 with two changes: a cap on chains of joker drags, and 5%
     hand-type exploration in training games.
+  - 1.0 is 0.3's best evaluation (round 810) when the run ended.
 - **Game:** Balatro 1.0.1o-FULL, unmodded, all unlocked. `Balatro.exe` SHA-256 `0D75FE16…DE93F47`.
-- **Beta:** this file is a snapshot from round 550, taken while 0.3 was still training. The run
-  stopped itself on 2026-11-03, when its training score had not improved for 3 hours. Its best
-  evaluation was 12.79 blinds per game; those final weights haven't been exported yet.
+- **End of the run:** the 0.3 run stopped itself on 2026-11-03, when its training score had not
+  improved for 3 hours. 1.0 is its `best.pt` at that point. Repo commit at training:
+  `34bb1f4`.
 - **Pre-registered test H1** (chud's prediction that 0.3 raises the solved rate): **passed**,
   24.4 vs 17.9 fresh-seed wins per 1,000 games against 0.2, p = 0.011. There was no concurrent
   control, so the changes and the extra training can't be told apart
@@ -65,7 +70,7 @@ per move, against about 8 ms for the model.
 Set up the harness from your own copy of the game ([REPRODUCE.md](REPRODUCE.md)), then:
 ```bash
 cd ~/balatro/balatro-headless/train
-python3 play.py balatro-bot-0.3-beta.pt --src ~/balatro/local/source --seed ABCD1234 --save route.jsonl
+python3 play.py balatro-bot-1.0.pt --src ~/balatro/local/source --seed ABCD1234 --save route.jsonl
 python3 verify_games.py --src ~/balatro/local/source route.jsonl     # replays the game it just played
 ```
 The same weights, seed and `--sample-seed` always produce the same game.
@@ -74,6 +79,7 @@ The same weights, seed and `--sample-seed` always produce the same game.
 
 | File | SHA-256 |
 |---|---|
+| `balatro-bot-1.0.pt` | `3e75d85afde37e0fcdc4a27f6a98632d2821f01eff36e7d3ee371b7d3beb64cf` |
 | `balatro-bot-0.3-beta.pt` | `e4ba9779505ce4d5e763c5344b1b620a5f3e71ab3d128c38b58d235c00eefd94` |
 | `balatro-bot-0.2.pt` | `4ea94f54f16cf114f8357689ca4b6a005f1031199406ded126a6c79efa29c4bd` |
 | `balatro-bot-0.1.pt` | `e649df00aaf70d04e3c11bc3edac5aac4a607f360947bd41b85f717987bd4035` |
