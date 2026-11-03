@@ -1,6 +1,8 @@
 # balatro-headless
 
 [![seeds proven beatable](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge.json)](wins/README.md)
+[![naneinf seeds proven](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_naneinf.json)](naneinf/README.md)
+[![highest stake beaten](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_stake.json)](wins/README.md)
 
 > ## Balatro is not ours.
 > **Balatro** was created by **LocalThunk** and is published by **Playstack**. The game, its
@@ -17,6 +19,10 @@
 
 <!-- tally:start -->
 **Seeds proven beatable: 971** (134 by model 0.1, 673 by model 0.2, 164 by model 0.3; 971 on Red Deck, White Stake). Each one is a route in [`wins/`](wins/) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
+
+**naneinf seeds proven: 0.** A seed counts once its route in [`naneinf/proven.jsonl`](naneinf/proven.jsonl) replays move for move to a played hand with non-finite chips (see `naneinf/README.md`).
+
+**Highest stake beaten: 1 of 8 (White Stake).**
 <!-- tally:end -->
 
 Runs Balatro's real game logic with no window, sound or Steam, so runs can be stepped,

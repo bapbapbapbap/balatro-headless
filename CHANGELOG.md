@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.6] - 2026-11-02
+
+### Added
+- Two more counters next to seeds proven beatable, requested by chud: **naneinf seeds proven** (0) and **highest stake beaten** (1 of 8, White Stake). Both are badges at the top of README.md and lines in the tally block. `train/tally.py` computes them: the naneinf count is the number of routes in `naneinf/proven.jsonl` (new, empty), the stake is the highest `stake` in `wins/routes.jsonl`.
+
 ## [0.9.5] - 2026-11-02
 
 ### Added
