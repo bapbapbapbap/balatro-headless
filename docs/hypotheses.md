@@ -378,3 +378,49 @@ A model that starts from a fresh profile (nothing unlocked) and plays it to 100%
 - What counts as 100%: *(chud to define)*.
 - Requires the env to carry one profile's unlock and discovery state from run to run.
 - No prediction is registered.
+
+---
+
+## Added 2026-11-03 ~12:45 CST: H result (v2b vs v2, solved rate)
+
+Scored once, at the end of the registered window.
+
+### Window
+- **Rounds:** v2b 540–882. The 20,000-fresh-game limit came first, during round 882: rounds are
+  scored whole, so the window holds 20,045 games. The 8-hour limit would have fallen at round 920.
+- **Training clock:** 7.36 h.
+- **Stops inside the window:** two relaunches by chud (22:17, 22:39), a crash at about 02:17 (the
+  PC went down; the log had heat-throttling warnings from 21:55), and a resume at 09:07. Every
+  relaunch used the same `run_v2b.sh` settings. Crash and resume were allowed as registered; no
+  setting was changed.
+- **Interim look:** at about 09:05, while checking the crash, Claude's progress count of window
+  games also tallied wins (335 in 12,670 fresh games). That number wasn't shared, and nothing was
+  decided on it: the window continued to its registered end.
+
+### H1 (primary): solved rate, fresh-seed wins per 1,000 training games — **PASS**
+- **v2b:** 489 wins in 20,045 fresh-seed training games = **24.4 per 1,000**.
+- **v2 (baseline, rounds 445–504):** 60 in 3,360 = 17.9 per 1,000.
+- **Rate ratio:** 1.37 (approx. 95% CI 1.04–1.79).
+- **Test:** one-sided exact conditional binomial (n = 549, p0 = 20,045 / 23,405 = 0.856),
+  **p = 0.011** < 0.05.
+- **Prediction (chud): v2b's solved rate is higher than v2's. Confirmed.**
+- **What it does and doesn't show:**
+  - This is v2b's changes as a bundle: the joker-drag cap, hand-type exploration, and 260+ more
+    rounds of training.
+  - There is no concurrent control, so further training alone could account for some or all of
+    the gain. The comparison is to v2's last stretch, not to v2 continued for the same time.
+
+### Reported alongside (not decisive)
+- **New beaten seeds per hour:** 568 new seeds in 7.36 h = 77.1 per hour.
+  - Against v2 rounds 445–504: 62.2 per hour. Against the F1 rate: 90.8 per hour.
+  - The pool of unbeaten seeds that wins can come from shrinks as more get beaten, and v2's
+    speed varied a lot, so this mixes speed, play and novelty.
+- **Full House:** in a sample of 262 window training games (the first part of rounds 580, 680,
+  780 and 870, replayed exactly), Full House was the best hand on offer 497 times and was played
+  5 times (1.0%). v2 played it 0 of 2,274 times in its wins. The exploration alone (5% of
+  decisions, spread over the hand types on offer) would produce about that rate, so this is no
+  evidence yet that the policy itself plays Full House.
+- **Joker drags:** 25.9% of moves, 140.3 moves per game, over all 38,416 window training games.
+  v2 rounds 493–504: 22.0% and 124. The cap holds, but drags didn't fall.
+- **Eval:** mean of the 36 evals in the window is **12.03** blinds per game (range 11.36–12.79),
+  against v2's 6 evals in rounds 445–504, mean 11.10.
