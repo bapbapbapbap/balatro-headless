@@ -461,3 +461,49 @@ expects large spread between seeds (early shops and tags decide much of a run).
   significantly higher (non-overlapping 95% intervals). Weak test: 97 seeds.
 - **R7.** 35–55% of published seeds are won at least once in 10.
 - **R8.** Published seeds average at least 2 more blinds per game than control.
+
+---
+
+## Added 2026-11-03 ~17:00 CST: I. Strategy specialists (design registered before any specialist exists)
+
+### Authorship
+The design and the prediction are chud's (16:57–16:59 CST): "I am going to train a bot on each
+hand", "once you get a strategy going pick that strategy", and "I bet that'll beat the current
+highest win rate bot design I've tried." The write-up and the open options listed below are
+Claude's. Nothing above is edited.
+
+### State at registration
+No specialist has been trained. No archetype tally of 1.0's games has been run. Nothing below has
+been looked at in data.
+
+### Design
+How a roguelike is played: stay open early, commit once a build forms, then play that build.
+- **Before commitment:** the generalist plays (model 1.0, or its successor at the time of the test).
+- **Commitment:** once a strategy is going (a build around one poker hand type: Flush, Pairs,
+  Straight, and so on), control passes for the rest of the run to the specialist for that hand
+  type.
+- **Specialists:** one bot per hand-type strategy, each trained on that strategy.
+
+### Open (chud to confirm)
+- **Trigger** that decides "a strategy is going". Options: the first archetype joker bought (e.g.
+  Droll Joker -> Flush); one hand type's planet level a set number of levels ahead of the rest; one
+  hand type making up most scoring plays over the last N hands.
+- **How specialists are trained.** Proposed: each starts as a copy of the generalist and is
+  fine-tuned only on runs committed to its hand type, with the same reward of record (`blinds`), so
+  specialization is the only change. The alternative (a reward per hand type) also varies the
+  ought, and would be scored as a section C/aims design, not this one.
+- **Which hand types get a specialist.** Depends on how 1.0's games split by archetype; rare ones
+  (Full House: 5 of 497 plays in 0.3 wins) may not have enough games without more training on them.
+- **Compute match** between the specialists' total training games and the generalist's continued
+  training, and whether the control runs concurrently.
+
+### I1 (chud's prediction)
+The generalist-plus-specialists bot has a higher win rate than the best bot design so far
+(model 1.0: 24.4 fresh-seed wins per 1,000 training games in the H window; 5 of 200 on the eval
+seeds).
+- **Yardstick:** win rate (an ought, named as such).
+- **Test, window and threshold:** to be registered in a dated section before the specialists'
+  training starts, once the open items above are confirmed. Proposed: H1's test (one-sided exact
+  conditional binomial on fresh-seed wins per 1,000) plus paired held-out seeds.
+- **Known way to lose:** 1.0 already sees hand levels and jokers in its input and may already
+  play each build differently; I1 bets that separate weights per build beat that.
