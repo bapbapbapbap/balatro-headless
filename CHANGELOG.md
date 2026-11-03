@@ -2,6 +2,13 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.11.0] - 2026-11-03
+
+### Added
+- **Early-game models** (`docs/hypotheses.md` section I, chud's design): `train.py --stop-ante N` ends a game once ante N is reached (the boss before it beaten). It counts as `reached`, never as a win, so nothing reaches `wins/`. `--best-by reached` picks best.pt by the share of eval games that reach it. `train/run_early.sh <shared> <seed>` trains one from random weights on 1.0's architecture (stop at ante 4, reward `blinds`, no pin, no seed retries). `train/run_earlies.sh` grows several seeds (`SEEDS`, default 1-5). `run_v2.sh` takes `FROM_SCRATCH=1`.
+- **Stake and deck as settings** (chud): `STAKE` (1-8) and `BACK` in `run_v2.sh`, `run_expert.sh`, `run_early.sh` and `tests/pin_check.py`. Default White Stake, Red Deck; nothing planned changes. A run at another stake or deck gets its own folder (`-stake5`, `-b_blue`). The differential check doesn't cover higher stakes yet.
+- `run_experts.sh` takes `HANDS` (a `|`-separated list) to split the experts across machines.
+
 ## [0.10.0] - 2026-11-03
 
 ### Added
