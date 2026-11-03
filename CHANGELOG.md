@@ -2,6 +2,20 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.8.0] - 2026-11-02
+
+### Added: v2b (opt-in; v2 unchanged)
+- **`--actions ordered-capped`**: `ordered` plus a cap on joker drags. After k drags in a row, no further drag is offered until another action is taken, with k = jokers held - 1. Every joker order stays reachable (n jokers need at most n - 1 drags). Why: in v2's won games 43% of all moves were joker drags (about 136 per game, up to 248 in a row). They are free and change nothing, but each costs ~30 ms of sim time and counts toward the 1,500-move cap. Saved games record `actions: "ordered-capped"` and replay under it; older games replay as before.
+- **`--explore-hands EPS`** (training games only): at a decision with plays of two or more poker hand types on offer, with probability EPS one of those types is picked uniformly, then a play of that type in proportion to the policy. Why: v2 never played a Full House when one was on offer (0 of 374 in its wins), most likely inherited from cloning v1. Stored log-probabilities are the policy's own, so an explored play that pays gets a full-strength update (epsilon-greedy; small bias, stated in the docstring).
+- **A v2 checkpoint can continue under `ordered-capped`** (same model and moves); logged as an alert.
+- **`train/run_v2b.sh`**, **`tools/start_v2b.sh`**: v2b = v2's `latest.pt` + drag cap + exploration 0.05 + learning rate 1e-5, in `runs/v2b`. `run_v2.sh` takes `RUN`, `ACTIONS`, `RESUME_FROM`. The watcher accepts `-Run v2b`.
+
+### Checked (cloud)
+- Cap holds on a real ante-2 state with 4 jokers: 3 drags offered in a row, then none until another move, then all 12 again.
+- `ordered_semantics.py` ALL PASS; `diff_check.py --mode ordered --encode --enc 2`, 5 runs, PASS; 30 saved v2 wins replay with 0 mismatches (cap off, as recorded).
+- Exploration sampler on a real decision with a Full House on offer (381 plays, 5 hand types): at EPS 0.05 each type gets ~1% of draws on top of the policy; returned log-probabilities match the policy's.
+- Not run here: the trainer itself (no torch in this container). The laptop's pre-flight and first round are the smoke test.
+
 ## [0.3.4] - 2026-11-01
 
 ### Added

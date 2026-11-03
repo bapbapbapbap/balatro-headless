@@ -27,6 +27,12 @@
 --                         counted as both. Only the lead is chosen; the rest keep hand order.
 -- All modes offer move_joker, the shop, packs, blinds and selling.
 --
+-- H.drag_cap (off by default; set by the "ordered-capped" action set): after k joker drags in a
+-- row, no further drag is offered until some other action is taken, with k = (jokers held) - 1.
+-- Nothing becomes unreachable: any order of n jokers is n - (longest run already in order) <= n - 1
+-- drags away. It only stops chains of free moves that change nothing (v2 spent 43% of its moves
+-- in won games dragging jokers, up to 248 in a row).
+--
 -- An action is a table { type, i, j, cards }: i/j are 1-based positions in the relevant area;
 -- cards are hand positions, ascending.
 --
@@ -180,8 +186,12 @@ end
 
 local function add(acts, a) acts[#acts + 1] = a end
 
+local function drags_allowed()
+  return not H.drag_cap or (H._drags or 0) < math.max(1, #G.jokers.cards - 1)
+end
+
 local function add_jokers_and_consumables(acts, controls)
-  local nj = #G.jokers.cards
+  local nj = drags_allowed() and #G.jokers.cards or 0
   for i = 1, nj do
     for j = 1, nj do if i ~= j then add(acts, { type = "move_joker", i = i, j = j }) end end
   end
@@ -385,6 +395,7 @@ end
 -- settle(), then also wait out the boss-debuff alert: it blocks Play through a non-blocking
 -- event, the same pause a player sits through before the Play button lights up.
 function H.step(a)
+  H._drags = a.type == "move_joker" and (H._drags or 0) + 1 or 0
   H.apply(a)
   local n = H.settle()
   if n < 0 then return n end

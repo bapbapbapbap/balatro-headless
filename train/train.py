@@ -134,10 +134,13 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                     raise FloatingPointError("non-finite action probabilities")
                 if greedy:
                     a = int(p.argmax())
+                    logp = float(math.log(max(p[a], 1e-30)))
+                elif mode == "train" and args.explore_hands > 0:
+                    a, logp = explore_sample(p, o["act"], args.explore_hands, srng)
                 else:
                     a = int(np.searchsorted(np.cumsum(p), srng.random() * p.sum()))
                     a = min(a, len(p) - 1)
-                logp = float(math.log(max(p[a], 1e-30)))
+                    logp = float(math.log(max(p[a], 1e-30)))
                 if mode != "train" and sim.steps >= args.max_steps - 30:
                     tail.append((sim.H.state_name(), int(o["act"][a][0]), int(o["act"][a][1]),
                                  int(o["act"][a][2]), round(float(p[a]), 4), len(p)))
@@ -158,6 +161,34 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
         return episodes
+
+
+def explore_sample(p, act, eps, rng):
+    """Training games only. With probability eps at a decision with plays of two or more poker hand
+    types on offer, picks one of those hand types uniformly, then a play of that type in proportion
+    to the policy; otherwise samples the policy.
+
+    Why: v2 never plays a Full House when one is on offer (0 of 374 in its wins). It was cloned from
+    v1, which never played one, so the policy gives that move almost no probability and RL never
+    samples it to learn what it pays. The hand types are the labels the game shows on the play; no
+    hand type is preferred, and the reward alone decides what the bot keeps.
+
+    Returns the move and its log-probability under the policy itself, not under the mixture, so an
+    explored move that turns out well gets a full-strength PPO update, as in epsilon-greedy. With
+    the mixture's probability the update would be scaled by policy/mixture (about 1/100 for a move
+    the policy almost never makes): the same expected push as never exploring. The cost is a small
+    bias, since eps of the decisions are not the policy's own."""
+    play = act[:, 0] == 1
+    ht = act[:, 8]
+    types = np.unique(ht[play])
+    if len(types) >= 2 and rng.random() < eps:
+        t = types[min(int(rng.random() * len(types)), len(types) - 1)]
+        idx = np.flatnonzero(play & (ht == t))
+        w = p[idx] if p[idx].sum() > 0 else np.ones(len(idx))
+        a = int(idx[min(int(np.searchsorted(np.cumsum(w), rng.random() * w.sum())), len(idx) - 1)])
+    else:
+        a = min(int(np.searchsorted(np.cumsum(p), rng.random() * p.sum())), len(p) - 1)
+    return a, float(math.log(max(p[a], 1e-30)))
 
 
 def verify_route(sim, args, ep):
@@ -490,7 +521,7 @@ def main():
     ap.add_argument("--eval-games", type=int, default=200)
     ap.add_argument("--enc", type=int, choices=[1, 2], default=1,
                     help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score")
-    ap.add_argument("--actions", choices=["subsets", "ordered"], default="subsets",
+    ap.add_argument("--actions", choices=["subsets", "ordered", "ordered-capped"], default="subsets",
                     help="action list: subsets (v1) or ordered (lead card, Death direction, boss reroll)")
     ap.add_argument("--d", type=int, default=96)
     ap.add_argument("--layers", type=int, default=2)
@@ -502,6 +533,9 @@ def main():
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--minibatch", type=int, default=64)
     ap.add_argument("--ent", type=float, default=0.01)
+    ap.add_argument("--explore-hands", type=float, default=0.0,
+                    help="training games: share of decisions where a poker hand type on offer is picked uniformly "
+                         "before the play (see explore_sample); 0 = off")
     ap.add_argument("--vf", type=float, default=0.5)
     ap.add_argument("--grad-clip", type=float, default=0.5)
     ap.add_argument("--device", default="auto")
@@ -598,6 +632,10 @@ def main():
         arch = ck.get("arch", {})
         for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions)):
             have = arch.get(k, {"enc": 1, "actions": "subsets"}.get(k))
+            if k == "actions" and (have, v) == ("ordered", "ordered-capped"):
+                # Same model and moves; only long chains of joker drags stop being offered.
+                alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
+                continue
             assert have == v, f"checkpoint was trained with {k}={have}, this run has {k}={v}"
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start_it = ck["iteration"] + 1
         if args.reset_lr:

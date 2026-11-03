@@ -53,6 +53,7 @@ class BalatroEnv:
         G = self.lua.globals().G
         if G.STAGE == G.STAGES.RUN:
             G.delete_run(G)
+        self.H._drags = 0
         n = self.H.start_run(back, stake, seed)
         if n < 0:
             raise RuntimeError("run never settled at start")

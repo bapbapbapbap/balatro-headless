@@ -4,9 +4,12 @@
 # First launch: converts v1's most recent training games (and every converted win) to v2's action
 # list, imitates them (behavior cloning), then continues with RL. Later launches resume from
 # runs/v2/latest.pt and skip straight to RL. Results in <shared folder>/runs/v2.
+# Env: RUN (run name, default v2), ACTIONS (default ordered), RESUME_FROM (checkpoint to continue
+# from when the run has no latest.pt yet, e.g. runs/v2/latest.pt for v2b; see run_v2b.sh).
 set -uo pipefail
 SHARED="${1:?usage: run_v2.sh <shared folder> [hours] [workers]}"
-OUT="$SHARED/runs/v2"
+RUN="${RUN:-v2}"
+OUT="$SHARED/runs/$RUN"
 HOURS="${2:-168}"
 WORKERS="${3:-14}"
 W="${BALATRO_HOME:-$HOME/balatro}"
@@ -33,6 +36,8 @@ python3 "$R/tests/ordered_semantics.py" "$W/local/source" | tail -1 | grep -q "A
 RESUME=(); BC=()
 if [ -f "$OUT/latest.pt" ]; then
   RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"
+elif [ -n "${RESUME_FROM:-}" ]; then
+  RESUME=(--resume "$RESUME_FROM"); echo "starting $RUN from $RESUME_FROM"
 else
   BCG="$SHARED/v2/bc_games.jsonl"
   if [ ! -s "$BCG" ]; then
@@ -48,9 +53,9 @@ fi
 
 echo "== training"
 cd "$R/train"
-python3 train.py --src "$W/local/source" --run v2 --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
-  --enc 2 --actions ordered --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
+python3 train.py --src "$W/local/source" --run "$RUN" --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
+  --enc 2 --actions "${ACTIONS:-ordered}" --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
   --reward blinds --back b_red --stake 1 --max-wins "${MAX_WINS:-1000000}" \
-  --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data/v2}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" \
+  --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data/$RUN}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" \
   "${BC[@]}" --bc-epochs "${BC_EPOCHS:-2}" "${RESUME[@]}" ${TRAIN_ARGS:-}
 echo "== exited $(date)"
