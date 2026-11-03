@@ -594,6 +594,10 @@ changes a proposal above, the answer stands.
 - **Compute (chud, 17:23):** "I have days." Experts get far more than the 10,000 first floated; proposed
   12 hours each (about 96,000 games, close to 1.0's 90,720), run one after another.
 
+- **Scope (chud, 17:41):** "all we need are experts." The generalist is dropped from the plan;
+  only the eight experts are trained. How the experts are combined or compared at test time (who
+  plays before ante 4 without a generalist) is *(open)*.
+
 Built for this (CHANGELOG 0.10.0): `train.py --pin-hand/--pin-rate/--init-weights`,
-`train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`. The generalist, the handoff
-at play time, and the test of I1 are not built and not registered.
+`train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`. The handoff at play time
+and the test of I1 are not built and not registered.
