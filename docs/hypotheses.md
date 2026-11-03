@@ -332,9 +332,23 @@ Nothing above is edited. This section names what the sections above are for.
 
 ### 1. Primary: exhibit Hume's is-ought gap
 Hold the facts fixed (the pinned game, same seeds, same sim) and vary only the ought (the reward).
-Oughts are a category to have strategy towards, like jokers. The idea and that framing are chud's
-(see the clarification at ~11:05). Sections C and G test it.
+
+**Oughts are objects, like jokers.** A player buys a joker without knowing whether it will win the
+run, and buys anyway. An agent holds an ought the same way. In chud's words (23:09):
+- "we can't know if the joker will let us win, but we buy stuff anyways"
+- The bot loses a ton, but it is calibrating, as humans do. "a human loss is when their perception
+  of reality isn't actually reality." They lose all the time and keep revising. Humans have
+  weights too.
+- "there are only specific domains and the deep structure that can be generalized from them."
+
+The idea and the framing are chud's (see also the clarification at ~11:05). Sections C and G test
+the first half: same facts, different oughts.
+- Status: in C and G the ought is picked by the experimenter for a whole run; the bot doesn't buy
+  it. A design where the bot acquires reward terms during play, judged by an outer yardstick,
+  would test the joker claim directly. Not registered.
 - Status: no registered hypothesis yet tests whether strategy over oughts generalizes.
+- Related prior work: the optimal reward problem (Singh, Lewis & Barto, "Where Do Rewards Come
+  From?", 2009): for a bounded agent, the best reward to give it is often not the designer's goal.
 
 ### 2. Prove a naneinf seed
 A seed plus a route that replays move for move to a played hand after which `G.GAME.chips` is not
