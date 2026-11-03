@@ -2,6 +2,19 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.10.0] - 2026-11-03
+
+### Added
+- **Hand-focus bots: one per poker hand, to test each hand as a strategy.** `env.lua` "hand focus" (`H.focus_hand`; `BalatroEnv(..., focus=)`, `Sim(..., focus=)`): when a play of the chosen hand is available and the blind would let it score (the game's own `Blind:debuff_hand` check), plays of other hands aren't offered. Nothing else in the move list changes, and with the hand unavailable every play is offered. A rule on the moves, not a reward: the reward stays the user's choice.
+- `train.py --focus "<hand>"` trains under the rule; `--init <weights>` starts a run from released weights (model only, fresh optimizer). The focus is stored in checkpoints (`arch.focus`) and in every saved game (`"focus"`); a resume must match it.
+- `train/run_focus.sh <shared> "<hand>"|all [hours] [workers]`: model 1.0 continued under the rule, reward `blinds`, same settings as 0.3's end (lr 1e-5, hand exploration 0.05). `all` runs the 9 hands Red Deck can make, one after another.
+- `train/focus_eval.py`: plays weights as every hand's bot (or a chosen few, plus `none`) on the training eval's fixed seeds with its sampling, and reports wins, blinds per game, the share of plays that were the bot's hand, and how often it was available.
+- `tests/focus_check.py`: at every decision of random games under each hand, listing moves changes nothing in the game; the list is exactly the unfocused one minus the other hands' plays (or unchanged); after a kept play the game's own `last_hand_played` is the focus hand; a replay ends in the same state.
+- `play.py --focus`; `verify_games.py`, `publish_wins.py` and `analysis/replay_events.py` replay focus games with their focus.
+
+### Not yet run
+- The checks and evaluations above need the game source, so they haven't been run on the game yet; the rule's logic was checked on a stub of the game's hand evaluator.
+
 ## [0.9.10] - 2026-11-03
 
 ### Documented

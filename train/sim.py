@@ -9,7 +9,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 HARNESS = os.path.join(HERE, "..", "harness")
 sys.path.insert(0, HARNESS)
-from env import BalatroEnv  # noqa: E402
+from env import HANDS, BalatroEnv  # noqa: E402
 
 F = 32
 ACT_WIDTH = {1: 9, 2: 18}     # action row width per encoding version (encode.lua)
@@ -51,12 +51,15 @@ def parse(buf, act_width=9):
 
 
 class Sim:
-    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1):
+    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, focus=None):
         """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll), or
         "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags).
-        enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards)."""
+        enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards).
+        focus: a poker hand (env.HANDS); when a play of it is available, other plays aren't offered.
+        A game saved with a focus replays only with the same focus (the action list differs)."""
         lua_mode = "ordered" if mode == "ordered-capped" else mode
-        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode)
+        self.focus = focus
+        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, focus=focus)
         self.H = self.env.H
         self.H.drag_cap = mode == "ordered-capped"
         self.H.enc = enc

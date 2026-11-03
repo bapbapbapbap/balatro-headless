@@ -33,6 +33,9 @@
 -- drags away. It only stops chains of free moves that change nothing (v2 spent 43% of its moves
 -- in won games dragging jokers, up to 248 in a row).
 --
+-- H.focus_hand (off by default; e.g. "Flush"): when a play of that poker hand is available, plays
+-- of other hands aren't offered. See "hand focus" below.
+--
 -- An action is a table { type, i, j, cards }: i/j are 1-based positions in the relevant area;
 -- cards are hand positions, ascending.
 --
@@ -327,6 +330,85 @@ function H.legal_actions()
     add_jokers_and_consumables(acts, controls)   -- jokers can be dragged, sold and used here too
   end
   return acts
+end
+
+-- ---------- hand focus ----------
+-- H.focus_hand (off by default): a poker hand as the game names it ("Pair", "Flush", "Full House",
+-- ...). When set, at a play decision where some play of that hand is available and the blind
+-- would let it score, plays of every other hand are taken off the list. Nothing else changes:
+-- discards, the shop, packs, consumables and blinds are all still offered, and when no play of
+-- the focus hand is available every play stays on offer, so the bot is never stuck.
+-- "Would let it score" uses the game's own check (Blind:debuff_hand with check = true, the call
+-- the game makes when you highlight cards and it shows "Not allowed!"): The Eye after the hand has
+-- been played this round, The Mouth locked to another hand, The Psychic with fewer than 5 cards.
+-- The hand is the label the game puts on the selection (get_poker_hand_info), so a Flush that
+-- also holds a Pair counts as a Flush, and a Pair picked out of a Full House counts as a Pair.
+-- This is a rule on which moves exist, like the drag cap. The reward is not touched.
+
+local function cards_at(idxs)
+  local out = {}
+  for _, i in ipairs(idxs or {}) do out[#out + 1] = G.hand.cards[i] end
+  return out
+end
+
+-- Is `cards` a play of the focus hand that the blind would let score?
+local function is_focus_play(cards)
+  if #cards == 0 then return false end
+  local ok, text, _, poker_hands = pcall(G.FUNCS.get_poker_hand_info, cards)
+  if not ok or text ~= H.focus_hand then return false end
+  local b = G.GAME.blind
+  if b and b.debuff_hand then
+    local trig = b.triggered               -- the check sets it; put it back so listing changes nothing
+    local ok2, blocked = pcall(b.debuff_hand, b, cards, poker_hands, text, true)
+    b.triggered = trig
+    if ok2 and blocked then return false end
+  end
+  return true
+end
+H.is_focus_play = is_focus_play
+
+-- Controls mode: can any selection the player could make right now be played as the focus hand?
+local function focus_reachable()
+  local n = #G.hand.cards
+  local lim = math.min(5, G.hand.config.highlighted_limit, n)
+  for _, s in ipairs(subsets(n, 1, lim, forced_indices())) do
+    if is_focus_play(cards_at(s)) then return true end
+  end
+  return false
+end
+
+local function focus_filter(acts)
+  if not H.focus_hand or G.STATE ~= S.SELECTING_HAND then return acts end
+  if H.mode == "controls" then
+    -- One play action: it plays the current selection. Keep it if the selection is the focus hand
+    -- or the focus hand can't be made from this hand; otherwise the bot has to select it first.
+    local pi
+    for k, a in ipairs(acts) do if a.type == "play" then pi = k end end
+    if not pi or is_focus_play(G.hand.highlighted) or not focus_reachable() then return acts end
+    table.remove(acts, pi)
+    return acts
+  end
+  local keep, any, seen = {}, false, {}
+  for k, a in ipairs(acts) do
+    if a.type == "play" then
+      local key = table.concat(a.cards, ",")     -- ordered mode lists one subset once per lead
+      if seen[key] == nil then seen[key] = is_focus_play(cards_at(a.cards)) end
+      keep[k] = seen[key]
+      any = any or seen[key]
+    end
+  end
+  if not any then return acts end
+  local out = {}
+  for k, a in ipairs(acts) do
+    if a.type ~= "play" or keep[k] then out[#out + 1] = a end
+  end
+  return out
+end
+
+local unfocused_legal_actions = H.legal_actions
+H.unfocused_legal_actions = unfocused_legal_actions
+function H.legal_actions()
+  return focus_filter(unfocused_legal_actions())
 end
 
 -- ---------- applying ----------

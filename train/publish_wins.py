@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from sim import Sim  # noqa: E402
 
-KEEP = ("seed", "back", "stake", "actions", "enc", "acts", "desc", "final", "n", "progress", "mode", "iteration",
+KEEP = ("seed", "back", "stake", "actions", "enc", "focus", "acts", "desc", "final", "n", "progress", "mode", "iteration",
         "retry", "arm", "commit", "converted_from")
 
 
@@ -70,10 +70,10 @@ def main():
             added += 1
             trusted += 1
             continue
-        mode, enc = r.get("actions", "subsets"), r.get("enc", 1)
-        if (mode, enc) not in sims:
-            sims[(mode, enc)] = Sim(args.src, fast=not args.full, mode=mode, enc=enc)
-        prog, n, final, problems = sims[(mode, enc)].replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"])
+        mode, enc, focus = r.get("actions", "subsets"), r.get("enc", 1), r.get("focus")
+        if (mode, enc, focus) not in sims:
+            sims[(mode, enc, focus)] = Sim(args.src, fast=not args.full, mode=mode, enc=enc, focus=focus)
+        prog, n, final, problems = sims[(mode, enc, focus)].replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"])
         if problems or n != r["n"] or final != r["final"] or not prog["won"]:
             bad += 1
             print(f"NOT PUBLISHED {r['seed']}: replay {'won' if prog['won'] else 'lost'} {problems[:1]}")

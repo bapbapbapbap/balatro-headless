@@ -24,6 +24,10 @@ from run import make_runtime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# The 12 poker hands, as the game names them (G.GAME.hands keys); values for focus= below.
+HANDS = ("High Card", "Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House",
+         "Four of a Kind", "Straight Flush", "Five of a Kind", "Flush House", "Flush Five")
+
 
 def to_py(x):
     """Lua table -> dict/list, recursively."""
@@ -36,7 +40,12 @@ def to_py(x):
 
 
 class BalatroEnv:
-    def __init__(self, src, mods=None, fast=True, unlock_all=True, mode="controls"):
+    def __init__(self, src, mods=None, fast=True, unlock_all=True, mode="controls", focus=None):
+        """focus: a poker hand from HANDS. When a play of it is available, plays of other hands
+        aren't offered (env.lua, "hand focus"). None = every legal play is offered."""
+        if focus is not None and focus not in HANDS:
+            raise ValueError(f"unknown poker hand {focus!r}; one of {', '.join(HANDS)}")
+        self.focus = focus
         self.lua, self.H = make_runtime(src, mods)
         self.H.start_up()
         if fast:
@@ -45,6 +54,7 @@ class BalatroEnv:
             self.H.unlock_all()
         self.H.mode = mode   # "controls" (the game's own controls) or "subsets" (see env.lua)
         self.lua.execute(open(os.path.join(HERE, "env.lua")).read(), self.H)
+        self.H.focus_hand = focus
         self._acts = None
         self.frames = 0
         self.steps = 0

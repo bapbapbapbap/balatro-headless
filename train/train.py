@@ -32,6 +32,9 @@ sys.path.insert(0, HERE)
 from model import ACT_WIDTH, F, ZERO_FIELDS, Net, param_count  # noqa: E402
 from rewards import REWARDS, shaping  # noqa: E402
 
+sys.path.insert(0, os.path.join(HERE, "..", "harness"))
+from env import HANDS  # noqa: E402
+
 SEED_CHARS = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
 
@@ -84,7 +87,7 @@ def worker_main(wid, args, in_q, out_q):
     torch.set_num_threads(1)
     try:
         from sim import Sim
-        sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc)
+        sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc, focus=args.focus)
     except Exception:
         out_q.put(("error", wid, traceback.format_exc()))
         return
@@ -533,6 +536,11 @@ def main():
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--minibatch", type=int, default=64)
     ap.add_argument("--ent", type=float, default=0.01)
+    ap.add_argument("--focus", choices=HANDS, default=None,
+                    help="hand-focus bot: when a play of this poker hand is available, plays of other hands "
+                         "aren't offered (env.lua, 'hand focus'). A rule on the moves, not a reward")
+    ap.add_argument("--init", help="start from these weights (a checkpoint or an exported weights file): the model "
+                                   "only, with a fresh optimizer and run state. Ignored with --resume")
     ap.add_argument("--explore-hands", type=float, default=0.0,
                     help="training games: share of decisions where a poker hand type on offer is picked uniformly "
                          "before the play (see explore_sample); 0 = off")
@@ -637,11 +645,22 @@ def main():
                 alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
                 continue
             assert have == v, f"checkpoint was trained with {k}={have}, this run has {k}={v}"
+        assert arch.get("focus") == args.focus, \
+            f"checkpoint was trained with focus={arch.get('focus')}, this run has focus={args.focus}"
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start_it = ck["iteration"] + 1
         if args.reset_lr:
             for g in opt.param_groups:
                 g["lr"] = args.lr
         resumed = ck
+    elif args.init:
+        w = torch.load(args.init, map_location=device, weights_only=False)
+        assert w["vocab"] == vocab, "--init weights' vocabulary differs from this game"
+        arch = w.get("arch", {})
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc)):
+            have = arch.get(k, {"enc": 1}.get(k))
+            assert have == v, f"--init weights have {k}={have}, this run has {k}={v}"
+        model.load_state_dict(w["state_dict"] if "state_dict" in w else w["model"])
+        alert(f"starting from the weights in {args.init} (model only; focus {args.focus})")
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
     print(f"model {param_count(model):,} params on {device}; {args.workers} workers; reward '{args.reward}' "
@@ -671,7 +690,8 @@ def main():
 
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
-              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions},
+              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions,
+                       "focus": args.focus},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten)}
@@ -751,7 +771,7 @@ def main():
                 r = json.loads(line)
                 if (r.get("mode") != "train" or not r.get("verified") or r["back"] != args.back
                         or r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
-                        or r["stake"] != args.stake or r["seed"] in have):
+                        or r.get("focus") != args.focus or r["stake"] != args.stake or r["seed"] in have):
                     continue
                 have.add(r["seed"])
                 sil_buffer.append({"key": f"seed-{r['seed']}", "seed": r["seed"], "acts": r["acts"], "desc": r["desc"],
@@ -848,7 +868,8 @@ def main():
         recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
-                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc} for e in keep]
+                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 "focus": args.focus} for e in keep]
         if recs:
             gd = os.path.join(args.spill_dir, "runs", args.run, "games") if spilling() else games_dir
             os.makedirs(gd, exist_ok=True)
@@ -923,7 +944,7 @@ def main():
                 except json.JSONDecodeError:
                     continue                      # a file still being written can end mid-line
                 if (r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
-                        or r["back"] != args.back or r["stake"] != args.stake):
+                        or r.get("focus") != args.focus or r["back"] != args.back or r["stake"] != args.stake):
                     continue
                 routes.append({"key": f"bc-{len(routes)}", "seed": r["seed"], "acts": r["acts"], "desc": r["desc"],
                                "final": r["final"]})

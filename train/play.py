@@ -1,7 +1,11 @@
 """Plays one seed with released weights and prints every move.
 
 usage: python3 play.py WEIGHTS.pt --src ~/balatro/local/source --seed ABCD1234 [--back b_red] [--stake 1]
-                       [--sample-seed 0] [--max-steps 1500] [--quiet] [--save route.jsonl]
+                       [--sample-seed 0] [--max-steps 1500] [--quiet] [--save route.jsonl] [--focus "Flush"]
+
+--focus plays the weights as a hand-focus bot (env.lua, "hand focus"): when a play of that hand is
+available, plays of other hands aren't offered. Weights trained with --focus use their own focus
+unless --focus is given ("none" turns it off).
 
 The bot sees only what a player sees and picks each move by sampling its policy with a fixed RNG
 (as in training evals; always taking the single most likely move can loop on free joker drags).
@@ -34,18 +38,20 @@ def main():
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--save")
+    ap.add_argument("--focus", help='a poker hand, e.g. "Flush"; "none" = off (default: what the weights were trained with)')
     a = ap.parse_args()
 
     w = torch.load(a.weights, map_location="cpu", weights_only=True)
     arch = w["arch"]
-    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"])
+    focus = arch.get("focus") if a.focus is None else (None if a.focus == "none" else a.focus)
+    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"], focus=focus)
     if sim.vocab != w["vocab"]:
         raise SystemExit("these weights were trained on a different game version (vocabulary differs)")
     model = Net(len(w["vocab"]), d=arch["d"], layers=arch["layers"], heads=arch["heads"], enc=arch["enc"])
     model.load_state_dict(w["state_dict"])
     model.eval()
     print(f"model {w['model_version']} ({sum(p.numel() for p in model.parameters()):,} params), "
-          f"seed {a.seed}, {a.back}, stake {a.stake}", flush=True)
+          f"seed {a.seed}, {a.back}, stake {a.stake}" + (f", focus {focus}" if focus else ""), flush=True)
 
     rng = random.Random(f"play-{a.sample_seed}-{a.seed}")
     o = sim.reset(a.seed, a.back, a.stake)
@@ -67,7 +73,7 @@ def main():
           f"{sim.steps} moves" + ("" if done else " (move cap reached)"))
     if a.save:
         rec = {"seed": a.seed, "back": a.back, "stake": a.stake, "actions": arch["actions"], "enc": arch["enc"],
-               "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "n": sim.steps,
+               "focus": focus, "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "n": sim.steps,
                "progress": prog, "mode": "play", "model_version": w["model_version"]}
         with open(a.save, "a") as f:
             f.write(json.dumps(rec) + "\n")

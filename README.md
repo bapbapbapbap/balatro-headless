@@ -302,8 +302,26 @@ while not env.done:
 - All modes: `select_blind`, `skip_blind`, `end_shop`, `reroll`, `buy`, `buy_and_use`, `redeem`, `open_pack`, `pick`, `skip_pack`, `sell_joker`, `sell_consumable`, `cash_out`, `move_joker`.
 - Legality is the game's own: the checks its buttons use (`can_play`, `can_discard`, `can_buy`, `can_redeem`, `can_open`, `can_reroll`, `can_skip_booster`, `can_select_card`, `Card:can_use_consumeable`, `Card:can_sell_card`, `check_for_buy_space`, Cerulean Bell's forced selection, sort buttons only when they'd change something). Actions go through the same `G.FUNCS` calls `replay.py` validates.
 - Not offered yet: endless mode after a win (needed for the naneinf goal).
+- **Hand focus** (`BalatroEnv(..., focus="Flush")`, any of the 12 poker hands): when a play of that hand is available and the blind would let it score, plays of other hands aren't offered. Discards, shop, packs and everything else stay as they are, and when the hand can't be played every play is offered, so the bot is never stuck. It's a rule on the moves, like the drag cap; the reward isn't touched. The hand is the game's own label for the selection, and "would let it score" is the game's own check (The Eye, The Mouth, The Psychic). Checked by `tests/focus_check.py`.
 
 **Observation = what a player can see.** Face-up cards; face-down cards (The Fish, House, Wheel, Mark; jokers under Amber Acorn) masked; the deck view as sets (remaining and full deck, never draw order); joker and card values shown on hover; HUD, blind and its effect, shop and pack contents, tags, vouchers, hand levels, the round's Idol / Mail-In / Ancient / Castle targets. Never RNG state.
+
+### Hand-focus bots
+One bot per poker hand, to test each hand as a strategy:
+```
+cd train
+# 1.0 as each hand's bot, untrained for it: plays its hand whenever it can, nothing else changed
+python3 focus_eval.py ../weights/balatro-bot-1.0.pt --src ~/balatro/local/source --hands all --games 200
+# a bot that learns to build toward its hand: 1.0 continued with the rule on, reward unchanged
+bash run_focus.sh <shared folder> "Flush" [hours] [workers]        # or: all (the 9 hands in turn)
+python3 focus_eval.py <shared folder>/runs/focus-flush/best.pt --src ~/balatro/local/source --hands none,Flush
+python3 play.py <weights> --src ~/balatro/local/source --seed ABCD1234 --focus "Flush"   # watch one game
+```
+`focus_eval.py` scores each bot on the training eval's 200 fixed seeds with the eval's sampling, so
+every hand is compared on the same games, and `none` should give back the score the weights were
+picked by (1.0: 12.79 blinds per game, 5 wins), a check that it plays like the eval. It reports wins, blinds, the share of the bot's plays
+that were its hand, and how often its hand was available. Games saved by a focus bot carry
+`"focus"` and replay only with it (`verify_games.py` and `publish_wins.py` read it).
 
 **Checks** (`tests/run_env_checks.sh <source dir>`):
 - `check_env.py --mode controls`: drives each fixture entirely through env actions (joker drags as `move_joker`, hand order as `move_hand`, selections as `toggle`); every action must be legal when taken and state must match the log. Both fixtures: 256 decisions through 902 env actions, 0 mismatches.

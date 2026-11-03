@@ -122,11 +122,11 @@ def to_py(x):
 _sim = {}
 
 
-def get_sim(src, mode, enc):
-    k = (mode, enc)
+def get_sim(src, mode, enc, focus=None):
+    k = (mode, enc, focus)
     if k not in _sim:
         from sim import Sim
-        s = Sim(src, fast=True, mode=mode, enc=enc)
+        s = Sim(src, fast=True, mode=mode, enc=enc, focus=focus)
         s.env.lua.execute(LUA, s.H)
         _sim[k] = s
     return _sim[k]
@@ -134,7 +134,7 @@ def get_sim(src, mode, enc):
 
 def replay(args):
     src, r = args
-    s = get_sim(src, r.get("actions", "ordered"), r.get("enc", 2))
+    s = get_sim(src, r.get("actions", "ordered"), r.get("enc", 2), r.get("focus"))
     H = s.H
     s.reset(r["seed"], r["back"], r["stake"])
     evs, problem = [], None
