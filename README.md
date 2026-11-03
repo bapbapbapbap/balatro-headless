@@ -24,7 +24,7 @@ seeing only what a player sees. Every seed it beats is saved with its route, eve
 the seed to the win, and replayed before it counts. The list and the routes are in
 [`wins/`](wins/README.md); anyone with the same game version can replay a route and check it.
 
-**Models:** trained weights are published as GitHub releases. **0.3-beta** (1.6M parameters,
+**Models:** trained weights are in [`weights/`](weights/README.md). **0.3-beta** (1.6M parameters,
 2026-11-02) beats 12.0 of 24 blinds per game on 200 fixed evaluation seeds and wins 7 of them.
 What it has learned and what it hasn't, its training machine, and how to watch it play a seed:
 [docs/models.md](docs/models.md).
