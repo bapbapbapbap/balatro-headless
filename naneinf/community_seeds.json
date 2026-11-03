@@ -1,0 +1,10 @@
+[
+ {"seed": "26CJHF",   "back": "b_ghost",  "name": "Speedy Run (max-score TAS seed)", "claim": "Ghost; Perkeo + Cryptids, Red Seal Steel Kings, Brainstorm/Hex, Showman, Blueprints, Baron, Mime"},
+ {"seed": "5MG2J3UY", "back": "b_ghost",  "name": "Triple Trouble", "claim": "skip first blind -> Perkeo; after Boss, Spectral pack -> Ankh; reroll once -> Invisible Joker; Cryptid in Ante 3 shop"},
+ {"seed": "SGRB5RPK", "back": "b_ghost",  "name": "Overstocked", "claim": "Arcana pack on round 1 -> Perkeo; Ante 2 Overstock, reroll twice -> Ankh; Invisible Joker in Buffoon pack after Big Blind"},
+ {"seed": "E4EI3UQK", "back": "b_ghost",  "name": "Quick Start", "claim": "skip first two blinds, Perkeo from Arcana pack, reroll once -> Ankh, skip Big Blind -> Blueprint; naneinf around Ante 13-14"},
+ {"seed": "4BTVF4X1", "back": "b_ghost",  "name": "Instant Combo", "claim": "instant Perkeo; Baron, Deja Vu, Blueprints, Invisible, Brainstorm, Ectoplasm, Triboulet, Cryptids; Mime ~Ante 19"},
+ {"seed": "2K9H9HN",  "back": "b_plasma", "name": "Particle Accelerator", "claim": "any deck (Plasma suggested); early Negative Perkeo and Triboulet; Showman Ante 6, Blueprint Ante 7"},
+ {"seed": "2UULTGL9", "back": "b_plasma", "name": "Not So Legendary", "claim": "no legendaries; win first hand, early Blank voucher; Blueprint, Mime, Baron, Brainstorm, Invisible"},
+ {"seed": "QJXK7HE2", "back": "b_ghost",  "name": "Slow Climb", "claim": "free Perkeo and Ankh; Cryptid/Deja Vu; Blueprint; Mime; Baron at Ante 19"}
+]

@@ -1,0 +1,480 @@
+[
+ {
+  "seed": "26CJHF",
+  "back": "b_ghost",
+  "name": "Speedy Run (max-score TAS seed)",
+  "claim": "Ghost; Perkeo + Cryptids, Red Seal Steel Kings, Brainstorm/Hex, Showman, Blueprints, Baron, Mime",
+  "seen": [],
+  "skip_skip": {
+   "skip_small_tag": "tag_skip",
+   "skip_big_tag": "tag_uncommon",
+   "jokers_after_skips": [],
+   "shop_after_boss": {
+    "jokers": [
+     "j_hiker",
+     "c_ouija"
+    ],
+    "vouchers": [
+     "v_hone"
+    ],
+    "boosters": [
+     "p_buffoon_normal_2",
+     "p_celestial_normal_2"
+    ],
+    "money": 15
+   }
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "c_saturn",
+     "j_ice_cream"
+    ],
+    "vouchers": [
+     "v_directors_cut"
+    ],
+    "boosters": [
+     "p_buffoon_normal_1",
+     "p_standard_jumbo_1"
+    ],
+    "money": 8
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_merry_andy",
+     "j_sixth_sense"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "5 of Hearts",
+     "7 of Diamonds m_glass Blue seal",
+     "7 of Clubs m_steel",
+     "3 of Diamonds",
+     "Queen of Diamonds m_bonus"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "c_emperor",
+     "c_pluto"
+    ]
+   ],
+   "big_skip_tag": "tag_uncommon"
+  }
+ },
+ {
+  "seed": "5MG2J3UY",
+  "back": "b_ghost",
+  "name": "Triple Trouble",
+  "claim": "skip first blind -> Perkeo; after Boss, Spectral pack -> Ankh; reroll once -> Invisible Joker; Cryptid in Ante 3 shop",
+  "seen": [
+   "c_soul",
+   "j_perkeo"
+  ],
+  "skip_skip": {
+   "skip_small_tag": "tag_charm",
+   "skip_small_tag_pack": {
+    "pack": [
+     "c_temperance",
+     "c_strength",
+     "c_devil",
+     "c_soul",
+     "c_high_priestess"
+    ],
+    "soul_gave": [
+     "j_perkeo"
+    ]
+   },
+   "skip_big_tag": "tag_investment",
+   "jokers_after_skips": [
+    "j_perkeo"
+   ],
+   "boss": "lost or stuck at GAME_OVER"
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "c_mars",
+     "j_reserved_parking"
+    ],
+    "vouchers": [
+     "v_telescope"
+    ],
+    "boosters": [
+     "p_buffoon_normal_2",
+     "p_celestial_jumbo_2"
+    ],
+    "money": 10
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_fibonacci",
+     "j_to_the_moon"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "c_jupiter",
+     "c_venus",
+     "c_saturn",
+     "c_mercury",
+     "c_pluto"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "j_baseball",
+     "c_uranus"
+    ]
+   ],
+   "big_skip_tag": "tag_investment"
+  }
+ },
+ {
+  "seed": "SGRB5RPK",
+  "back": "b_ghost",
+  "name": "Overstocked",
+  "claim": "Arcana pack on round 1 -> Perkeo; Ante 2 Overstock, reroll twice -> Ankh; Invisible Joker in Buffoon pack after Big Blind",
+  "seen": [],
+  "skip_skip": {
+   "skip_small_tag": "tag_double",
+   "skip_big_tag": "tag_foil",
+   "jokers_after_skips": [],
+   "boss": "lost or stuck at GAME_OVER"
+  },
+  "play_small": {
+   "small": "lost or stuck"
+  }
+ },
+ {
+  "seed": "E4EI3UQK",
+  "back": "b_ghost",
+  "name": "Quick Start",
+  "claim": "skip first two blinds, Perkeo from Arcana pack, reroll once -> Ankh, skip Big Blind -> Blueprint; naneinf around Ante 13-14",
+  "seen": [
+   "c_soul",
+   "j_perkeo"
+  ],
+  "skip_skip": {
+   "skip_small_tag": "tag_charm",
+   "skip_small_tag_pack": {
+    "pack": [
+     "c_tower",
+     "c_strength",
+     "c_justice",
+     "c_hermit",
+     "c_judgement"
+    ]
+   },
+   "skip_big_tag": "tag_charm",
+   "skip_big_tag_pack": {
+    "pack": [
+     "c_soul",
+     "c_death",
+     "c_wheel_of_fortune",
+     "c_emperor",
+     "c_hanged_man"
+    ],
+    "soul_gave": [
+     "j_perkeo"
+    ]
+   },
+   "jokers_after_skips": [
+    "j_perkeo"
+   ],
+   "boss": "lost or stuck at GAME_OVER"
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "c_strength",
+     "j_misprint (holo)"
+    ],
+    "vouchers": [
+     "v_crystal_ball"
+    ],
+    "boosters": [
+     "p_buffoon_normal_1",
+     "p_celestial_normal_2"
+    ],
+    "money": 8
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_runner",
+     "j_wrathful_joker"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "c_mars",
+     "c_pluto",
+     "c_saturn"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "j_bootstraps",
+     "c_saturn"
+    ]
+   ],
+   "big_skip_tag": "tag_charm"
+  }
+ },
+ {
+  "seed": "4BTVF4X1",
+  "back": "b_ghost",
+  "name": "Instant Combo",
+  "claim": "instant Perkeo; Baron, Deja Vu, Blueprints, Invisible, Brainstorm, Ectoplasm, Triboulet, Cryptids; Mime ~Ante 19",
+  "seen": [
+   "c_soul",
+   "j_baron",
+   "j_perkeo",
+   "v_blank"
+  ],
+  "skip_skip": {
+   "skip_small_tag": "tag_charm",
+   "skip_small_tag_pack": {
+    "pack": [
+     "c_empress",
+     "c_magician",
+     "c_soul",
+     "c_death",
+     "c_justice"
+    ],
+    "soul_gave": [
+     "j_perkeo"
+    ]
+   },
+   "skip_big_tag": "tag_polychrome",
+   "jokers_after_skips": [
+    "j_perkeo"
+   ],
+   "boss": "lost or stuck at GAME_OVER"
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "j_baron",
+     "j_zany"
+    ],
+    "vouchers": [
+     "v_blank"
+    ],
+    "boosters": [
+     "p_buffoon_normal_1",
+     "p_standard_jumbo_2"
+    ],
+    "money": 8
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_hologram",
+     "j_misprint"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "Ace of Hearts m_stone",
+     "4 of Clubs",
+     "2 of Hearts m_lucky",
+     "4 of Spades",
+     "Jack of Hearts m_stone"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "j_droll",
+     "j_blue_joker"
+    ]
+   ],
+   "big_skip_tag": "tag_polychrome"
+  }
+ },
+ {
+  "seed": "2K9H9HN",
+  "back": "b_plasma",
+  "name": "Particle Accelerator",
+  "claim": "any deck (Plasma suggested); early Negative Perkeo and Triboulet; Showman Ante 6, Blueprint Ante 7",
+  "seen": [],
+  "skip_skip": {
+   "skip_small_tag": "tag_boss",
+   "skip_big_tag": "tag_d_six",
+   "jokers_after_skips": [],
+   "boss": "lost or stuck at GAME_OVER"
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "j_drunkard",
+     "j_half"
+    ],
+    "vouchers": [
+     "v_directors_cut"
+    ],
+    "boosters": [
+     "p_buffoon_normal_2",
+     "p_arcana_normal_4"
+    ],
+    "money": 7
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_baseball",
+     "j_raised_fist"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "c_moon",
+     "c_lovers",
+     "c_world"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "c_neptune",
+     "j_burglar"
+    ]
+   ],
+   "big_skip_tag": "tag_d_six"
+  }
+ },
+ {
+  "seed": "2UULTGL9",
+  "back": "b_plasma",
+  "name": "Not So Legendary",
+  "claim": "no legendaries; win first hand, early Blank voucher; Blueprint, Mime, Baron, Brainstorm, Invisible",
+  "seen": [
+   "v_blank"
+  ],
+  "skip_skip": {
+   "skip_small_tag": "tag_coupon",
+   "skip_big_tag": "tag_voucher",
+   "jokers_after_skips": [],
+   "shop_after_boss": {
+    "jokers": [
+     "c_venus",
+     "j_business"
+    ],
+    "vouchers": [
+     "v_clearance_sale",
+     "v_hieroglyph"
+    ],
+    "boosters": [
+     "p_buffoon_normal_1",
+     "p_spectral_jumbo_1"
+    ],
+    "money": 12
+   }
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "j_reserved_parking",
+     "j_jolly"
+    ],
+    "vouchers": [
+     "v_blank"
+    ],
+    "boosters": [
+     "p_buffoon_normal_1",
+     "p_arcana_jumbo_2"
+    ],
+    "money": 10
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_turtle_bean",
+     "j_half"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "c_chariot",
+     "c_strength",
+     "c_moon",
+     "c_devil",
+     "c_wheel_of_fortune"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "j_selzer",
+     "j_mad"
+    ]
+   ],
+   "big_skip_tag": "tag_voucher"
+  }
+ },
+ {
+  "seed": "QJXK7HE2",
+  "back": "b_ghost",
+  "name": "Slow Climb",
+  "claim": "free Perkeo and Ankh; Cryptid/Deja Vu; Blueprint; Mime; Baron at Ante 19",
+  "seen": [
+   "c_soul",
+   "j_perkeo",
+   "v_overstock_norm"
+  ],
+  "skip_skip": {
+   "skip_small_tag": "tag_coupon",
+   "skip_big_tag": "tag_charm",
+   "skip_big_tag_pack": {
+    "pack": [
+     "c_heirophant",
+     "c_lovers",
+     "c_hanged_man",
+     "c_soul",
+     "c_emperor"
+    ],
+    "soul_gave": [
+     "j_perkeo"
+    ]
+   },
+   "jokers_after_skips": [
+    "j_perkeo"
+   ],
+   "boss": "lost or stuck at GAME_OVER"
+  },
+  "play_small": {
+   "shop1": {
+    "jokers": [
+     "c_judgement",
+     "j_riff_raff"
+    ],
+    "vouchers": [
+     "v_overstock_norm"
+    ],
+    "boosters": [
+     "p_buffoon_normal_2",
+     "p_celestial_mega_1"
+    ],
+    "money": 10
+   },
+   "shop1_pack1": {
+    "pack": [
+     "j_smiley",
+     "j_wily"
+    ]
+   },
+   "shop1_pack2": {
+    "pack": [
+     "c_earth",
+     "c_jupiter",
+     "c_mars",
+     "c_uranus",
+     "c_saturn"
+    ]
+   },
+   "shop1_rerolls": [
+    [
+     "c_justice",
+     "j_faceless"
+    ]
+   ],
+   "big_skip_tag": "tag_charm"
+  }
+ }
+]
