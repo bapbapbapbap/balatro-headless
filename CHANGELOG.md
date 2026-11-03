@@ -2,6 +2,19 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.8.1] - 2026-11-02
+
+### Added
+- **`docs/REPRODUCE.md`**: from a Steam copy of Balatro to a training bot and checked routes. Covers hardware, the game pin and lock, the three mods (Lovely 0.10.0, Steamodded 26.1002.0, Antelytics 1.3.0~alpha; only for logging), the bundle, WSL packages, the harness build, training, verifying `wins/`, a versions table, and known gaps.
+- **`tools/balatro.ps1`**: one PowerShell controller: `check`, `lock`/`unlock`, `bundle`, `setup`, `train`, `stop`, `status`, `watch`, `verify`, `help`. Parses under PowerShell 7.4; `help` and `status` dry-run on a sample run folder.
+- README: what the project produces (seeds proven beatable, with routes) and a pointer to the guide.
+
+### Changed
+- `tools/setup_linux.sh` installs numpy and torch into the venv when missing and prints their versions.
+- `tools/start_v2b.sh` takes the shared folder, hours and workers as arguments.
+- README versions table: Python 3.12.3 (WSL training) alongside 3.13.18; PyTorch 2.15.0+cu132.
+- `wins/README.md` points to the guide (the link it had was dead).
+
 ## [0.8.0] - 2026-11-02
 
 ### Added: v2b (opt-in; v2 unchanged)

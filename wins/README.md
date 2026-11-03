@@ -18,7 +18,7 @@ seed produce the same run, ending in a win.
 A win is the game's own: `G.GAME.won`, set when the Ante 8 Boss Blind is beaten.
 
 ## Checking a route
-With the game source extracted from your own copy (see `../harness/README.md`; no game code is in
+With the game source extracted from your own copy (see [`../docs/REPRODUCE.md`](../docs/REPRODUCE.md); no game code is in
 this repository):
 
     python3 train/verify_games.py --src <game source> wins/routes.jsonl --wins-only --full

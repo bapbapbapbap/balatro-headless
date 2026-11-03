@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Stops v2 cleanly (it saves latest.pt) and starts v2b from that checkpoint: joker-drag cap,
 # hand-type exploration, learning rate 1e-5 (train/run_v2b.sh). runs/v2 stays as it is.
-#   bash start_v2b.sh
-# Env: EXPLORE (default 0.05), WORKERS (default 14)
+#   bash start_v2b.sh [shared folder] [hours, default 168] [workers, default 14]
+# Env: EXPLORE (default 0.05)
 set -uo pipefail
-SHARED=/mnt/c/Users/Jacobi/balatro-work
+SHARED="${1:-/mnt/c/Users/Jacobi/balatro-work}"
 if pgrep -f "train.py .*--run v2 " >/dev/null; then
   echo "stopping v2 cleanly (it saves latest.pt)..."; pkill -INT -f "train.py .*--run v2 "
   for i in $(seq 1 120); do pgrep -f "train.py .*--run v2 " >/dev/null || break; sleep 1; done
@@ -13,4 +13,4 @@ if pgrep -f "train.py .*--run v2 " >/dev/null; then
 fi
 sleep 3
 cd ~/balatro/balatro-headless && git pull -q --ff-only || { echo "git pull failed"; exit 1; }
-bash train/run_v2b.sh "$SHARED" 168 "${WORKERS:-14}"
+bash train/run_v2b.sh "$SHARED" "${2:-168}" "${3:-${WORKERS:-14}}"
