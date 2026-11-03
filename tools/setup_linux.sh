@@ -33,7 +33,10 @@ step "python env"
 python3 -m venv "$W/venv" || fail "venv (install python3-venv)"
 . "$W/venv/bin/activate"
 pip install -q --upgrade pip setuptools wheel cython || fail "pip"
+python3 -c "import numpy" 2>/dev/null || pip install -q numpy || fail "numpy"
+python3 -c "import torch" 2>/dev/null || pip install -q torch || fail "torch (PyPI's Linux wheel includes CUDA)"
 python3 --version
+python3 -c "import numpy, torch; print('numpy', numpy.__version__, '| torch', torch.__version__, '| cuda', torch.cuda.is_available())"
 
 step "runtime: lupa against LuaJIT 2.0.5"
 if python3 -c "import sys; sys.path.insert(0, '$R/harness/vendor'); from lupa import luajit20; assert luajit20.LuaRuntime().eval('jit.version') == 'LuaJIT 2.0.5'" 2>/dev/null; then

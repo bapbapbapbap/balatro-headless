@@ -19,6 +19,15 @@ own Lua from your install and runs it, so it behaves exactly like the game, incl
 Steamodded games as Lovely patches them. A validator replays runs you logged in the real
 game and checks every decision matches.
 
+**What it produces: seeds proven beatable.** A bot trained on this harness plays Balatro seeds
+seeing only what a player sees. Every seed it beats is saved with its route, every move from
+the seed to the win, and replayed before it counts. The list and the routes are in
+[`wins/`](wins/README.md); anyone with the same game version can replay a route and check it.
+
+**To set it up from your own Steam copy**, see [docs/REPRODUCE.md](docs/REPRODUCE.md): the full
+dependency list, the mods (only for logging your own games), and `tools\balatro.ps1`, one
+PowerShell controller for every step.
+
 ## Why
 We're building a Balatro bot. A bot needs a simulator, and every simulator we found is a
 reimplementation that only *claims* to match the real game. Even one that's 99% right
@@ -138,7 +147,8 @@ Everything here was built and checked against exactly these. Anything else may d
 | Lovely | 0.10.0 | |
 | Steamodded | 26.1002.0 | Lovely's dump of the patched game is version-specific |
 | Antelytics (run logger) | 1.3.0-alpha | fixtures recorded with it |
-| Python | 3.13 (tested 3.13.18) | |
+| Python | 3.12.3 (WSL, training) and 3.13.18 (development checks) | |
+| PyTorch | 2.15.0+cu132 (training) | not pinned in the repo yet |
 | OS for the harness | Linux x86_64 (or WSL) | |
 | Claude (wrote the code with chud) | Claude Opus 5.5, high effort | model ID `claude-opus-5-5`; each commit names the session |
 
