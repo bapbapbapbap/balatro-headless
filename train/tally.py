@@ -43,8 +43,8 @@ def block(total, by_model, by_setup, wins_link):
     models = ", ".join(f"{by_model[m]:,} by model {m}" for m in sorted(by_model))
     setups = ", ".join(f"{n:,} on {d}, {s}" for (d, s), n in sorted(by_setup.items()))
     return (f"**Seeds proven beatable: {total:,}** ({models}; {setups}). Each one is a route in "
-            f"[`{wins_link}`]({wins_link}) that replays to a win on the untouched game. This is the "
-            "project's production count; `tools/balatro.ps1 publish` updates it.\n")
+            f"[`{wins_link}`]({wins_link}) that was replayed move for move to the same win before it was "
+            "listed. This is the project's production count, updated each time wins are published.\n")
 
 
 def put(path, text):

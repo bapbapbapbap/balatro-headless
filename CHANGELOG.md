@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.4] - 2026-11-02
+
+### Changed
+- `publish_wins.py` no longer replays wins that training already replayed (`"verified": true`, same check in `train.py` `verify_route`), so publishing is fast. Wins without that mark are still replayed; `--replay` replays every one. The output line says how many were verified by training and how many were replayed.
+- The tally line and README say what the check was: each route was replayed exactly before listing, and `verify_games.py --full` replays them all on the untouched game.
+
 ## [0.9.3] - 2026-11-02
 
 ### Added
