@@ -1,7 +1,7 @@
 # Beaten seeds
 
 <!-- tally:start -->
-**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that replays to a win on the untouched game. This is the project's production count; `tools/balatro.ps1 publish` updates it.
+**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
 <!-- tally:end -->
 
 Each line of `routes.jsonl` is a run of Balatro won by the bot, with everything needed to replay it:

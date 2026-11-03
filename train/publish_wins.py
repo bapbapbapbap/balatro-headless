@@ -1,10 +1,12 @@
 """Builds the public record of beaten seeds: one proof per seed, each replayed before it is kept.
 
-    python3 publish_wins.py --src DIR --out wins/ <wins.jsonl ...> [--full]
+    python3 publish_wins.py --src DIR --out wins/ <wins.jsonl ...> [--replay] [--full]
 
 A proof is the seed, the setup and every move. The game is deterministic, so replaying the moves
 from the seed reproduces the run exactly; verify_games.py does that and checks every move, the
-step count, the final state and the win. Writes:
+step count, the final state and the win. Training already does that replay for every win it saves
+(train.py verify_route, the same check) and marks it "verified": true, so those are published as they
+are; only wins without that mark are replayed here. --replay replays every one anyway. Writes:
   <out>/routes.jsonl       one line per beaten seed (the proof)
   <out>/beaten_seeds.csv   seed, deck, stake, moves, how it was found, game build
 Seeds already in <out>/routes.jsonl are kept; new ones are added.
@@ -29,6 +31,8 @@ def main():
     ap.add_argument("--src", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--full", action="store_true", help="replay on the untouched game (slower)")
+    ap.add_argument("--replay", action="store_true",
+                    help="replay every win, including ones training already verified")
     ap.add_argument("--game", default="Balatro 1.0.1o-FULL (Balatro.exe sha256 "
                     "0D75FE164ACCF3312734D4B37AC98788DD15F0B8E4F9BB8B7F90C4E59DE93F47), unmodded, all unlocked")
     args = ap.parse_args()
@@ -59,8 +63,13 @@ def main():
                 continue
             if k not in cands or r["n"] < cands[k]["n"]:      # several wins on one seed: keep the shortest
                 cands[k] = dict(r, source=os.path.join(os.path.basename(os.path.dirname(os.path.abspath(f))), os.path.basename(f)))
-    sims, added, bad = {}, 0, 0
+    sims, added, bad, trusted = {}, 0, 0, 0
     for k, r in sorted(cands.items()):
+        if r.get("verified") is True and not args.replay:      # training replayed it with the same check
+            have[k] = {x: r[x] for x in KEEP if x in r} | {"source": r["source"], "game": args.game}
+            added += 1
+            trusted += 1
+            continue
         mode, enc = r.get("actions", "subsets"), r.get("enc", 1)
         if (mode, enc) not in sims:
             sims[(mode, enc)] = Sim(args.src, fast=not args.full, mode=mode, enc=enc)
@@ -81,7 +90,8 @@ def main():
             r = have[k]
             w.writerow([r["seed"], r["back"], r["stake"], r["n"], r.get("mode"), r.get("iteration"),
                         bool(r.get("retry")), r.get("actions", "subsets"), r["game"]])
-    print(f"{added} seeds added after replaying exactly, {bad} not published; {len(have)} beaten seeds in {args.out}")
+    print(f"{added} seeds added ({trusted} verified by training, {added - trusted} replayed here), "
+          f"{bad} not published; {len(have)} beaten seeds in {args.out}")
     raise SystemExit(1 if bad else 0)
 
 

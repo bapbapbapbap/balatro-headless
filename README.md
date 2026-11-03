@@ -16,7 +16,7 @@
 ---
 
 <!-- tally:start -->
-**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`wins/`](wins/) that replays to a win on the untouched game. This is the project's production count; `tools/balatro.ps1 publish` updates it.
+**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`wins/`](wins/) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
 <!-- tally:end -->
 
 Runs Balatro's real game logic with no window, sound or Steam, so runs can be stepped,
@@ -40,7 +40,8 @@ All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "bli
 Every claim below links to its data or its pre-registration.
 
 - **Seeds proven beatable:** the tally at the top, listed in [`wins/`](wins/README.md)
-  (`beaten_seeds.csv`). Each route is replayed on the untouched game before it is listed.
+  (`beaten_seeds.csv`). Each route was replayed exactly before it was listed (when it was won, or at publishing), and
+  `train/verify_games.py --full` replays all of them on the untouched game.
 - **Best model: 0.3-beta** ([`weights/`](weights/README.md), [model card](docs/models.md)). It beats
   12.0 blinds per game on average (out of 24) on 200 fixed evaluation seeds, and wins 7 of them.
   It ran on one laptop at about 6,000–8,000 games an hour.
