@@ -8,7 +8,6 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 - README: F1 names the models both ways (0.2 = v2, 0.1 = v1, as in `hypotheses.md`) and says 0.2's 545 new seeds were replayed but their routes aren't in `wins/` yet. The results list gives the count of published seeds (121, all 0.1's).
 - README: "Two action modes" is now "Action modes" (there are four) and "Both" is "All modes". The 165 → 60 ms figure in "What we did" is marked as the first `replay.py` measurement on the modded game. The duplicate "Runs on Linux (or WSL)" line is removed (the Versions table has it).
 - `wins/README.md`: the stale "No model weights are published" is replaced by a pointer to `weights/`, and it says the list holds 0.1's seeds only so far.
-- Release: the model release is tagged `model-0.3-beta` (was `0.03`) and titled "Model 0.3-beta", so model and tooling versions don't collide.
 
 ## [0.9.1] - 2026-11-02
 
