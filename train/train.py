@@ -31,7 +31,7 @@ import torch.multiprocessing as mp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import ACT_WIDTH, F, ZERO_FIELDS, Net, param_count  # noqa: E402
+from model import ACT_WIDTH, EXPERT_HANDS, F, ZERO_FIELDS, MoE, Net, param_count  # noqa: E402
 from rewards import REWARDS, shaping  # noqa: E402
 
 SEED_CHARS = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
@@ -67,7 +67,10 @@ def collate(obs, device="cpu"):
         kind[i, :n], vocab[i, :n], feat[i, :n], tmask[i, :n] = o["kind"], o["vocab"], o["feat"], True
         act[i, :m], amask[i, :m] = o["act"], o["allow"] if "allow" in o else True
     t = lambda x: torch.from_numpy(x).to(device)
-    return t(kind), t(vocab), t(feat), t(tmask), t(act), t(amask)
+    out = (t(kind), t(vocab), t(feat), t(tmask), t(act), t(amask))
+    if "member" in obs[0]:        # mixture of experts: which member made each decision (model.MoE)
+        out += (t(np.array([o["member"] for o in obs], np.int64)),)
+    return out
 
 
 # ---------------- workers ----------------
@@ -90,7 +93,7 @@ def worker_main(wid, args, in_q, out_q):
     except Exception:
         out_q.put(("error", wid, traceback.format_exc()))
         return
-    model = Net(len(sim.vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc)
+    model = (MoE if args.moe else Net)(len(sim.vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc)
     model.eval()
     reward_fn = REWARDS[args.reward]
     rng = random.Random(f"{args.seed}-{wid}")
@@ -119,21 +122,29 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             raise RuntimeError(f"injected worker crash at iteration {it}")
         model.load_state_dict(state)
         trng = random.Random(f"{args.seed}-{wid}-{it}")      # reproducible sampling per worker+iteration
-        pin_id = pin_vocab_id(sim.vocab, args.pin_hand)
+        pin_id0 = pin_vocab_id(sim.vocab, args.pin_hand)
+        if args.moe:
+            hand_ids = [pin_vocab_id(sim.vocab, h) for h in EXPERT_HANDS]
+            base = model.base_rate.numpy().astype(np.float64)
+            rates = [moe_pin_rate(h, args) * float(model.pin_scale[0]) for h in EXPERT_HANDS]
         episodes = []
         for seed in seeds:
             seed = seed or rand_seed(rng)
             srng = random.Random(f"eval-{seed}") if mode == "eval" else trng
             # The pin's own coin, apart from the sampling RNG, so pinning doesn't shift eval sampling.
             prng = random.Random(f"pin-eval-{seed}" if mode == "eval" else f"pin-{args.seed}-{wid}-{it}-{seed}")
+            pin_id, pin_rate = pin_id0, args.pin_rate
             pst = new_pin_stats() if pin_id is not None else None
+            member, routed, counts, handoff_at = 0, None, np.zeros(len(EXPERT_HANDS)), None
             o = sim.reset(seed, args.back, args.stake)
             if pst is not None:
-                apply_pin(o, pin_id, args.pin_rate, prng, pst)
+                apply_pin(o, pin_id, pin_rate, prng, pst)
             steps, done, tail, reached = [], False, [], False
             t_model = t_sim = 0.0
             while not done and sim.steps < args.max_steps:
                 tm = time.time()
+                if args.moe:
+                    o["member"] = member
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
                 t_model += time.time() - tm
@@ -161,17 +172,34 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if pst is not None:
                     count_pin_move(o, a, pin_id, pst)
+                if args.moe and member == 0:
+                    row = o["act"][a]
+                    if row[0] == PLAY:
+                        for k, hid in enumerate(hand_ids):
+                            counts[k] += int(row[HAND_COL] == hid)
+                    if not done and cur["ante"] >= args.moe_handoff and cur["bosses_beaten"] >= args.moe_handoff - 1:
+                        # Handoff (the boss before --moe-handoff beaten): the expert for the hand this
+                        # run leaned on most, relative to how often the early model plays it; in
+                        # training games, --moe-random of them go to an expert picked at random.
+                        if mode == "train" and prng.random() < args.moe_random:
+                            k, routed = min(int(prng.random() * len(EXPERT_HANDS)), len(EXPERT_HANDS) - 1), "random"
+                        else:
+                            k, routed = int(np.argmax((counts + 1.0) / (base + 1.0))), "rule"
+                        member, handoff_at = 1 + k, sim.steps
+                        pin_id, pin_rate, pst = hand_ids[k], rates[k], new_pin_stats()
                 if not done:
                     o = sim.observe()
                     if pst is not None:
-                        apply_pin(o, pin_id, args.pin_rate, prng, pst)
+                        apply_pin(o, pin_id, pin_rate, prng, pst)
                 t_sim += time.time() - ts
             ep = {"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
                   "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
-                  "t_model": t_model, "t_sim": t_sim, "pin": pst, "reached": reached}
+                  "t_model": t_model, "t_sim": t_sim, "pin": pst, "reached": reached,
+                  "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
+                           "early_counts": counts.tolist(), "handoff_step": handoff_at} if args.moe else None)}
             if ep["progress"]["won"]:
                 ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
@@ -216,6 +244,15 @@ def apply_pin(o, pin_id, rate, rng, st):
     if rate >= 1.0 or rng.random() < rate:
         o["allow"] = ~play | target
         st["bound"] += 1
+
+
+def moe_pin_rate(hand, args):
+    """An expert's pin rate before annealing: --moe-pin "Hand=rate" entries, else 1.0."""
+    for item in args.moe_pin:
+        h, r = item.rsplit("=", 1)
+        if h == hand:
+            return float(r)
+    return 1.0
 
 
 def count_pin_move(o, a, pin_id, st):
@@ -318,7 +355,12 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
         v = [s[3] for s in ep["steps"]]
         a = gae(r, v, args.gamma, args.lam)
         for s, ai, vi in zip(ep["steps"], a, v):
+            if getattr(args, "moe", False) and not args.moe_train_early and s[0].get("member") == 0:
+                continue          # the early-game model is frozen in joint training (--moe-train-early 0)
             obs.append(s[0]); acts.append(s[1]); oldlp.append(s[2]); adv.append(ai); ret.append(ai + vi)
+    if not obs:       # MoE with a frozen early model and no game reaching the handoff this round
+        return {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 1.0, "kl": 0.0, "clipfrac": 0.0, "early_stop": 0.0,
+                "kl_end": 0.0, "kl_update": 0.0, "decisions": 0, "minibatches": 0}
     adv = np.array(adv, np.float32)
     adv_n = (adv - adv.mean()) / (adv.std() + 1e-8)
     ret = np.array(ret, np.float32)
@@ -353,8 +395,9 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
         chunks = [order_by_size[i:i + args.minibatch] for i in range(0, n, args.minibatch)]
         random.shuffle(chunks)
         for idx in chunks:
-            kind, vocab, feat, tmask, act, amask = collate([obs[i] for i in idx], device)
-            logits, value = model(kind, vocab, feat, tmask, act, amask)
+            batch = collate([obs[i] for i in idx], device)
+            amask = batch[5]
+            logits, value = model(*batch)
             logp_all = torch.log_softmax(logits, -1)
             a = torch.tensor([acts[i] for i in idx], device=device)
             lp = logp_all.gather(1, a.unsqueeze(1)).squeeze(1)
@@ -461,8 +504,25 @@ def summarize(episodes):
             "decisions_mean": float(np.mean([e["n"] for e in episodes])),
             "capped": sum(e["capped"] for e in episodes),
             "final_ante": dict(sorted(antes.items())),
-            **({"pin": {k: sum(e["pin"][k] for e in episodes) for k in episodes[0]["pin"]}}
-               if episodes and episodes[0].get("pin") else {})}
+            **pin_summary(episodes)}
+
+
+def pin_summary(episodes):
+    pins = [e["pin"] for e in episodes if e.get("pin")]
+    out = {"pin": {k: sum(p[k] for p in pins) for k in pins[0]}} if pins else {}
+    moe = [e["moe"] for e in episodes if e.get("moe")]
+    if moe:
+        by = {}
+        for e in episodes:
+            m = e.get("moe")
+            if m and m["expert"]:
+                b = by.setdefault(m["expert"], {"games": 0, "rule": 0, "random": 0, "wins": 0, "blinds": 0, **new_pin_stats()})
+                b["games"] += 1; b[m["routed"]] += 1; b["wins"] += int(e["progress"]["won"])
+                b["blinds"] += e["progress"]["blinds_beaten"]
+                for k, v in (e.get("pin") or {}).items():
+                    b[k] += v
+        out["moe"] = {"handoffs": sum(1 for m in moe if m["expert"]), "by_expert": by}
+    return out
 
 
 # ---------------- safety ----------------
@@ -615,6 +675,20 @@ def main():
                          "counted as 'reached', not as a win; 0 = off")
     ap.add_argument("--best-by", choices=["blinds", "reached"], default="blinds",
                     help="what picks best.pt from the evals: blinds per game, or share of games reaching --stop-ante")
+    ap.add_argument("--moe", action="store_true",
+                    help="joint training of the early-game model and the 8 hand experts (model.MoE; see play_games)")
+    ap.add_argument("--moe-early", help="MoE: checkpoint or weights file for the early-game model (member 0)")
+    ap.add_argument("--moe-experts", nargs="*", default=[],
+                    help="MoE: 'Hand=FILE' for each of the 8 experts (checkpoint or weights file)")
+    ap.add_argument("--moe-handoff", type=int, default=4, help="MoE: the ante at which the expert takes over")
+    ap.add_argument("--moe-random", type=float, default=0.3,
+                    help="MoE: share of training-game handoffs sent to an expert picked at random (load balancing)")
+    ap.add_argument("--moe-pin", nargs="*", default=["Pair=0.5"],
+                    help="MoE: experts' pin rates before annealing, 'Hand=rate' (others 1.0)")
+    ap.add_argument("--moe-anneal-games", type=int, default=100000,
+                    help="MoE: pins fall linearly to 0 over this many training games of the joint run")
+    ap.add_argument("--moe-train-early", type=int, default=0,
+                    help="MoE: 1 = the early-game model also trains on the whole run's return; 0 = frozen")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)
@@ -704,15 +778,18 @@ def main():
     pool.start()
     vocab = pool.vocab
 
-    model = Net(len(vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc).to(device)
+    if args.moe:
+        assert not (args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
+            "--moe runs whole games with its own pins; --stop-ante, --bc, --sil-buffer, --pin-hand and --init-weights are off"
+    model = (MoE if args.moe else Net)(len(vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     start_it, resumed = 0, None
     if args.resume:
         ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         arch = ck.get("arch", {})
-        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions)):
-            have = arch.get(k, {"enc": 1, "actions": "subsets"}.get(k))
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe))):
+            have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False}.get(k))
             if k == "actions" and (have, v) == ("ordered", "ordered-capped"):
                 # Same model and moves; only long chains of joker drags stop being offered.
                 alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
@@ -735,6 +812,22 @@ def main():
         model.load_state_dict(w["state_dict"])
         print(f"starting from weights {os.path.basename(args.init_weights)} (model {w.get('model_version')}), "
               f"fresh optimizer, round 0", flush=True)
+    elif args.moe:
+        def load_member(net, path):
+            ck = torch.load(path, map_location=device, weights_only=False)
+            assert list(ck["vocab"]) == vocab, f"{path}: vocabulary differs from this game"
+            net.load_state_dict(ck["model"] if "model" in ck else ck["state_dict"])
+        assert args.moe_early, "--moe needs --moe-early"
+        load_member(model.members[0], args.moe_early)
+        given = dict(x.rsplit("=", 1) for x in args.moe_experts)
+        missing = [h for h in EXPERT_HANDS if h not in given]
+        assert not missing, f"--moe-experts is missing {missing}"
+        for i, h in enumerate(EXPERT_HANDS):
+            load_member(model.members[1 + i], given[h])
+        print(f"MoE: early-game model {os.path.basename(os.path.dirname(args.moe_early))}, 8 experts loaded; "
+              f"handoff at ante {args.moe_handoff}, {args.moe_random:.0%} random handoffs in training, pins "
+              f"annealed to 0 over {args.moe_anneal_games:,} games, early model "
+              f"{'trained' if args.moe_train_early else 'frozen'}", flush=True)
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
     print(f"model {param_count(model):,} params on {device}; {args.workers} workers; reward '{args.reward}' "
@@ -764,7 +857,7 @@ def main():
 
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
-              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions},
+              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe)},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten)}
@@ -942,6 +1035,7 @@ def main():
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
                  "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 **({"moe": e.get("moe")} if args.moe else {}),
                  **({"stop_ante": args.stop_ante, "reached": e.get("reached", False)} if args.stop_ante else {}),
                  **({"pin_hand": args.pin_hand, "pin_rate": args.pin_rate, "pin": e.get("pin")} if args.pin_hand else {})}
                 for e in keep]
@@ -1054,8 +1148,8 @@ def main():
             batches = [idx[i:i + args.minibatch] for i in range(0, len(idx), args.minibatch)]
             rng.shuffle(batches)
             for b in batches:
-                kind, vocab_, feat, tmask, act_t, amask = collate([obs[i] for i in b], device)
-                logits, value = model(kind, vocab_, feat, tmask, act_t, amask)
+                batch = collate([obs[i] for i in b], device)
+                logits, value = model(*batch)
                 a = torch.tensor([act[i] for i in b], device=device)
                 R = torch.tensor([ret[i] for i in b], device=device)
                 ce = torch.nn.functional.cross_entropy(logits, a)
@@ -1151,6 +1245,15 @@ def main():
                 e["_prev_entry"] = prev_entries.get(e["seed"])
             update_retries(it, eps, source)
             record(it, "train", eps)
+            if args.moe:
+                # Router base rate: the early model's plays of each expert's hand in antes 1-3, averaged
+                # over games that reached the handoff (moving average). Pins anneal by games played.
+                hand = [e["moe"]["early_counts"] for e in eps if e["moe"]["expert"]]
+                with torch.no_grad():
+                    if hand:
+                        m = torch.tensor(np.mean(hand, 0), dtype=torch.float32, device=model.base_rate.device)
+                        model.base_rate.copy_(m if float(model.base_rate.sum()) == 0 else 0.95 * model.base_rate + 0.05 * m)
+                    model.pin_scale.fill_(max(0.0, 1.0 - (games_total + len(eps)) / max(args.moe_anneal_games, 1)))
             sil, sil_info = sil_data(it)
             add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
             if args.overlap and not stop_requested:

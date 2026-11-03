@@ -77,3 +77,38 @@ class Net(nn.Module):
 
 def param_count(model):
     return sum(p.numel() for p in model.parameters())
+
+
+# ---------------- mixture of experts (docs/hypotheses.md section I, chud's design) ----------------
+# The hand types that get an expert, in a fixed order: member 1 + i is the expert for EXPERT_HANDS[i].
+EXPERT_HANDS = ["Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House",
+                "Four of a Kind", "Straight Flush"]
+
+
+class MoE(nn.Module):
+    """Member 0 is the early-game model; members 1..8 are the hand experts. Each decision is made
+    by exactly one member, named per observation (collate's 7th tensor, `member`). Each member is a
+    Net with its own weights; a member's parameters get gradient only from its own decisions.
+
+    Buffers travel with the weights to the workers:
+      base_rate (8,): average plays of each expert's hand in the early game (antes 1-3) by the
+        early-game model, over recent training games that reached the handoff. The router's
+        preference is a hand's plays in this run relative to that rate.
+      pin_scale (1,): multiplier on every expert's pin rate (annealed from 1 to 0)."""
+
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
+        super().__init__()
+        self.members = nn.ModuleList([Net(n_vocab, d, layers, heads, enc) for _ in range(1 + len(EXPERT_HANDS))])
+        self.register_buffer("base_rate", torch.zeros(len(EXPERT_HANDS)))
+        self.register_buffer("pin_scale", torch.ones(1))
+
+    def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
+        B, A = act.shape[0], act.shape[1]
+        logits = torch.full((B, A), float("-inf"), device=act.device)
+        value = torch.zeros(B, device=act.device)
+        for m in torch.unique(member).tolist():
+            i = (member == m).nonzero(as_tuple=True)[0]
+            lg, v = self.members[m](kind[i], vocab[i], feat[i], tok_mask[i], act[i], act_mask[i])
+            logits = logits.index_put((i,), lg)
+            value = value.index_put((i,), v)
+        return logits, value
