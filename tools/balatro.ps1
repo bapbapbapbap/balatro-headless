@@ -13,6 +13,8 @@
 #   status    one-screen status of -Run from health.json and the last evals
 #   watch     keep the PC awake and restart -Run only if it crashes (tools\watch_v1.ps1)
 #   verify    replay every route in wins\routes.jsonl on the untouched game
+#   publish   replay every new win from every run under -Work\runs, add it to wins\, update the
+#             tally (README badge and counts), commit and push
 #   help      this list
 #
 # Options: -Work C:\Users\<you>\balatro-work   -Run v2b   -Distro Ubuntu-24.04
@@ -149,6 +151,17 @@ function Cmd-Verify {
     [void](Wsl "cd ~/balatro/balatro-headless && git pull -q --ff-only; . ~/balatro/venv/bin/activate && cd train && python3 verify_games.py --src ~/balatro/local/source ../wins/routes.jsonl --wins-only --full | tail -3")
 }
 
+function Cmd-Publish {
+    $w = Wsl-Path $Work
+    $bash = "cd ~/balatro/balatro-headless && git pull -q --ff-only && . ~/balatro/venv/bin/activate && cd train && " +
+            "{ python3 publish_wins.py --src ~/balatro/local/source --out ../wins '$w'/runs/*/wins.jsonl || echo 'some wins did not replay exactly and were left out (listed above)'; } && " +
+            "python3 tally.py && cd .. && git add wins README.md && " +
+            "if git diff --cached --quiet; then echo 'nothing new to publish'; " +
+            "else git commit -q -m 'wins: publish new beaten seeds and update the tally' && " +
+            "{ git push -q && echo 'pushed'; } || echo 'committed but not pushed: run git push in ~/balatro/balatro-headless'; fi"
+    [void](Wsl $bash)
+}
+
 switch ($Command.ToLower()) {
     "check"  { Cmd-Check }
     "lock"   { & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Tools "lock_balatro.ps1") }
@@ -160,5 +173,6 @@ switch ($Command.ToLower()) {
     "status" { Cmd-Status }
     "watch"  { Cmd-Watch }
     "verify" { Cmd-Verify }
-    default  { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 20 | ForEach-Object { $_ -replace '^# ?', '' } }
+    "publish" { Cmd-Publish }
+    default  { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 22 | ForEach-Object { $_ -replace '^# ?', '' } }
 }

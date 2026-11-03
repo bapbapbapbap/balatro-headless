@@ -1,5 +1,9 @@
 # Beaten seeds
 
+<!-- tally:start -->
+**Seeds proven beatable: 121** (121 by model 0.1; 121 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that replays to a win on the untouched game. This is the project's production count; `tools/balatro.ps1 publish` updates it.
+<!-- tally:end -->
+
 Each line of `routes.jsonl` is a run of Balatro won by the bot, with everything needed to replay it:
 the seed, the deck and stake, and every move it made. `beaten_seeds.csv` lists the same seeds.
 
@@ -42,5 +46,4 @@ state and the win. `--full` runs the game with nothing stripped.
 
 Multiple wins on one seed: the shortest is kept.
 
-So far this list holds model 0.1's seeds only (`subsets`). Model 0.2's routes (`ordered`) aren't
-published yet. Released model weights are in [`../weights/`](../weights/README.md).
+Released model weights are in [`../weights/`](../weights/README.md).

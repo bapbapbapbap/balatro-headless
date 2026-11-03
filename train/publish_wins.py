@@ -48,7 +48,10 @@ def main():
         for line in open(f):
             if not line.strip():
                 continue
-            r = json.loads(line)
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:      # a line training is still writing; next publish gets it
+                continue
             if not r["progress"]["won"] or not r.get("verified", True):
                 continue
             k = (r["seed"], r["back"], r["stake"])
