@@ -331,7 +331,8 @@ The three aims are chud's, in the order he gave them (23:01–23:03 CST). The wr
 Nothing above is edited. This section names what the sections above are for.
 
 ### 1. Primary: exhibit Hume's is-ought gap
-Hold the facts fixed (the pinned game, same seeds, same sim) and vary only the ought (the reward).
+This is a thesis on agents (chud, 23:10: "I am an agent researcher"). The bot is the agent under
+study; Balatro is the domain. Hold the facts fixed (the pinned game, same seeds, same sim) and vary only the ought (the reward).
 
 **Oughts are objects, like jokers.** A player buys a joker without knowing whether it will win the
 run, and buys anyway. An agent holds an ought the same way. In chud's words (23:09):
