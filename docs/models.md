@@ -27,6 +27,10 @@ optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window, a
 goes deeper on average than 0.3-beta (12.79 vs 12.035) but won 5 of the 200 seeds to its 7. With 5
 and 7 wins in 200, that difference is well within chance.
 
+**1.0's current performance: it wins 2.5% of seeds** (5 of 200 fixed evaluation seeds) and beats
+12.79 blinds per game on average. It is the end of the training line (0.1 → 0.2 → 0.3) that won
+all 1,549 published seeds.
+
 ## What 1.0 is
 - **Network:** a transformer, d=192, 4 layers, 6 heads, over what a player sees. It sees the cards
   face up, the deck as a set (never the draw order), joker values, the HUD, shop and packs, and

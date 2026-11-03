@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.9.10] - 2026-11-03
+
+### Documented
+- README, `weights/README.md`, `docs/models.md`: 1.0's current performance is stated on its own line, **2.5% of seeds won** (5 of 200 fixed evaluation seeds, 12.79 blinds per game), and 1.0 is named as the end of the training line (0.1 → 0.2 → 0.3) that won all 1,549 published seeds.
+
 ## [0.9.9] - 2026-11-03
 
 ### Checked

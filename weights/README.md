@@ -1,6 +1,8 @@
 # Model weights
 
-Trained weights of the Balatro bot. **1.0** is the final weights of the 0.3 run, which ended on 2026-11-03. 0.3-beta is the same run's snapshot from 2026-11-02, about 21:13 CST.
+Trained weights of the Balatro bot. **1.0** is the final weights of the 0.3 run, which ended on 2026-11-03, and the end of the training line that won all 1,549 published seeds. 0.3-beta is the same run's snapshot from 2026-11-02, about 21:13 CST.
+
+**1.0's current performance: it wins 2.5% of seeds** (5 of 200 fixed evaluation seeds), 12.79 blinds per game.
 
 | File | Model | Eval: blinds per game (wins in 200 fixed seeds) |
 |---|---|---|
