@@ -822,3 +822,30 @@ never saw the error.
   `win_game()`; blinds and bosses = the game's own `Defeated` marks. Checked step for step against the
   previous counters on 141 replayed games, with no difference.
 
+---
+
+## Added 2026-11-03 ~21:35 CST: the MoE run started (section I)
+
+Started by chud at 21:25 CST on commit `17c1602` (PR #74), `train/run_moe.sh <shared> 24 14`, with
+the watcher (`watch_v1.ps1 -Run moe`). Pre-flights: saved real win on the untouched game, ordered
+actions, fast vs untouched game, MoE routing: all PASS.
+
+### Settings
+- Shared trunk and 8 heads: the early head (antes 1–3) and 7 experts (Pair, Two Pair, Three of a
+  Kind, Straight, Flush, Full House, Four of a Kind). All from model 0.2's weights.
+- Reward `blinds` with the corrected outcome test (a win is the game's own `win_game()`; a blind is
+  the game's `Defeated` mark). Shaping on. Encoding 3, `ordered-capped`, lr 1e-5, exploration 0.05.
+- Router (chud): the hand played most in antes 1–3 relative to the early head's own average; 30%
+  of training handoffs random. Pins Pair 0.5, others 1.0, fading over 100,000 games and not before
+  each expert's own 5,000. Early head trained, its returns cut at the handoff.
+- 14 workers, Red Deck, White Stake, seed retries on, 24-hour cap, stall stop after 3 flat hours.
+  Evals: 600 fixed seeds every 20 rounds. Near wins logged in every game.
+
+### Starting point (eval at round 0: 0.2's weights inside the MoE, pins on)
+600 seeds: **5 wins** (0.83%), **9 near wins**, so **14 reached the final boss** (2.3%);
+11.67 blinds per game. This is the first eval scored with the game's own outcomes; it is the
+baseline the experts are measured from, not a measure of 0.2 itself (the pins change its play).
+
+No prediction is registered for this run. The test of I1 is still to be registered before it is
+scored, on seeds apart from the 600 eval seeds.
+

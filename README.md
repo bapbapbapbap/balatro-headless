@@ -105,6 +105,12 @@ to be rerun on real wins:
 - **Not learned:** Full House (played 0 times in 2,274 chances), playing around three of the
   bosses, and spending money past the interest cap.
 
+### Running now
+**The mixture of experts** (`hypotheses.md` section I, chud's design), started 2026-11-03 21:25 CST:
+an early-game head for antes 1–3, then one of 7 hand experts, all from model 0.2, trained jointly on
+the corrected reward. Starting point at round 0: 5 wins and 14 runs reaching the final boss in 600
+evaluation seeds ([details](docs/hypotheses.md#added-2026-11-03-2135-cst-the-moe-run-started-section-i)).
+
 ### Open
 - **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
   Registered, not yet run.
