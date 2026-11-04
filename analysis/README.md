@@ -21,3 +21,7 @@ python3 resolve.py play ../weights/balatro-bot-1.0.pt --src ~/balatro/local/sour
     --out resolve_1.0.jsonl --routes-out resolve_1.0_wins.jsonl      # rerun to resume
 python3 resolve.py summary resolve_1.0.jsonl --k 10 --ranked resolve_1.0_ranked.csv
 ```
+
+### Result, model 1.0 (2026-11-03)
+`results/resolve_1.0/`: `summary.txt`, `ranked.csv` (all 3,098 seeds, easiest first) and every game
+(`resolve_1.0.jsonl.gz`). Scored in `docs/hypotheses.md`, "R result".

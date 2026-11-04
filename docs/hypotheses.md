@@ -704,3 +704,52 @@ The MoE as built at 17:54 (above) is replaced before any of it ran:
 - Encoding 3 from the start; evals on 600 seeds; several seeds of the whole MoE.
 Unchanged: the router rule (chud, 17:54), the 30% random handoffs, the pins and their annealing,
 the natural-bias measure.
+
+---
+
+## Added 2026-11-03 ~20:15 CST: R result (re-solve by 1.0)
+
+Scored once, on the complete run: 30,980 games, k = 10 for all 3,098 seeds, 0 hit the move cap.
+The run finished at ~19:58 CST; `summary.txt` was the first output either of us read. Data:
+`analysis/results/resolve_1.0/` (`summary.txt`, `ranked.csv`, every game in `resolve_1.0.jsonl.gz`).
+
+| | Games won | 95% CI | Blinds/game | Seeds won ≥ 1 of 10 |
+|---|---|---|---|---|
+| Control (fresh seeds) | 455 / 15,490 = **2.94%** | 2.68–3.22 | 12.40 | 186 (12.0%) |
+| Published won seeds | 3,254 / 15,490 = **21.01%** | 20.37–21.66 | 17.15 | 958 (61.8%) |
+
+Published minus control, mean per-seed win rate: **+18.07 points** (seed bootstrap 95% +16.69 to +19.36).
+
+### R0 (chud's): proven seeds clear more often — **PASS**
+21.01% > 2.5%, and the interval's lower end (+16.69) is above 0. 1.0 clears a proven seed about
+7 times as often as a fresh one. A win is largely a property of the seed, not only of the moves
+sampled.
+
+### Claude's
+- **R1. Control 2.0–3.5%: pass** (2.94%).
+- **R2. Published ~11%, 7–16%: missed, not falsified.** 21.01% is above the predicted range and
+  below the 25% falsification line. Claude underestimated the spread between seeds.
+- **R3. Dispersion ≥ 1.5 on control: pass** (4.01, p ≈ 0). 3 to 10 wins in 10 on 62 control seeds,
+  where seeds that didn't differ would give about 4.
+- **R4. Retry ≤ 0.7 × fresh: pass, narrowly** (17.87% vs 25.70%, ratio 0.695).
+- **R5. 0.1 > 0.2 ≥ 0.3: not supported, not falsified.** 0.1 22.69%, 0.2 24.83%, 0.3 17.24%.
+  0.1 is not the lowest, but it isn't the highest either.
+- **R6. No memorization: not falsified.** Unseen seeds 24.12% (21.54–26.91, 97 seeds) vs the rest
+  20.80% (20.15–21.47). The rest isn't higher; the unseen seeds are, so the registered "within the
+  rest's interval" also misses, in the direction that rules memorization out. Confound: the unseen
+  seeds are all fresh-found, and fresh-found seeds overall re-solve at 25.70%.
+- **R7. 35–55% won at least once: missed** (61.8%).
+- **R8. ≥ +2 blinds per game: pass** (+4.75).
+
+Tally: R0 pass. Of R1–R8, 4 pass (R1, R3, R4, R8), 3 missed without being falsified (R2, R5, R6),
+1 missed (R7). R2 and R7 both missed high: seeds differ more than Claude predicted.
+
+### Reported alongside (post hoc, not registered)
+- **Self-selection bound.** From the control's own per-seed counts, seeds picked by 1.0's own wins
+  would re-solve at E[p²]/E[p] ≈ 35% (unbiased estimate, w(w−1)/k(k−1) per seed). The published
+  seeds re-solve at 21%: they were picked by earlier weights (0.1, 0.2, 0.3 at other rounds) and
+  by retries, so the finders' p only partly matches 1.0's.
+- **New beaten seeds.** 1.0 won 186 control seeds (455 games). Their routes are in chud's
+  `resolve_1.0_wins.jsonl`; none are published or replayed on the untouched game yet.
+- **Ranking.** `ranked.csv` orders all 3,098 seeds by 1.0's wins; 16 published seeds were won
+  10 of 10 and 2 control seeds were too.

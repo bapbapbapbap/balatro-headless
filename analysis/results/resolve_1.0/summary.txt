@@ -1,0 +1,27 @@
+# Re-solve with model 1.0: 30980 games, k=10 per seed
+(capped at the move limit: 0)
+
+## Win rate per game
+  control (fresh seeds)                455/15490  =  2.94%  (95% 2.68–3.22), blinds/game 12.40
+  published won seeds                 3254/15490  = 21.01%  (95% 20.37–21.66), blinds/game 17.15
+    first won by model 0.1             304/1340   = 22.69%  (95% 20.52–25.01), blinds/game 16.83
+    first won by model 0.2            1671/6730   = 24.83%  (95% 23.81–25.88), blinds/game 17.83
+    first won by model 0.3            1279/7420   = 17.24%  (95% 16.39–18.11), blinds/game 16.60
+    found on a fresh seed             1596/6210   = 25.70%  (95% 24.63–26.80), blinds/game 16.78
+    found on a retry                  1658/9280   = 17.87%  (95% 17.10–18.66), blinds/game 17.40
+    unseen by 1.0 (0.3, fresh, round > 810)   234/970    = 24.12%  (95% 21.54–26.91), blinds/game 16.92
+    possibly trained on by 1.0        3020/14520  = 20.80%  (95% 20.15–21.47), blinds/game 17.17
+
+## Per seed
+  control: 1549 seeds, won at least once by 1.0: 186 (12.0%)
+    wins out of 10 per seed (observed / expected if seeds didn't matter):
+    0: 1363/1150  1: 91/348  2: 33/47  3: 22/4  4: 15/0  5: 6/0  6: 5/0  7: 6/0  8: 4/0  9: 2/0  10: 2/0
+    dispersion 4.01 (1 = binomial), p = 0 (normal approx.; full-k seeds only)
+  published: 1549 seeds, won at least once by 1.0: 958 (61.8%)
+    wins out of 10 per seed (observed / expected if seeds didn't matter):
+    0: 591/147  1: 287/390  2: 164/466  3: 125/331  4: 100/154  5: 88/49  6: 68/11  7: 49/2  8: 36/0  9: 25/0  10: 16/0
+    dispersion 3.82 (1 = binomial), p = 0 (normal approx.; full-k seeds only)
+
+## Published minus control, mean per-seed win rate: +18.07 points (seed bootstrap 95% +16.69 to +19.36)
+
+ranked seeds written to ranked.csv
