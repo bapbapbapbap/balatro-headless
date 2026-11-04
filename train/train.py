@@ -204,7 +204,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                            "early_counts": counts.tolist(), "handoff_step": handoff_at} if args.moe else None)}
             if ep["progress"]["won"]:
                 ep["jokers_held"] = sim.env.jokers_held()      # before the replay check resets the sim
-                ep["verified"] = verify_route(sim, args, ep)
+                if getattr(args, "verify_wins", True):     # off when playing a save: a replay would count twice
+                    ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
         return episodes
 
