@@ -27,8 +27,11 @@ function H.progress()
   -- loss the state goes to GAME_OVER and win_game() never runs. Reading G.GAME.won alone counted
   -- final-boss losses as wins (found 2026-11-03).
   local won = (G.GAME.won and G.STATE ~= G.STATES.GAME_OVER) and true or false
+  -- final_boss: the ante-8 boss round ended, won or lost (the game's own G.GAME.won flag). Lost =
+  -- a near win: the run reached the last fight.
   return H.state_name(), boss, won,
-         G.GAME.round_resets.ante, H.is_terminal(), G.GAME.chips or 0, (b and b.chips) or 0
+         G.GAME.round_resets.ante, H.is_terminal(), G.GAME.chips or 0, (b and b.chips) or 0,
+         G.GAME.won and true or false
 end
 -- The i-th encoded action (1-based) as readable text, e.g. "play 1,3,5", "buy 2", "move_joker 1>3".
 -- Saved with every game next to the action index, so a replay can check each step is the same move.
@@ -75,7 +78,8 @@ class Sim:
     def reset(self, seed, back, stake, challenge=None):
         self.env.reset(seed, back, stake, challenge)
         self.steps = 0
-        self._prog = {"blinds_beaten": 0, "bosses_beaten": 0, "won": False, "ante": 1, "phi": 0.0}
+        self._prog = {"blinds_beaten": 0, "bosses_beaten": 0, "won": False, "ante": 1, "phi": 0.0,
+                      "final_boss": False, "near_win": False}
         self._last_state = self.H.state_name()
         self.route, self.desc = [], []      # every action taken, as encoded index and as text
         return self.observe()
@@ -90,7 +94,7 @@ class Sim:
         if self.H.step_index(index + 1) < 0:
             raise RuntimeError("game never settled")
         self.steps += 1
-        state, boss, won, ante, done, chips, target = self.H.progress()
+        state, boss, won, ante, done, chips, target, final_boss = self.H.progress()
         p = dict(self._prog)
         if state == "ROUND_EVAL" and self._last_state != "ROUND_EVAL":
             p["blinds_beaten"] += 1
@@ -100,6 +104,13 @@ class Sim:
             if self._last_state != "ROUND_EVAL" and state != "ROUND_EVAL":
                 p["blinds_beaten"] += 1
                 p["bosses_beaten"] += 1
+        if final_boss and not p.get("final_boss"):
+            # The ante-8 boss round ended. Not won = a near win: reached the last fight and lost it.
+            # Logged in every game so the win rate can be read against the reach-the-boss rate.
+            p["final_boss"] = True
+            if not won:
+                p["near_win"] = True
+                p["boss_chips"], p["boss_target"] = float(chips), float(target)
         p["ante"] = ante
         # Potential for shaping (see rewards.py): progress toward the blind being played, from what
         # the HUD shows (chips scored, blind target). Zero outside a blind and at the end.

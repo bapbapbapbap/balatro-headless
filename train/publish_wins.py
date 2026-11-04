@@ -9,6 +9,8 @@ step count, the final state and the win. Training already does that replay for e
 are; only wins without that mark are replayed here. --replay replays every one anyway. Writes:
   <out>/routes.jsonl       one line per beaten seed (the proof)
   <out>/beaten_seeds.csv   seed, deck, stake, moves, how it was found, game build
+  <out>/near_misses.jsonl  one line per seed that reached the ante-8 boss and lost it (the closest
+                           try), from training's near_wins.jsonl; dropped once the seed is won
 Seeds already in <out>/routes.jsonl are kept; new ones are added.
 """
 import argparse
@@ -44,6 +46,14 @@ def main():
             if line.strip():
                 r = json.loads(line)
                 have[(r["seed"], r["back"], r["stake"], r.get("challenge"))] = r
+    npath = os.path.join(args.out, "near_misses.jsonl")
+    near = {}
+    if os.path.exists(npath):
+        for line in open(npath):
+            if line.strip():
+                r = json.loads(line)
+                near[(r["seed"], r["back"], r["stake"], r.get("challenge"))] = r
+    near_new = 0
     cands = {}
     for f in args.files:
         if not os.path.exists(f):
@@ -56,9 +66,25 @@ def main():
                 r = json.loads(line)
             except json.JSONDecodeError:      # a line training is still writing; next publish gets it
                 continue
+            k = (r["seed"], r["back"], r["stake"], r.get("challenge"))
+            # Near wins (reached the ante-8 boss, lost it), saved by training with the corrected check:
+            # posted to near_misses.jsonl, one per seed (the closest), unless the seed is already won.
+            p = r["progress"]
+            if p.get("near_win") and r.get("win_check") == 2 and r.get("verified") is True and k not in have:
+                frac = p["boss_chips"] / p["boss_target"] if p.get("boss_target") else 0.0
+                old = near.get(k)
+                ofrac = (old.get("recount", {}).get("end", {}) if old else {})
+                ofrac = ofrac.get("chips", 0) / ofrac["target"] if ofrac.get("target") else -1
+                if old is None or frac > ofrac:
+                    near[k] = {x: r[x] for x in KEEP if x in r} | {
+                        "source": os.path.join(os.path.basename(os.path.dirname(os.path.abspath(f))), os.path.basename(f)),
+                        "game": args.game, "recount": {"won": False, "end": {
+                            "state": "GAME_OVER", "chips": p["boss_chips"], "target": p["boss_target"]},
+                            "why": "reached the ante-8 boss and lost it (logged by training)"}}
+                    near_new += old is None
+                continue
             if not r["progress"]["won"] or not r.get("verified", True):
                 continue
-            k = (r["seed"], r["back"], r["stake"], r.get("challenge"))
             if k in have:
                 continue
             if k not in cands or r["n"] < cands[k]["n"]:      # several wins on one seed: keep the shortest
@@ -83,6 +109,11 @@ def main():
             continue
         have[k] = {x: r[x] for x in KEEP if x in r} | {"source": r["source"], "game": args.game, "win_check": 2}
         added += 1
+    for k in [k for k in near if k in have]:      # a near miss that has since been won is a win now
+        del near[k]
+    with open(npath, "w") as f:
+        for k in sorted(near):
+            f.write(json.dumps(near[k]) + "\n")
     with open(rpath, "w") as f:
         for k in sorted(have):
             f.write(json.dumps(have[k]) + "\n")
@@ -94,7 +125,8 @@ def main():
             w.writerow([r["seed"], r["back"], r["stake"], r["n"], r.get("mode"), r.get("iteration"),
                         bool(r.get("retry")), r.get("actions", "subsets"), r["game"]])
     print(f"{added} seeds added ({trusted} verified by training, {added - trusted} replayed here), "
-          f"{bad} not published; {len(have)} beaten seeds in {args.out}")
+          f"{bad} not published; {len(have)} beaten seeds in {args.out}; "
+          f"{near_new} new final-boss near misses, {len(near)} in near_misses.jsonl")
     raise SystemExit(1 if bad else 0)
 
 

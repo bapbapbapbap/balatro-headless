@@ -102,7 +102,7 @@ def play_one(job):
             o = sim.observe()
     prog = sim.progress
     rec = {"seed": seed, "back": back, "stake": stake, "sample_seed": j, "group": group,
-           "won": prog["won"], "blinds": prog["blinds_beaten"], "ante": prog["ante"], "steps": sim.steps,
+           "won": prog["won"], "near_win": bool(prog.get("near_win")), "blinds": prog["blinds_beaten"], "ante": prog["ante"], "steps": sim.steps,
            "capped": not done, "model_version": _w["version"]}
     route = None
     if prog["won"]:
@@ -175,7 +175,9 @@ def rate_line(name, games):
         return f"  {name:<34} no games"
     lo, hi = wilson(k, n)
     b = sum(g["blinds"] for g in games) / n
-    return f"  {name:<34} {k:5d}/{n:<6d} = {100 * k / n:5.2f}%  (95% {100 * lo:.2f}–{100 * hi:.2f}), blinds/game {b:.2f}"
+    nw = sum(bool(g.get("near_win")) for g in games)
+    return (f"  {name:<34} {k:5d}/{n:<6d} = {100 * k / n:5.2f}%  (95% {100 * lo:.2f}–{100 * hi:.2f}), blinds/game {b:.2f}"
+            + (f", near wins {nw} (reached the final boss {100 * (k + nw) / n:.2f}%)" if any("near_win" in g for g in games) else ""))
 
 
 def per_seed(games):
