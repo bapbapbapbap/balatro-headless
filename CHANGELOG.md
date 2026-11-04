@@ -16,6 +16,11 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Not checked here
 - No torch or game in this environment. `tests/moe_check.py` on chud's machine is the first run of the new MoE.
 
+## [0.13.3] - 2026-11-03
+
+### Added
+- **Near wins logged in every game** (chud: the win rate against the reach-the-boss rate). `progress` carries `final_boss` (the ante-8 boss round ended: the game's own `G.GAME.won` flag) and `near_win` (it ended without a win), with `boss_chips` and `boss_target`. Training metrics and evals report `near_wins` and `final_boss` next to `wins`, per MoE expert too; the round line prints them. Near-win games are replayed like wins and saved to `<run>/near_wins.jsonl`. `publish_wins.py` posts them to `wins/near_misses.jsonl` (one per seed, the closest try) and drops a seed from it once the seed is won. `resolve.py` records `near_win` and its summary prints the reach rate.
+
 ## [0.13.2] - 2026-11-03
 
 ### Added

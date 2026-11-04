@@ -202,7 +202,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "t_model": t_model, "t_sim": t_sim, "pin": pst, "reached": reached,
                   "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
                            "early_counts": counts.tolist(), "handoff_step": handoff_at} if args.moe else None)}
-            if ep["progress"]["won"]:
+            if ep["progress"]["won"] or ep["progress"].get("near_win"):
                 ep["jokers_held"] = sim.env.jokers_held()      # before the replay check resets the sim
                 if getattr(args, "verify_wins", True):     # off when playing a save: a replay would count twice
                     ep["verified"] = verify_route(sim, args, ep)
@@ -578,6 +578,9 @@ def summarize(episodes):
         antes[a] = antes.get(a, 0) + 1
     return {"games": n,
             "wins": sum(e["progress"]["won"] for e in episodes),
+            # near wins: reached the ante-8 boss and lost it; final_boss = wins + near wins
+            "near_wins": sum(bool(e["progress"].get("near_win")) for e in episodes),
+            "final_boss": sum(bool(e["progress"].get("final_boss")) for e in episodes),
             "reached": sum(e.get("reached", False) for e in episodes),
             "blinds_mean": float(np.mean([e["progress"]["blinds_beaten"] for e in episodes])),
             "bosses_mean": float(np.mean([e["progress"]["bosses_beaten"] for e in episodes])),
@@ -597,8 +600,9 @@ def pin_summary(episodes):
         for e in episodes:
             m = e.get("moe")
             if m and m["expert"]:
-                b = by.setdefault(m["expert"], {"games": 0, "rule": 0, "random": 0, "wins": 0, "blinds": 0, **new_pin_stats()})
+                b = by.setdefault(m["expert"], {"games": 0, "rule": 0, "random": 0, "wins": 0, "near_wins": 0, "blinds": 0, **new_pin_stats()})
                 b["games"] += 1; b[m["routed"]] += 1; b["wins"] += int(e["progress"]["won"])
+                b["near_wins"] += int(bool(e["progress"].get("near_win")))
                 b["blinds"] += e["progress"]["blinds_beaten"]
                 for k, v in (e.get("pin") or {}).items():
                     b[k] += v
@@ -1118,7 +1122,7 @@ def main():
         """Writes each game exactly. Wins also go to wins.jsonl, flagged if they didn't replay."""
         if args.save_games == "none":
             return
-        keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"]]
+        keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"] or e["progress"].get("near_win")]
         recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": e["back"], "stake": e["stake"],
                  **({"challenge": e["challenge"]} if e.get("challenge") else {}),
                  **({"jokers_held": e["jokers_held"]} if e.get("jokers_held") is not None else {}),
@@ -1153,6 +1157,11 @@ def main():
                     saved["wins_verified"] += 1
                 else:
                     alert(f"won game (seed {r['seed']}, round {it}) did NOT replay exactly; saved, flagged unverified")
+            elif r["progress"].get("near_win"):
+                # Near wins (reached the ante-8 boss, lost it) are kept like wins, in near_wins.jsonl.
+                with open(os.path.join(out, "near_wins.jsonl"), "a") as f:
+                    f.write(json.dumps(r | {"commit": prov["commit"][:12], "win_check": 2}) + "\n")
+                saved["near_wins"] = saved.get("near_wins", 0) + 1
 
     def add_to_buffer(it, eps):
         """Keeps the highest-return training games (return under the reward of record), as routes."""
@@ -1414,7 +1423,8 @@ def main():
                    "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
-            print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) ante {s['final_ante']} "
+            print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) "
+                  f"near wins {s['near_wins']} (reached the final boss {s['final_boss']}) ante {s['final_ante']} "
                   f"ent {st['entropy']:.2f} kl {st['kl']:.4f} moved {st.get('kl_update', 0):.4f}{' (stopped early at ' + str(st['minibatches']) + ' minibatches)' if st.get('early_stop') else ''} | {rec['games_per_hour']} games/h "
                   f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s; per decision: model {ms_model:.1f} ms, sim {ms_sim:.1f} ms)"
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
