@@ -476,6 +476,9 @@ function H.observe()
     consumable_slots = G.consumeables.config.card_limit, reroll_cost = cr.reroll_cost,
     free_rerolls = cr.free_rerolls, blind_on_deck = GG.blind_on_deck, hand_sort = G.hand.config.sort,
     mode = H.mode,
+    back = GG.selected_back and GG.selected_back.effect and GG.selected_back.effect.center
+           and GG.selected_back.effect.center.key or nil,                -- deck in play (shown on the run screen)
+    challenge = GG.challenge,                                          -- challenge id, if this is a challenge run
     hand = map(G.hand.cards, playing_card, true),
     deck = as_set(G.deck.cards),              -- the deck view's "remaining", in no particular order
     full_deck = as_set(G.playing_cards),

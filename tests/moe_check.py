@@ -55,7 +55,8 @@ def main():
     model.eval()
     args = argparse.Namespace(seed=0, pin_hand=None, pin_rate=1.0, moe=True, moe_handoff=4, moe_random=0.5,
                               moe_pin=["Pair=0.5"], moe_train_early=0, explore_hands=0.0, back=a.back,
-                              stake=a.stake, max_steps=1500, shaping=1.0, gamma=0.995, stop_ante=0)
+                              stake=a.stake, max_steps=1500, shaping=1.0, gamma=0.995, stop_ante=0,
+                              backs=[], stakes=[], challenges=[], challenge_share=0.25)
     state = {k: v.clone() for k, v in model.state_dict().items()}
     fails, handoffs = [], 0
     for mode in ("train", "eval"):

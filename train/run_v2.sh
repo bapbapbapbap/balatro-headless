@@ -62,14 +62,19 @@ fi
 
 MOE=()
 if [ -n "${MOE_EARLY:-}" ]; then MOE=(--moe --moe-early "$MOE_EARLY"); eval "MOE+=(${MOE_EXPERT_ARGS:-})"; fi
+MIX=()
+[ -n "${BACKS:-}" ] && MIX+=(--backs $BACKS)
+[ -n "${STAKES:-}" ] && MIX+=(--stakes $STAKES)
+[ -n "${CHALLENGES:-}" ] && MIX+=(--challenges $CHALLENGES --challenge-share "${CHALLENGE_SHARE:-0.25}")
+[ ${#MIX[@]} -gt 0 ] && echo "mixing per game: ${MIX[*]}"
 PIN=()
 [ -n "${PIN_HAND:-}" ] && PIN=(--pin-hand "$PIN_HAND" --pin-rate "${PIN_RATE:-1.0}") && echo "hand pin: $PIN_HAND at ${PIN_RATE:-1.0}"
 
 echo "== training"
 cd "$R/train"
 python3 train.py --src "$W/local/source" --run "$RUN" --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
-  --enc 2 --actions "${ACTIONS:-ordered}" --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
+  --enc "${ENC:-2}" --actions "${ACTIONS:-ordered}" --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
   --reward blinds --back "${BACK:-b_red}" --stake "${STAKE:-1}" --max-wins "${MAX_WINS:-1000000}" \
   --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data/$RUN}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" \
-  "${BC[@]}" --bc-epochs "${BC_EPOCHS:-2}" "${RESUME[@]}" "${PIN[@]}" "${MOE[@]}" ${TRAIN_ARGS:-}
+  "${BC[@]}" --bc-epochs "${BC_EPOCHS:-2}" "${RESUME[@]}" "${PIN[@]}" "${MOE[@]}" "${MIX[@]}" ${TRAIN_ARGS:-}
 echo "== exited $(date)"

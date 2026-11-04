@@ -149,7 +149,10 @@ def main():
     ap.add_argument("--greedy", type=float, default=0.85)
     ap.add_argument("--max-steps", type=int, default=3000)
     ap.add_argument("--candidate", default="fast", help="fast | fast+<opt>,<opt> (see OPTIMIZATIONS)")
-    ap.add_argument("--enc", type=int, choices=[1, 2], default=1, help="encoding version for --encode")
+    ap.add_argument("--enc", type=int, choices=[1, 2, 3], default=1, help="encoding version for --encode")
+    ap.add_argument("--back", default="b_red", help="deck key, e.g. b_red, b_erratic")
+    ap.add_argument("--stake", type=int, default=1)
+    ap.add_argument("--challenge", default=None, help="challenge id (overrides deck and stake)")
     ap.add_argument("--encode", action="store_true",
                     help="run the learner's encoder (encode.lua) before every comparison, candidate only: "
                          "proves encoding never changes the game")
@@ -168,8 +171,8 @@ def main():
     t0, steps, bad, states = time.time(), 0, [], collections.Counter()
     for r in range(args.runs):
         seed = "".join(rng.choice("123456789ABCDEFGHIJKLMNPQRSTUVWXYZ") for _ in range(8))
-        ref.reset(seed)
-        cand.reset(seed)
+        ref.reset(seed, args.back, args.stake, args.challenge)
+        cand.reset(seed, args.back, args.stake, args.challenge)
         plan, ok = [], True
         while ok and not ref.done and ref.steps < args.max_steps:
             if args.encode:
@@ -216,7 +219,8 @@ def main():
         o = ref.observe()
         print(f"{seed}  ante {o['ante']}  {o['state']:10s} {ref.steps:4d} steps  {'OK' if ok else 'DIFF'}", flush=True)
     el = time.time() - t0
-    print(f"\ncandidate '{args.candidate}' vs reference, mode {args.mode}: {args.runs} runs, {steps} steps "
+    print(f"\ncandidate '{args.candidate}' vs reference, mode {args.mode}, "
+          f"{args.challenge or args.back} stake {1 if args.challenge else args.stake}: {args.runs} runs, {steps} steps "
           f"compared, {len(bad)} runs differ  ({el:.0f}s)")
     print("decisions compared by state:", dict(states.most_common()))
     print("PASS" if not bad else "FAIL")

@@ -14,7 +14,8 @@ local ENC = H.enc or 1  -- encoding version (set before loading this file)
 -- v1 action row: type, a, b, c1..c5, hand_type
 -- v2 action row: v1 + s1..s5 (scoring cards), lead (card token), hand-type token, HUD score,
 --                scoring cards' chips. The two numbers are slog(x) * 10000, as integers.
-local ACT = ENC == 2 and 18 or 9
+-- v3: v2 plus a token for the deck in play and one for the challenge, if any (same action row).
+local ACT = ENC >= 2 and 18 or 9
 
 -- ---------- vocabulary, built from the game's own tables ----------
 local vocab, vocab_list = {}, { "<none>" }
@@ -30,6 +31,13 @@ table.sort(HANDS)
 for _, k in ipairs(HANDS) do add("hand:" .. k) end
 local hands_checked = false
 for _, k in ipairs(sorted_keys(G.STATES)) do add("state:" .. k) end
+-- v3: challenge names, appended last so the v2 vocabulary is a prefix (v2 weights load into v3)
+if ENC >= 3 then
+  local ids = {}
+  for _, ch in ipairs(G.CHALLENGES or {}) do if ch.id then ids[#ids + 1] = ch.id end end
+  table.sort(ids)
+  for _, id in ipairs(ids) do add("challenge:" .. id) end
+end
 function H.vocab() return table.concat(vocab_list, "\n") end
 local function vid(name) return name and vocab[name] or 0 end
 
@@ -133,7 +141,12 @@ function H.encode()
   set(g, 15, (o.pack_choices or 0) / 2); set(g, 16, (o.free_rerolls or 0) / 2); set(g, 17, (o.bankrupt_at or 0) / 20)
   onehot(g, 18, 3, ({ Small = 1, Big = 2, Boss = 3 })[o.blind_on_deck or ""])
   set(g, 21, #o.deck / 52); set(g, 22, #o.full_deck / 52)
-  if ENC == 2 then
+  if ENC >= 3 then
+    -- v3: which deck is in play and which challenge, if any (both shown to the player)
+    tok(KIND.GLOBAL, vid(o.back))
+    if o.challenge then tok(KIND.GLOBAL, vid("challenge:" .. o.challenge)) end
+  end
+  if ENC >= 2 then
     -- interest: $interest_amount per $5 held, counting up to interest_cap, paid at end of round
     -- (state_events.lua); none on Green Deck. The projection uses only what the player sees.
     local amt, cap, money = o.interest_amount or 1, o.interest_cap or 25, o.money or 0
@@ -160,7 +173,7 @@ function H.encode()
     local r, ti = tok(KIND.HANDTYPE, vid("hand:" .. name))
     set(r, 1, (h.level or 1) / 10); set(r, 2, slog(h.chips)); set(r, 3, slog(h.mult))
     set(r, 4, slog(h.played)); set(r, 5, (h.played_this_round or 0) / 3); set(r, 6, h.visible and 1 or 0)
-    if ENC == 2 then set(r, 7, slog(h.l_chips)); set(r, 8, slog(h.l_mult)); handtype_tok[name] = ti end
+    if ENC >= 2 then set(r, 7, slog(h.l_chips)); set(r, 8, slog(h.l_mult)); handtype_tok[name] = ti end
   end
 
   -- BLIND: the current one, then the three choices
@@ -198,7 +211,7 @@ function H.encode()
     onehot(r, 1, 4, EDITIONS[it.edition]); set(r, 5, slog(it.sell)); set(r, 6, slog(it.cost))
     set(r, 7, it.eternal and 1 or 0); set(r, 8, it.perishable and 1 or 0); set(r, 9, (it.perish_tally or 0) / 5)
     set(r, 10, it.rental and 1 or 0); set(r, 11, it.debuff and 1 or 0); onehot(r, 12, 7, SETS[it.set])
-    if ENC == 2 and it.set == "Joker" then
+    if ENC >= 2 and it.set == "Joker" then
       local nums = joker_numbers(it.ability)          -- 12 slots: 19..26 and 28..31 (27 = position)
       for k = 1, #nums do set(r, k <= 8 and 18 + k or 19 + k, slog(nums[k])) end
     else
@@ -261,7 +274,7 @@ function H.encode()
       for _, hi in ipairs(a.cards) do cards[#cards + 1] = G.hand.cards[hi] end
       local _, _, _, scoring
       text, _, _, scoring = G.FUNCS.get_poker_hand_info(cards)
-      if ENC == 2 then
+      if ENC >= 2 then
         local pos = {}
         for _, hi in ipairs(a.cards) do pos[G.hand.cards[hi]] = hi end
         local n = 0
@@ -277,9 +290,9 @@ function H.encode()
     elseif planet then
       text = planet
     end
-    if ENC == 2 and (t == "use_consumable" or t == "pick") and a.src then lead = hand_tok[a.src] end
+    if ENC >= 2 and (t == "use_consumable" or t == "pick") and a.src then lead = hand_tok[a.src] end
     local ht = text and vid("hand:" .. text) or 0
-    if ENC == 2 then
+    if ENC >= 2 then
       local htok = text and handtype_tok[text] or -1
       arow[k] = table.concat({ ACTION[t] or 0, A or -1, B, c[1], c[2], c[3], c[4], c[5], ht,
                                sc[1], sc[2], sc[3], sc[4], sc[5], lead or -1, htok, slog_int(hud), slog_int(cchips) }, " ")

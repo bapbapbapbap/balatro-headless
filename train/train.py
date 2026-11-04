@@ -136,7 +136,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             pin_id, pin_rate = pin_id0, args.pin_rate
             pst = new_pin_stats() if pin_id is not None else None
             member, routed, counts, handoff_at = 0, None, np.zeros(len(EXPERT_HANDS)), None
-            o = sim.reset(seed, args.back, args.stake)
+            back, stake, challenge = game_config(seed, args)
+            o = sim.reset(seed, back, stake, challenge)
             if pst is not None:
                 apply_pin(o, pin_id, pin_rate, prng, pst)
             steps, done, tail, reached = [], False, [], False
@@ -192,7 +193,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                     if pst is not None:
                         apply_pin(o, pin_id, pin_rate, prng, pst)
                 t_sim += time.time() - ts
-            ep = {"seed": seed, "steps": steps if mode == "train" else None, "n": sim.steps,
+            ep = {"seed": seed, "back": back, "stake": stake, "challenge": challenge,
+                  "steps": steps if mode == "train" else None, "n": sim.steps,
                   "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
@@ -201,6 +203,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
                            "early_counts": counts.tolist(), "handoff_step": handoff_at} if args.moe else None)}
             if ep["progress"]["won"]:
+                ep["jokers_held"] = sim.env.jokers_held()      # before the replay check resets the sim
                 ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
         return episodes
@@ -216,6 +219,45 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
 
 PLAY, DISCARD = 1, 2          # action type codes (harness/encode.lua ACTION)
 HAND_COL = 8                  # action row column: vocab id of "hand:<type>" for plays
+
+
+def game_config(seed, args):
+    """(deck, stake, challenge) for a game, derived from its seed, so a retried or replayed seed
+    and every eval seed always get the same one. With one deck, one stake and no challenges this is
+    (--back, --stake, None), as before."""
+    backs, stakes = args.backs or [args.back], args.stakes or [args.stake]
+    if not args.challenges and len(backs) == 1 and len(stakes) == 1:
+        return backs[0], stakes[0], None
+    h = hashlib.sha256(f"config-{seed}".encode()).digest()
+    if args.challenges and h[0] / 256 < args.challenge_share:
+        return "b_challenge", 1, args.challenges[int.from_bytes(h[1:5], "big") % len(args.challenges)]
+    return (backs[int.from_bytes(h[5:9], "big") % len(backs)],
+            stakes[int.from_bytes(h[9:13], "big") % len(stakes)], None)
+
+
+def same_config(r, args):
+    return (r["back"], r["stake"], r.get("challenge")) == game_config(r["seed"], args)
+
+
+def load_weights_into(net, sd, ck_vocab, vocab):
+    """Loads a state dict saved with ck_vocab. The current vocabulary may extend it at the end
+    (encoding 3 appends challenge names to encoding 2's); the new words' embeddings keep their
+    fresh initialization."""
+    ck_vocab, vocab = list(ck_vocab), list(vocab)
+    if ck_vocab != vocab:
+        assert vocab[:len(ck_vocab)] == ck_vocab, "weights' vocabulary differs from this game's (not a prefix)"
+        sd, cur = dict(sd), net.state_dict()
+        for k, v in sd.items():
+            if k.endswith("vocab_emb.weight") and v.shape[0] < cur[k].shape[0]:
+                w = cur[k].clone()
+                w[:v.shape[0]] = v
+                sd[k] = w
+    net.load_state_dict(sd)
+
+
+def enc_compatible(have, want):
+    """A network trained on encoding 2 can continue on encoding 3 (same network, more tokens)."""
+    return have == want or (have, want) == (2, 3)
 
 
 def pin_vocab_id(vocab, hand):
@@ -297,7 +339,7 @@ def explore_sample(p, act, eps, rng, allow=None):
 def verify_route(sim, args, ep):
     """Plays a won game again from its saved seed and actions; True only if every step is the same
     move and the game ends in the same state. (The game is deterministic, so this must hold.)"""
-    prog, n, final, problems = sim.replay(ep["seed"], args.back, args.stake, ep["acts"], ep["desc"])
+    prog, n, final, problems = sim.replay(ep["seed"], ep["back"], ep["stake"], ep["acts"], ep["desc"], ep["challenge"])
     return not problems and n == ep["n"] and final == ep["final"] and prog == ep["progress"]
 
 
@@ -306,7 +348,7 @@ def replay_games(sim, reward_fn, args, routes):
     Saved routes are exact, so this regenerates the very states the bot saw when it played them."""
     out = []
     for r in routes:
-        o = sim.reset(r["seed"], args.back, args.stake)
+        o = sim.reset(r["seed"], *game_config(r["seed"], args))
         steps, done, bad = [], False, None
         for k, a in enumerate(r["acts"]):
             if done or a >= len(o["act"]) or sim.H.action_desc(a + 1) != r["desc"][k]:
@@ -648,8 +690,9 @@ def main():
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--eval-games", type=int, default=200)
-    ap.add_argument("--enc", type=int, choices=[1, 2], default=1,
-                    help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score")
+    ap.add_argument("--enc", type=int, choices=[1, 2, 3], default=1,
+                    help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score; "
+                         "3 = v2 plus deck and challenge tokens (v2 weights load into it)")
     ap.add_argument("--actions", choices=["subsets", "ordered", "ordered-capped"], default="subsets",
                     help="action list: subsets (v1) or ordered (lead card, Death direction, boss reroll)")
     ap.add_argument("--d", type=int, default=96)
@@ -670,6 +713,14 @@ def main():
                          "see apply_pin. Off by default")
     ap.add_argument("--pin-rate", type=float, default=1.0,
                     help="share of decisions with that hand on offer where the pin binds (1.0 = every time)")
+    ap.add_argument("--backs", nargs="*", default=[],
+                    help="decks to mix, one per game, picked from the game's seed (default: --back only)")
+    ap.add_argument("--stakes", nargs="*", type=int, default=[],
+                    help="stakes to mix, one per game, picked from the seed (default: --stake only)")
+    ap.add_argument("--challenges", nargs="*", default=[],
+                    help="challenge ids to mix in (tests/list_game.py prints them); stake 1, the challenge's deck")
+    ap.add_argument("--challenge-share", type=float, default=0.25,
+                    help="share of games that are challenges, when --challenges is given")
     ap.add_argument("--stop-ante", type=int, default=0,
                     help="early-game model: a game ends once this ante is reached (the boss before it beaten), "
                          "counted as 'reached', not as a win; 0 = off")
@@ -802,21 +853,22 @@ def main():
         resumed = ck
     elif args.init_weights:
         w = torch.load(args.init_weights, map_location=device, weights_only=True)
-        assert list(w["vocab"]) == vocab, "weights file vocabulary differs from this game"
         arch = w.get("arch", {})
-        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc)):
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads)):
             assert arch.get(k) == v, f"weights file has {k}={arch.get(k)}, this run has {k}={v}"
+        assert enc_compatible(arch.get("enc"), args.enc), f"weights file has enc={arch.get('enc')}, this run has enc={args.enc}"
         have = arch.get("actions")
         assert have == args.actions or (have, args.actions) == ("ordered", "ordered-capped"), \
             f"weights file has actions={have}, this run has actions={args.actions}"
-        model.load_state_dict(w["state_dict"])
+        load_weights_into(model, w["state_dict"], w["vocab"], vocab)
         print(f"starting from weights {os.path.basename(args.init_weights)} (model {w.get('model_version')}), "
               f"fresh optimizer, round 0", flush=True)
     elif args.moe:
         def load_member(net, path):
             ck = torch.load(path, map_location=device, weights_only=False)
-            assert list(ck["vocab"]) == vocab, f"{path}: vocabulary differs from this game"
-            net.load_state_dict(ck["model"] if "model" in ck else ck["state_dict"])
+            have = ck.get("arch", {}).get("enc", 1)
+            assert enc_compatible(have, args.enc), f"{path}: enc={have}, this run has enc={args.enc}"
+            load_weights_into(net, ck["model"] if "model" in ck else ck["state_dict"], ck["vocab"], vocab)
         assert args.moe_early, "--moe needs --moe-early"
         load_member(model.members[0], args.moe_early)
         given = dict(x.rsplit("=", 1) for x in args.moe_experts)
@@ -935,9 +987,9 @@ def main():
                 if not line.strip():
                     continue
                 r = json.loads(line)
-                if (r.get("mode") != "train" or not r.get("verified") or r["back"] != args.back
+                if (r.get("mode") != "train" or not r.get("verified") or not same_config(r, args)
                         or r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
-                        or r["stake"] != args.stake or r["seed"] in have):
+                        or r["seed"] in have):
                     continue
                 have.add(r["seed"])
                 sil_buffer.append({"key": f"seed-{r['seed']}", "seed": r["seed"], "acts": r["acts"], "desc": r["desc"],
@@ -952,7 +1004,9 @@ def main():
         os.makedirs(games_dir, exist_ok=True)
         with open(os.path.join(games_dir, "meta.jsonl"), "a") as f:   # what every saved game was played on
             f.write(json.dumps({"from_iteration": start_it, "started": time.strftime("%Y-%m-%d %H:%M:%S"),
-                                "back": args.back, "stake": args.stake, "mode": args.actions, "enc": args.enc,
+                                "back": args.back, "stake": args.stake, "backs": args.backs, "stakes": args.stakes,
+                                "challenges": args.challenges, "challenge_share": args.challenge_share,
+                                "mode": args.actions, "enc": args.enc,
                                 "profile": "unlocked", "fast": True, "provenance": prov}) + "\n")
     saved = {"games": 0, "wins": 0, "wins_verified": 0}
     if args.mirror_dir:
@@ -1031,7 +1085,10 @@ def main():
         if args.save_games == "none":
             return
         keep = [e for e in eps if args.save_games == "all" or e["progress"]["won"]]
-        recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": args.back, "stake": args.stake,
+        recs = [{"iteration": it, "mode": mode, "seed": e["seed"], "back": e["back"], "stake": e["stake"],
+                 **({"challenge": e["challenge"]} if e.get("challenge") else {}),
+                 **({"jokers_held": e["jokers_held"]} if e.get("jokers_held") is not None else {}),
+                 "found_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
                  "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
@@ -1113,7 +1170,7 @@ def main():
                 except json.JSONDecodeError:
                     continue                      # a file still being written can end mid-line
                 if (r.get("actions", "subsets") != args.actions or r.get("enc", 1) != args.enc
-                        or r["back"] != args.back or r["stake"] != args.stake):
+                        or not same_config(r, args)):
                     continue
                 routes.append({"key": f"bc-{len(routes)}", "seed": r["seed"], "acts": r["acts"], "desc": r["desc"],
                                "final": r["final"]})

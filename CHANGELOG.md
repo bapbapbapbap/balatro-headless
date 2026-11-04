@@ -2,6 +2,21 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.13.0] - 2026-11-03
+
+### Added
+- **`docs/proof.md`: Balatro can be beaten, a proof by construction** (requested by chud). The first published win, seed `4XNRUA21` (model 0.1, round 329; Red Deck, White Stake, 715 moves), replays to the game's own win on the untouched game. What it shows and what it doesn't, and how to check it. Its second half is generated: the first seed for each part of a full save.
+- **Save-progress ledger** (`tools/save_progress.py`, chud's 100%: a Gold Stake win with every joker, Gold Stake on every deck, every challenge). For each deck x stake, each challenge, and each joker x stake, the first published seed that achieved it. Old routes don't say which jokers they held, so they are replayed once in parallel, and the result is cached in `wins/won_with.jsonl`. Writes `wins/save_progress.json` and the tables in `docs/proof.md`.
+- Wins now record `jokers_held` (the jokers held at the win) and `found_utc`; `publish_wins.py` keeps both.
+- **Decks, stakes and challenges mixed in one run**: `train.py --backs/--stakes/--challenges/--challenge-share` (`BACKS`, `STAKES`, `CHALLENGES` in `run_v2.sh`). Each game's setup comes from its seed, so retries, replays and evals always get the same one. With one deck, one stake and no challenges, nothing changes.
+- **Challenges in the env**: `reset(seed, back, stake, challenge)` starts a challenge the way the game's menu does (stake 1, the challenge's deck and rules). Routes, replays, `verify_games.py` and `publish_wins.py` carry `challenge`.
+- **Encoding 3** (`--enc 3`, `ENC=3`): encoding 2 plus a token for the deck in play and one for the challenge (both also in the observation). Challenge names are appended to the vocabulary, so encoding-2 weights load into it (`load_weights_into` grows the vocabulary embedding). Encoding-2 games and their final hashes are unchanged.
+- **Save mode** (`BalatroEnv(save_mode=True)`, `Sim(save_mode=True)`): a new profile, without `unlock_all`. The game's "seeded run" flag is cleared after the run starts, so runs count for unlocks and stickers; the seed still drives every draw.
+- Checks to run on the game: `tests/start_check.py` (every deck and challenge starts as itself and shows in encoding 3; lists every place the source reads `GAME.seeded`), `tests/run_coverage_checks.sh` (the fast sim against the untouched game on every deck at White and Gold Stake, and on every challenge), `tests/list_game.py` (deck keys, challenge ids). `diff_check.py` takes `--back/--stake/--challenge` and `--enc 3`.
+
+### Not checked here
+- None of this has run: there's no game or torch in this environment. The checks above are the first test, on chud's machine.
+
 ## [0.12.0] - 2026-11-03
 
 ### Added

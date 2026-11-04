@@ -8,6 +8,9 @@
 **Highest stake beaten: 1 of 8 (White Stake).**
 <!-- tally:end -->
 
+The proof that Balatro can be beaten, from the first of these seeds, and the first seed for each
+part of a full save: [`../docs/proof.md`](../docs/proof.md).
+
 Each line of `routes.jsonl` is a run of Balatro won by the bot, with everything needed to replay it:
 the seed, the deck and stake, and every move it made. `beaten_seeds.csv` lists the same seeds.
 

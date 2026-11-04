@@ -36,30 +36,49 @@ def to_py(x):
 
 
 class BalatroEnv:
-    def __init__(self, src, mods=None, fast=True, unlock_all=True, mode="controls"):
+    def __init__(self, src, mods=None, fast=True, unlock_all=True, mode="controls", save_mode=False):
+        """save_mode: a real save. The profile starts as the game makes a new one (nothing unlocked
+        beyond the defaults), unlocks and stickers accrue as the game awards them, and runs count
+        for progress (see boot.lua start_run). Published routes were played all-unlocked and won't
+        replay in save mode."""
         self.lua, self.H = make_runtime(src, mods)
         self.H.start_up()
         if fast:
             self.H.strip_visuals()
-        if unlock_all:
+        if unlock_all and not save_mode:
             self.H.unlock_all()
+        self.H.save_mode = bool(save_mode)
         self.H.mode = mode   # "controls" (the game's own controls) or "subsets" (see env.lua)
         self.lua.execute(open(os.path.join(HERE, "env.lua")).read(), self.H)
         self._acts = None
         self.frames = 0
         self.steps = 0
 
-    def reset(self, seed, back="b_red", stake=1):
+    def reset(self, seed, back="b_red", stake=1, challenge=None):
+        """challenge: a challenge id (see challenge_ids()); the run then uses the challenge's own deck,
+        rules and stake 1, as the game's challenge menu starts it."""
         G = self.lua.globals().G
         if G.STAGE == G.STAGES.RUN:
             G.delete_run(G)
         self.H._drags = 0
-        n = self.H.start_run(back, stake, seed)
+        n = self.H.start_run(back, stake, seed, challenge)
         if n < 0:
             raise RuntimeError("run never settled at start")
         self._acts = None
         self.frames, self.steps = n, 0
         return self.observe()
+
+    def challenge_ids(self):
+        return list(to_py(self.H.challenge_ids()) or [])
+
+    def joker_keys(self):
+        return list(to_py(self.H.joker_keys()) or [])
+
+    def jokers_held(self):
+        return list(to_py(self.H.jokers_held()) or [])
+
+    def deck_keys(self):
+        return list(to_py(self.H.deck_keys()) or [])
 
     @property
     def done(self):

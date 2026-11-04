@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from sim import Sim  # noqa: E402
 
-KEEP = ("seed", "back", "stake", "actions", "enc", "acts", "desc", "final", "n", "progress", "mode", "iteration",
+KEEP = ("seed", "back", "stake", "challenge", "jokers_held", "found_utc", "actions", "enc", "acts", "desc", "final", "n", "progress", "mode", "iteration",
         "retry", "arm", "commit", "converted_from")
 
 
@@ -43,7 +43,7 @@ def main():
         for line in open(rpath):
             if line.strip():
                 r = json.loads(line)
-                have[(r["seed"], r["back"], r["stake"])] = r
+                have[(r["seed"], r["back"], r["stake"], r.get("challenge"))] = r
     cands = {}
     for f in args.files:
         if not os.path.exists(f):
@@ -58,7 +58,7 @@ def main():
                 continue
             if not r["progress"]["won"] or not r.get("verified", True):
                 continue
-            k = (r["seed"], r["back"], r["stake"])
+            k = (r["seed"], r["back"], r["stake"], r.get("challenge"))
             if k in have:
                 continue
             if k not in cands or r["n"] < cands[k]["n"]:      # several wins on one seed: keep the shortest
@@ -73,7 +73,7 @@ def main():
         mode, enc = r.get("actions", "subsets"), r.get("enc", 1)
         if (mode, enc) not in sims:
             sims[(mode, enc)] = Sim(args.src, fast=not args.full, mode=mode, enc=enc)
-        prog, n, final, problems = sims[(mode, enc)].replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"])
+        prog, n, final, problems = sims[(mode, enc)].replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"], r.get("challenge"))
         if problems or n != r["n"] or final != r["final"] or not prog["won"]:
             bad += 1
             print(f"NOT PUBLISHED {r['seed']}: replay {'won' if prog['won'] else 'lost'} {problems[:1]}")

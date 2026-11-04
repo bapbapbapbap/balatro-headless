@@ -52,7 +52,7 @@ def main():
         kind = (f, r.get("actions", "subsets"), r.get("enc", 1))      # saved games before v2 are subsets/enc 1
         if sim is None or args.fresh_each or kind != cur:
             sim, cur = Sim(args.src, fast=not args.full, mode=kind[1], enc=kind[2]), kind
-        prog, steps, final, problems = sim.replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"])
+        prog, steps, final, problems = sim.replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"], r.get("challenge"))
         if not problems:
             if steps != r["n"]:
                 problems.append(f"{steps} steps, saved {r['n']}")
