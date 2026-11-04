@@ -3,7 +3,7 @@
 # if it died unexpectedly. Run it in its own PowerShell window and leave it open:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\watch_v1.ps1 -Run v2b
 #   ... -Run v2      watch (and restart) v2 instead of v1 (or -Run v2b)
-#   ... -Run expert-full-house / early-s3 / moe   the strategy experts, early-game models and joint
+#   ... -Run expert-full-house / early-s3 / moe / moe2   the strategy experts, early-game models and joint
 #       run (-Stake / -Back for a run at another stake or deck)
 # Options: -Interval 60       seconds between status lines
 #          -StaleMinutes 15   no health update for this long, and no training process = died
@@ -52,8 +52,8 @@ if (@("v1", "v2", "v2b") -contains $Run) {
     $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_expert.sh $wslWork '$($Slugs[$Matches[1]])' $(Hours-For 12) $Workers"
 } elseif ($base -match '^early-s(\d+)$') {
     $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_early.sh $wslWork $($Matches[1]) $(Hours-For 8) $Workers"
-} elseif ($base -match '^moe(-s(\d+))?$') {
-    $ms = if ($Matches[2]) { "export MOE_SEED=$($Matches[2]);" } else { "" }
+} elseif ($base -match '^(moe\d*)(-s(\d+))?$') {
+    $ms = "export MOE_RUN=$($Matches[1]);" + $(if ($Matches[3]) { " export MOE_SEED=$($Matches[3]);" } else { "" })
     $launch = "cd ~/balatro/balatro-headless && $env_ $ms bash train/run_moe.sh $wslWork $(Hours-For 24) $Workers"
 } else {
     Write-Host "don't know how to restart run '$Run'; watching only" -ForegroundColor Yellow
