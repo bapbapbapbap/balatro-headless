@@ -61,6 +61,7 @@ never edited; results are added as new dated sections.
 |---|---|---|
 | **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Pass.** 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
 | **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Pass.** 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
+| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Pass.** 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). A win is largely a property of the seed ([result](docs/hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
 
 H1 has no concurrent control (one machine), so 0.3's two changes and its extra training can't be
 told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b in
