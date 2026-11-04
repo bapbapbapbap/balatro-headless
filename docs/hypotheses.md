@@ -988,3 +988,32 @@ it's too strict (Full House starved) or too loose (Full House flooded).
   (a run `moe2-nopin`). Not registered or run yet. Without it, results from moe2 are about the MoE
   with an early Full House pin, not about the MoE.
 
+
+## Added 2026-11-04 ~13:40 CST: completion criterion: the MoE has learned Full House
+
+chud, 13:35 CST: "I am willing to make this entire MoE have to learn Full House before I say it's
+complete." Recorded before any moe2 eval.
+
+This is a criterion for calling the MoE finished, not a prediction, and it is about behavior: it is
+met whether or not the early pin helped get there. Whether the reward alone leads there is a separate
+question, for the no-pin control (review above, item 7).
+
+### Measured (thresholds proposed by Claude; chud to confirm)
+All with every pin at 0 (expert pins and the early pin), on the fixed eval seeds, with
+`analysis/replay_events.py` + `analyze.py` on the saved eval games. "Full House on offer as the best
+hand" uses the analysis's existing test: highest chips x mult at that moment's hand levels.
+1. **The early head plays it.** In antes 1–3, when Full House is the best hand on offer, it plays a
+   Full House (or a higher hand) at least **75%** of the time. Reference points from model 0.2's
+   wins: Full House 0%, Flush 76%, Straight 92%. So the bar is "treats Full House the way it already
+   treats Flush".
+2. **The experts play it too.** Same test after the handoff, each expert separately: no expert below
+   **50%** (Two Pair's expert included). Leveling can make Two Pair the better hand later in a run;
+   the analysis's test already counts levels, so that case doesn't count against it.
+3. **The Full House expert is in use.** Routed by rule in at least **5%** of eval handoffs (the first
+   run: 0%).
+4. **It holds.** 1–3 are met at two evals in a row, at least 20 rounds apart, after the pins reach 0.
+
+I2 (Full House among the strongest experts) is separate and can fail while this criterion passes.
+
+If moe2 ends without meeting it, the MoE isn't complete: next steps are decided then, with the
+measurements in hand.
