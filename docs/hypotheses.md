@@ -683,3 +683,12 @@ above is edited.
     so finishing a save needs something that picks which run to play next and what it is for.
 - Counts (150 jokers, 15 decks, 8 stakes, 20 challenges) are Claude's from the game, to be checked
   against the pinned source before any plan is sized on them.
+
+### Answered (2026-11-03 ~18:01 CST, chud)
+"duh the moe counts. I'll be training the early game and the experts continually until a SINGLE
+moe weight configuration can 100% balatro." The mixture of experts is the single model. The goal
+is one MoE checkpoint that completes the save on every deck, stake and challenge.
+- Note (Claude): the encoding gives the stake as a number but not which deck is in play (or which
+  challenge). One checkpoint across decks needs that as an input. The deck keys are already in
+  the vocabulary, so weights can carry over; it would go in as a new encoding version, so the
+  published routes, which are checked against encoding 2, keep verifying.
