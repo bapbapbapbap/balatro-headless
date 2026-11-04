@@ -8,7 +8,7 @@ boss was counted, published and verified as a win. train/sim.py now uses the gam
 
 This replays every route in wins/routes.jsonl with the corrected check and splits them:
   wins/routes.jsonl        kept: routes that replay to a real win (the boss beaten, the game's win)
-  wins/not_won.jsonl       removed: routes that replay to a loss on the final boss, with the final
+  wins/near_misses.jsonl       removed: routes that replay to a loss on the final boss, with the final
                            state, chips and target, so anyone can check the removal
   wins/beaten_seeds.csv    rewritten from the kept routes
 Then run train/tally.py to update the counts shown in the README.
@@ -95,7 +95,7 @@ def main():
         print("dry run: nothing written")
         return
 
-    with open(os.path.join(wins, "not_won.jsonl"), "w") as f:
+    with open(os.path.join(wins, "near_misses.jsonl"), "w") as f:
         for r in drop:
             k = (r["seed"], r["back"], r["stake"], r.get("challenge"))
             f.write(json.dumps(dict(r, recount={"won": False, "end": res[k][2],
@@ -111,7 +111,7 @@ def main():
         for r in keep:
             w.writerow([r["seed"], r["back"], r["stake"], r["n"], r.get("mode"), r.get("iteration"),
                         bool(r.get("retry")), r.get("actions", "subsets"), r.get("game")])
-    print(f"wrote wins/routes.jsonl ({len(keep)}), wins/not_won.jsonl ({len(drop)}), wins/beaten_seeds.csv")
+    print(f"wrote wins/routes.jsonl ({len(keep)}), wins/near_misses.jsonl ({len(drop)}), wins/beaten_seeds.csv")
 
 
 if __name__ == "__main__":

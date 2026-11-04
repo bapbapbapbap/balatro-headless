@@ -3,6 +3,7 @@
 [![seeds proven beatable](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge.json)](wins/README.md)
 [![naneinf seeds proven](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_naneinf.json)](naneinf/README.md)
 [![highest stake beaten](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_stake.json)](wins/README.md)
+[![final-boss near misses](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_near.json)](wins/README.md#final-boss-near-misses-near_missesjsonl)
 
 **Balatro's real game logic, run headless; a bot trained on it that sees only what a player
 sees; and a public record of every seed the bot has beaten, each with a route anyone can replay.**
@@ -37,6 +38,8 @@ sees; and a public record of every seed the bot has beaten, each with a route an
 **naneinf seeds proven: 0.** A seed counts once its route in [`naneinf/proven.jsonl`](naneinf/proven.jsonl) replays move for move to a played hand with non-finite chips (see `naneinf/README.md`).
 
 **Highest stake beaten: 1 of 8 (White Stake).**
+
+**Final-boss near misses: 1,114.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`wins/near_misses.jsonl`](wins/near_misses.jsonl): median 62% of the boss's target scored, 154 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG, 0.13.2).
 <!-- tally:end -->
 
 ## Results (as of 2026-11-03)

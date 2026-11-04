@@ -6,6 +6,8 @@
 **naneinf seeds proven: 0.** A seed counts once its route in [`../naneinf/proven.jsonl`](../naneinf/proven.jsonl) replays move for move to a played hand with non-finite chips (see `naneinf/README.md`).
 
 **Highest stake beaten: 1 of 8 (White Stake).**
+
+**Final-boss near misses: 1,114.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`near_misses.jsonl`](near_misses.jsonl): median 62% of the boss's target scored, 154 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG, 0.13.2).
 <!-- tally:end -->
 
 The proof that Balatro can be beaten, from the first of these seeds, and the first seed for each
@@ -26,7 +28,17 @@ seed produce the same run, ending in a win.
   unlocks, so a fresh profile plays the same seed differently).
 - The deck and stake on each line (so far: Red Deck, White Stake).
 
-A win is the game's own: `G.GAME.won`, set when the Ante 8 Boss Blind is beaten.
+A win is the game's own: the Ante 8 Boss Blind beaten, so the game runs `win_game()` and records
+the win. In code, `G.GAME.won` and not `GAME_OVER`. `G.GAME.won` alone is not enough: the game sets
+it at the end of the Ante 8 boss round whether or not the boss was beaten.
+
+## Final-boss near misses: `near_misses.jsonl`
+Until 2026-11-03 the harness read `G.GAME.won` alone, so 1,114 runs that reached the Ante 8 boss and
+ran out of hands were published here as wins. `tools/recount_wins.py` replayed all 1,549 published
+routes with the corrected check: 435 are wins and stay in `routes.jsonl`; the 1,114 losses moved to
+`near_misses.jsonl`. They stay posted. Each line is the full route, which replays exactly, plus
+`recount.end`: the final state (`GAME_OVER`), the boss, the chips scored and the boss's target.
+They are the project's record of runs that got to the last fight, and its data on that fight.
 
 ## Independent check on the untouched game (2026-11-03)
 The 850 seeds published on 2026-11-02 (every seed after the first 121) were published as
