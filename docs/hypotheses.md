@@ -647,3 +647,39 @@ Built for this (CHANGELOG 0.10.0, 0.11.0, 0.12.0): `train.py --pin-hand/--pin-ra
 `train/run_expert.sh`, `train/run_experts.sh`, `tests/pin_check.py`, `train/run_early.sh`,
 `train/run_earlies.sh`, `train.py --moe`, `train/run_moe.sh`, `tests/moe_check.py`. The test of I1
 is not registered.
+
+---
+
+## Added 2026-11-03 ~18:00 CST: roadmap, and what 100% completion means (stated by chud)
+
+### Authorship
+chud's, 17:59 CST: "so we're going to get the moe working good, then we're going to send it up the
+decks and stakes and then I ultimately want a single model to be able to solve a single entire
+balatro save where all it's gotta do is win with every joker on gold stake and gold stake every
+deck and beat all the challenges too." The write-up and the status notes are Claude's. Nothing
+above is edited.
+
+### Roadmap
+1. The mixture of experts (section I) working well on Red Deck, White Stake.
+2. Up the decks and stakes.
+3. One model completes one save (aim 3, which was *(chud to define)*). 100% means:
+   - a Gold Stake win with every joker (each joker's gold sticker);
+   - Gold Stake beaten on every deck;
+   - every challenge beaten.
+
+### Open
+- Whether the mixture of experts (one checkpoint, nine networks, one router) counts as "a single
+  model": *(chud to confirm)*.
+
+### Status of what this needs (Claude's notes, 2026-11-03)
+- Have: deck and stake are settings (`BACK`, `STAKE`); joker stickers (eternal, perishable,
+  rental) are already in the encoding.
+- Not yet:
+  - Higher stakes aren't covered by the differential check. Challenges and Erratic Deck aren't
+    covered by the harness at all (README, harness validation).
+  - Every run starts with everything unlocked (`unlock_all`). A save needs one profile's unlocks,
+    stake progress and stickers carried from run to run.
+  - A joker's sticker needs a run won while holding that joker. No current reward contains that,
+    so finishing a save needs something that picks which run to play next and what it is for.
+- Counts (150 jokers, 15 decks, 8 stakes, 20 challenges) are Claude's from the game, to be checked
+  against the pinned source before any plan is sized on them.
