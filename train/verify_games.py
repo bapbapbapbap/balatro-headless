@@ -64,8 +64,11 @@ def main():
                 problems.append(f"{steps} steps, saved {r['n']}")
             if final != r["final"]:
                 problems.append("final state differs")
-            if prog != r["progress"]:
-                problems.append(f"outcome {prog} vs saved {r['progress']}")
+            # Compare the fields the saved game recorded (games saved before 2026-11-03 lack
+            # final_boss / near_win). A final-boss loss saved as a win shows up here as won False.
+            got = {k: prog.get(k) for k in r["progress"]}
+            if got != r["progress"]:
+                problems.append(f"outcome {got} vs saved {r['progress']}")
         n += 1
         wins += bool(r["progress"]["won"])
         if problems:
@@ -93,7 +96,7 @@ def check_save(args):
             print(f"LOCKED run {n + 1} seed {r['seed']}: {r.get('challenge') or r['back']} stake {r['stake']} "
                   f"wasn't selectable on the profile at that point")
         prog, steps, final, problems = sim.replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"], r.get("challenge"))
-        if not problems and (steps != r["n"] or final != r["final"] or prog != r["progress"]):
+        if not problems and (steps != r["n"] or final != r["final"] or {k: prog.get(k) for k in r["progress"]} != r["progress"]):
             problems.append("steps, final state or outcome differs")
         n += 1
         if problems:

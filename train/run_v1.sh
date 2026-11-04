@@ -37,7 +37,7 @@ python3 "$R/harness/check_env.py" "$R/tests/fixtures/1793565485_2730e932.json.gz
   && echo "env vs logged run: PASS" || { echo "PRE-FLIGHT FAILED: env vs logged run"; exit 1; }
 ( cd "$R/harness" && python3 diff_check.py --src "$W/local/source" --runs 5 --encode | tail -1 | grep -q PASS ) \
   && echo "differential check with encoder: PASS" || { echo "PRE-FLIGHT FAILED: differential check"; exit 1; }
-( cd "$R/train" && python3 verify_games.py --src "$W/local/source" "$R/tests/fixtures/win_v1_r250_9MN9TD5T.jsonl" --wins-only --full --fresh-each | tail -1 | grep -q PASS ) \
+( cd "$R/train" && python3 verify_games.py --src "$W/local/source" "$R/tests/fixtures/win_v1_r549_1JA35NNR.jsonl" --wins-only --full --fresh-each | tail -1 | grep -q PASS ) \
   && echo "saved win replays exactly (untouched game): PASS" || { echo "PRE-FLIGHT FAILED: saved-game replay"; exit 1; }
 free -g | head -2
 df -h "$OUT" | tail -1

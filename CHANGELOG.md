@@ -18,6 +18,10 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ## [0.13.3] - 2026-11-03
 
+### Fixed
+- **The pre-flight's saved win was a near miss.** `tests/fixtures/win_v1_r250_9MN9TD5T.jsonl`, v1's first saved "win", lost the ante-8 boss (81,407 of 100,000); with the corrected check it no longer passes as a win. Renamed `near_win_v1_r250_9MN9TD5T.jsonl`; `run_v1.sh` and `run_v2.sh` now replay a real v1 win, `win_v1_r549_1JA35NNR.jsonl` (PASS on the untouched game).
+- `verify_games.py` compares the outcome fields the saved game recorded, so games saved before `final_boss`/`near_win` existed still verify; an old final-boss loss saved as a win still fails, as `won False`.
+
 ### Added
 - **Near wins logged in every game** (chud: the win rate against the reach-the-boss rate). `progress` carries `final_boss` (the ante-8 boss round ended: the game's own `G.GAME.won` flag) and `near_win` (it ended without a win), with `boss_chips` and `boss_target`. Training metrics and evals report `near_wins` and `final_boss` next to `wins`, per MoE expert too; the round line prints them. Near-win games are replayed like wins and saved to `<run>/near_wins.jsonl`. `publish_wins.py` posts them to `wins/near_misses.jsonl` (one per seed, the closest try) and drops a seed from it once the seed is won. `resolve.py` records `near_win` and its summary prints the reach rate.
 
