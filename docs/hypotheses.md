@@ -892,3 +892,33 @@ and 0 wins. Heat-throttling alerts from about 02:00.
 
 No prediction is registered for this run either. I1's test is still to be registered before scoring.
 
+
+## Added 2026-11-04 ~13:35 CST: I2, Full House is one of the strongest experts (section I)
+
+Recorded at 13:31 CST, minutes after chud started the second MoE run (`runs/moe2`), before any of its
+evals existed.
+
+### I2 (chud's prediction)
+> "It might take a longer time for the weights to learn Full House, but I hypothesise it is one of
+> the most effective experts at winning."
+
+Two parts: the Full House expert learns more slowly than the others, and once it has, it is among
+the experts with the highest win rate.
+
+### Test (proposed by Claude; chud to confirm before any moe2 eval is read)
+- **Which state is compared.** The router hands each expert different games: Full House gets runs
+  that played Full Houses in antes 1–3. Comparing each expert's win rate over the games it was routed
+  would mix the expert with the games it was given. Evals are deterministic per seed up to the
+  handoff (fixed sampling RNG per seed), so the comparison can be paired: on every eval seed
+  that reaches the handoff, replay the early model's moves to the handoff, then play the game out
+  once with each of the 6 experts, from the same state. Every expert is scored on the same
+  positions. Run on seeds outside the 600 eval seeds, with the final weights (all pins 0).
+- **"One of the most effective"**: Full House's win rate ranks in the top 2 of the 6 experts.
+  Reported overall and on the seeds the router itself sends to Full House.
+- **"Takes longer to learn"**: the number of its own training games before the Full House expert's
+  win rate in the per-expert eval stats first reaches the median expert's, compared with the other
+  experts. Full House should need more.
+- **Size**: win rates are around 1–2%; the number of seeds is set before the test is run so that the
+  top-2 ranking means something (to be worked out, then recorded here).
+
+Status: **proposed**. The test design needs chud's confirmation; nothing scored.
