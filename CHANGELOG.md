@@ -2,6 +2,13 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.13.1] - 2026-11-03
+
+### Added
+- **The 100% proof as a list of runs** (chud): `tools/play_save.py` plays one save from a new profile, run after run, through the trainer's own game loop, and writes every run in order (wins and losses) in the `routes.jsonl` format. `verify_games.py --save` replays that list in order on a new profile. It checks that each run was selectable when it was played (`H.save_options`: unlocked decks, the next stake per deck, unlocked challenges), and reads the game's own record at the end: `SAVE 100% PROVEN` only at 100%. `docs/proof.md` says so.
+- `play_games` skips the replay check when asked (`verify_wins`), so a save's wins aren't counted twice.
+- The save ledger reads the game's own progress record (`H.clear_progress`, `H.progress_record`; PR #61).
+
 ## [0.13.0] - 2026-11-03
 
 ### Added

@@ -240,6 +240,24 @@ function H.progress_record()
   return out
 end
 
+-- What a player could start next on this profile, by the game's own unlock state: each unlocked deck
+-- with the highest stake selectable on it (one above the highest the game has recorded a win on,
+-- get_deck_win_stake), and each unlocked challenge (the first challenges_unlocked of G.CHALLENGES).
+function H.save_options()
+  local p = G.PROFILES[G.SETTINGS.profile]
+  local out = { decks = {}, challenges = {} }
+  for k, v in pairs(G.P_CENTERS) do
+    if v.set == "Back" and k ~= "b_challenge" and (v.unlocked or p.all_unlocked) then
+      local won = get_deck_win_stake and (get_deck_win_stake(k) or 0) or best_stake((p.deck_usage[k] or {}).wins)
+      out.decks[k] = p.all_unlocked and 8 or math.min(8, won + 1)
+    end
+  end
+  for i, c in ipairs(G.CHALLENGES or {}) do
+    if p.all_unlocked or i <= (p.challenges_unlocked or 0) then out.challenges[#out.challenges + 1] = c.id end
+  end
+  return out
+end
+
 function H.deck_keys()
   local out = {}
   for k, v in pairs(G.P_CENTERS) do

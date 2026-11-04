@@ -85,6 +85,10 @@ class BalatroEnv:
         return {"jokers": dict(r.get("jokers") or {}), "decks": dict(r.get("decks") or {}),
                 "challenges": list(r.get("challenges") or [])}
 
+    def save_options(self):
+        r = to_py(self.H.save_options()) or {}
+        return {"decks": dict(r.get("decks") or {}), "challenges": list(r.get("challenges") or [])}
+
     def jokers_held(self):
         return list(to_py(self.H.jokers_held()) or [])
 
