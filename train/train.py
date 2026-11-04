@@ -126,7 +126,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
         if args.moe:
             hand_ids = [pin_vocab_id(sim.vocab, h) for h in EXPERT_HANDS]
             base = model.base_rate.numpy().astype(np.float64)
-            rates = [moe_pin_rate(h, args) * float(model.pin_scale[0]) for h in EXPERT_HANDS]
+            rates = [moe_pin_rate(h, args) * float(model.pin_scale[i]) for i, h in enumerate(EXPERT_HANDS)]
         episodes = []
         for seed in seeds:
             seed = seed or rand_seed(rng)
@@ -780,6 +780,8 @@ def main():
                     help="MoE: share of training-game handoffs sent to an expert picked at random (load balancing)")
     ap.add_argument("--moe-pin", nargs="*", default=["Pair=0.5"],
                     help="MoE: experts' pin rates before annealing, 'Hand=rate' (others 1.0)")
+    ap.add_argument("--moe-min-games", type=int, default=5000,
+                    help="MoE: an expert's pin doesn't finish fading until the expert has had this many training games")
     ap.add_argument("--moe-anneal-games", type=int, default=100000,
                     help="MoE: pins fall linearly to 0 over this many training games of the joint run")
     ap.add_argument("--moe-train-early", type=int, default=1,
@@ -913,10 +915,10 @@ def main():
               f"fresh optimizer, round 0", flush=True)
     elif args.moe:
         src = load_moe(model, args, vocab, device)
-        print(f"MoE (shared trunk, 9 heads): trunk from {src['trunk']}; expert heads from solo runs: "
+        print(f"MoE (shared trunk, {1 + len(EXPERT_HANDS)} heads): trunk from {src['trunk']}; expert heads from solo runs: "
               f"{src['experts_from_solo_runs'] or 'none'}; handoff at ante {args.moe_handoff}, "
               f"{args.moe_random:.0%} random handoffs in training, pins annealed to 0 over "
-              f"{args.moe_anneal_games:,} games, early head {'trained' if args.moe_train_early else 'frozen'}"
+              f"{args.moe_anneal_games:,} games and not before each expert's {args.moe_min_games:,}, early head {'trained' if args.moe_train_early else 'frozen'}"
               f"{', its returns cut at the handoff' if args.moe_cut else ''}", flush=True)
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
@@ -1357,7 +1359,14 @@ def main():
                     if hand:
                         m = torch.tensor(np.mean(hand, 0), dtype=torch.float32, device=model.base_rate.device)
                         model.base_rate.copy_(m if float(model.base_rate.sum()) == 0 else 0.95 * model.base_rate + 0.05 * m)
-                    model.pin_scale.fill_(max(0.0, 1.0 - (games_total + len(eps)) / max(args.moe_anneal_games, 1)))
+                    for e in eps:
+                        if e["moe"]["expert"]:
+                            model.expert_games[EXPERT_HANDS.index(e["moe"]["expert"])] += 1
+                    # Each expert's pin fades with the run's games, but not before the expert has had
+                    # its own minimum of games (--moe-min-games; chud: a minimum amount of training).
+                    run_frac = min(1.0, (games_total + len(eps)) / max(args.moe_anneal_games, 1))
+                    own = (model.expert_games / max(args.moe_min_games, 1)).clamp(max=1.0)
+                    model.pin_scale.copy_(1.0 - torch.minimum(own, torch.full_like(own, run_frac)))
             sil, sil_info = sil_data(it)
             add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
             if args.overlap and not stop_requested:
@@ -1415,7 +1424,9 @@ def main():
                       f"({sorted(early)[len(early) // 2]:.0f}); likely heat throttling")
             if st["entropy"] < 0.05:
                 alert(f"policy entropy {st['entropy']:.3f}: the policy has become nearly deterministic")
-            rec = {"iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
+            rec = {**({"moe_pin_scale": dict(zip(EXPERT_HANDS, [round(float(x), 3) for x in model.pin_scale])),
+                      "moe_expert_games": dict(zip(EXPERT_HANDS, [int(x) for x in model.expert_games]))} if args.moe else {}),
+                   "iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
                    "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved), "ms_model": round(ms_model, 2), "ms_sim": round(ms_sim, 2),

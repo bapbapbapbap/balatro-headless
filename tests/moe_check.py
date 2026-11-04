@@ -1,6 +1,6 @@
 """Pre-flight check for joint MoE training (train.py --moe; docs/hypotheses.md section I).
 
-Builds the MoE (shared trunk, 9 heads) the way train.py does, plays games through the trainer's
+Builds the MoE (shared trunk, one head per member) the way train.py does, plays games through the trainer's
 own play_games, and checks:
   1. each game's decisions are made by member 0 (early model) up to the handoff and by one expert
      after it, and a game routed at the handoff names that expert;

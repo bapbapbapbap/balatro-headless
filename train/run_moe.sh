@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The mixture of experts (docs/hypotheses.md section I, chud's design), trained jointly from the
-# start: one shared trunk and 9 heads (the early-game model, then one expert per hand). The early
+# start: one shared trunk and 8 heads (the early-game model, then one expert for each of 7 hands). The early
 # head plays antes 1-3; at ante 4 the expert for the hand the run leaned on takes over. Every game
 # trains the trunk; each head learns only from its own decisions. The early head's returns end at
 # the handoff, so it is judged on reaching ante 4.
@@ -10,7 +10,7 @@
 # runs/expert-<hand>/best.pt its expert head. Same stake and deck as the run (STAKE, BACK).
 # Router: the hand played most in antes 1-3 relative to the early head's own average; 30% of
 # training handoffs go to a random expert. Pins (Pair 0.5, others 1.0) fall to 0 over 100,000
-# games. Encoding 3. Evals on 600 seeds every 20 rounds. MOE_SEED=<n> grows another one
+# games, and not before each expert's own 5,000 (MOE_MIN_GAMES). Encoding 3. Evals on 600 seeds every 20 rounds. MOE_SEED=<n> grows another one
 # (runs/moe-s<n>); MOE_TRAIN_EARLY=0 leaves the early head as loaded; MOE_CUT=0 lets it learn
 # from the whole run.
 set -uo pipefail
@@ -40,11 +40,11 @@ PY
 )}"
 echo "trunk and early head from: ${EARLY:-$INIT}"
 EXPERTS=()
-for HAND in "Pair" "Two Pair" "Three of a Kind" "Straight" "Flush" "Full House" "Four of a Kind" "Straight Flush"; do
+for HAND in "Pair" "Two Pair" "Three of a Kind" "Straight" "Flush" "Full House" "Four of a Kind"; do
   F="$SHARED/runs/expert-$(echo "$HAND" | tr 'A-Z ' 'a-z-')$SUFFIX/best.pt"
   [ -f "$F" ] && EXPERTS+=("$HAND=$F")
 done
-echo "expert heads from solo runs: ${#EXPERTS[@]} of 8 (the rest from $(basename "$INIT"))"
+echo "expert heads from solo runs: ${#EXPERTS[@]} of 7 (the rest from $(basename "$INIT"))"
 CHK=(--init "$INIT"); [ -n "$EARLY" ] && CHK+=(--early "$EARLY"); [ ${#EXPERTS[@]} -gt 0 ] && CHK+=(--experts "${EXPERTS[@]}")
 echo "== pre-flight: MoE routing"
 python3 "$R/tests/moe_check.py" --src "$W/local/source" "${CHK[@]}" --enc "${ENC:-3}" \
@@ -53,5 +53,5 @@ python3 "$R/tests/moe_check.py" --src "$W/local/source" "${CHK[@]}" --enc "${ENC
 export RUN="moe${MOE_SEED:+-s$MOE_SEED}$SUFFIX" ACTIONS=ordered-capped LR="${LR:-1e-5}" ENC="${ENC:-3}" RUN_V2_UPDATED=1
 export MOE_ON=1 MOE_INIT="$INIT" MOE_EARLY="$EARLY" MOE_EXPERT_ARGS=""
 [ ${#EXPERTS[@]} -gt 0 ] && export MOE_EXPERT_ARGS="$(printf '%q ' --moe-experts "${EXPERTS[@]}")"
-export TRAIN_ARGS="--seed ${MOE_SEED:-0} --moe-train-early ${MOE_TRAIN_EARLY:-1} --moe-cut ${MOE_CUT:-1} --eval-games ${EVAL_GAMES:-600} --eval-every ${EVAL_EVERY:-20} --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
+export TRAIN_ARGS="--seed ${MOE_SEED:-0} --moe-train-early ${MOE_TRAIN_EARLY:-1} --moe-cut ${MOE_CUT:-1} --moe-min-games ${MOE_MIN_GAMES:-5000} --eval-games ${EVAL_GAMES:-600} --eval-every ${EVAL_EVERY:-20} --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
 exec bash "$R/train/run_v2.sh" "$SHARED" "$HOURS" "$WORKERS"
