@@ -101,7 +101,10 @@ class BalatroEnv:
 
     @property
     def won(self):
-        return bool(self.lua.globals().G.GAME.won)
+        # The game sets G.GAME.won at the end of the ante-8 boss round even when the boss wasn't
+        # beaten (end_round, state_events.lua); a loss then goes to GAME_OVER. See train/sim.py.
+        G = self.lua.globals().G
+        return bool(G.GAME.won) and G.STATE != G.STATES.GAME_OVER
 
     def legal_actions(self):
         raw = self.H.legal_actions()

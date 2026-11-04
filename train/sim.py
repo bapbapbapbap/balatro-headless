@@ -22,7 +22,12 @@ function H.progress()
   -- neither Small nor Big. Blind.boss is already cleared by the time the cash-out screen shows.
   local rb = G.GAME.round_resets.blind
   local boss = rb ~= nil and rb ~= G.P_BLINDS.bl_small and rb ~= G.P_BLINDS.bl_big
-  return H.state_name(), boss, G.GAME.won and true or false,
+  -- A win is the game's own: G.GAME.won AND not GAME_OVER. end_round (state_events.lua) sets
+  -- G.GAME.won = true at the end of the ante-8 boss round whether or not the boss was beaten; on a
+  -- loss the state goes to GAME_OVER and win_game() never runs. Reading G.GAME.won alone counted
+  -- final-boss losses as wins (found 2026-11-03).
+  local won = (G.GAME.won and G.STATE ~= G.STATES.GAME_OVER) and true or false
+  return H.state_name(), boss, won,
          G.GAME.round_resets.ante, H.is_terminal(), G.GAME.chips or 0, (b and b.chips) or 0
 end
 -- The i-th encoded action (1-based) as readable text, e.g. "play 1,3,5", "buy 2", "move_joker 1>3".

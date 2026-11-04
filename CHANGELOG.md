@@ -25,6 +25,12 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Checked (cloud, PowerShell 7.4.6, wsl and Start-Process stubbed)
 - Both scripts parse; `help` prints the new list; each new command builds the WSL command line it should (paths with spaces, `-Hands "Full House|Flush"`, `-Seeds "1 2 3"`, Windows `-Weights` paths). The watcher builds the right restart for v2b, `expert-full-house`, `expert-two-pair-stake8` (stake 8), `early-s3` and `moe`, and only watches a run it doesn't know. Found and fixed while checking: a helper named `H` is PowerShell's alias for Get-History.
 
+## [0.13.2] - 2026-11-03
+
+### Fixed
+- **Final-boss losses were counted as wins.** Balatro 1.0.1o sets `G.GAME.won = true` at the end of the ante-8 boss round whether or not the boss was beaten (`end_round`, `functions/state_events.lua`); on a loss the game goes to `GAME_OVER` and never calls `win_game()`. The harness read `G.GAME.won` alone, so every count of wins (training, retries, evals, `wins/`, F1, H1, R) included runs that ran out of hands on the final boss, and the `blinds` reward paid such a loss the same 24 blinds as a win. Found by chud's save-progress ledger: the game credited nothing to 1,114 of 1,549 published wins. A win is now the game's own test, `G.GAME.won` and not `GAME_OVER` (`train/sim.py`, `harness/env.py`, `analysis/replay_events.py`); a final-boss loss no longer counts as a blind beaten.
+- `tools/recount_wins.py`: replays every published route with the corrected check, keeps the real wins in `wins/routes.jsonl` and moves the rest to `wins/not_won.jsonl` with their final state, chips and target.
+
 ## [0.13.1] - 2026-11-03
 
 ### Added
