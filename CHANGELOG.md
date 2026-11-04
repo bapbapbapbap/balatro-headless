@@ -2,6 +2,14 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.0] - 2026-11-04
+
+### Added
+- **`naneinf/scan.py`: a seed scanner for naneinf openings** (chud: early Perkeo, or Baron and Mime fast). It uses the game's own code, so a hit is exactly what the game deals. Every seed gets the cheap line: skip ante 1's Small and Big Blinds, open every pack the tags give, take The Soul when offered, and record the legendary. `--shop` adds the first shop after the Small Blind (its jokers, packs and rerolls). Hits (a legendary, or Baron or Mime anywhere) go to a jsonl file. Before it scans on Ghost Deck it checks three community seeds where `probe.py` found Perkeo by skipping (`E4EI3UQK`, `5MG2J3UY`, `4BTVF4X1`) and refuses to scan unless all three give Perkeo. Seeds are random 8-character codes in the game's alphabet, drawn from `--rng-seed`.
+
+### Not checked here
+- Not run on the game (no game in the cloud). Checked on a fake game only: Double Tag + Charm Tag opens two packs, The Soul is taken and its legendary recorded. `--check` on the real game is the first real test.
+
 ## [0.15.1] - 2026-11-04
 
 ### Fixed

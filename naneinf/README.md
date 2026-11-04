@@ -72,6 +72,17 @@ Sources (both name the same eight seeds; neither gives a game version or origina
 Seeds belong to nobody, but the routes and write-ups are the community's work.
 Credit them when using these.
 
+## Scanning for new seeds
+
+`scan.py` looks for openings like these on fresh seeds, on the game's own code: skip ante 1's two
+blinds, open the tag packs, take The Soul, record the legendary (and Baron or Mime in any Buffoon
+pack). `--shop` also looks at the first shop. It checks the known Perkeo seeds above before scanning.
+
+```bash
+cd naneinf && BALATRO_SRC=~/balatro/local/source python3 scan.py --check
+cd naneinf && BALATRO_SRC=~/balatro/local/source python3 scan.py --n 200000 --workers 2 --out hits.jsonl
+```
+
 ## How these seeds fit the project
 
 They are known-good starting points for the endless-mode work, not training data from people.
