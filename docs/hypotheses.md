@@ -881,7 +881,8 @@ and 0 wins. Heat-throttling alerts from about 02:00.
   allowed, at rate 1.0 times the fade; discards and other moves stay allowed. It fades over the same
   100,000 games as the expert pins. Why the early game: a Full House contains Two Pair, so every
   Two Pair joker still fires on it, and at level 1 it scores 40 x 4 against 20 x 2; Two Pair
-  only overtakes it after about three Uranus. The reward (`blinds`) pays nothing past a blind's
+  only overtakes it after two Uranus (level 3: 60 x 4). *(Corrected 2026-11-04 ~13:50: this line
+  said "about three"; see the review below.)* The reward (`blinds`) pays nothing past a blind's
   target, so it doesn't separate the two while Two Pair clears the blind. This pin is an ought
   from chud, put into the early game, not into the reward.
 - **Router minimum**: Full House's expert is picked by rule only after 2 Full House plays in antes
@@ -922,3 +923,68 @@ the experts with the highest win rate.
   top-2 ranking means something (to be worked out, then recorded here).
 
 Status: **proposed**. The test design needs chud's confirmation; nothing scored.
+
+## Added 2026-11-04 ~13:50 CST: review of the early Full House pin (for a critical reader)
+
+The pin is chud's decision. Its settings (rate 1.0, "Full House or higher", the router's minimum of 2
+plays) are Claude's. This is the case for it and what it costs, written before any moe2 result.
+
+**1. "Is Two Pair over Full House actually a mistake?"** In the hands where it mattered, yes.
+- A Full House contains Two Pair (and Three of a Kind, and Pair), so every joker that fires on
+  "contains Two Pair" (Clever, Mad, Spare Trousers) fires on the Full House as well. Same jokers,
+  more base score, and one more scoring card.
+- Base scores at level 1, from the game's hand table: Full House 40 x 4 = 160, Two Pair 20 x 2 = 40.
+  Two Pair at level L is 20L x (L + 1): 120 at level 2, 240 at level 3. So Two Pair overtakes an
+  unleveled Full House only after two Uranus.
+- The evidence that the bot gets this wrong already accounts for levels. `docs/won_games_analysis.md`
+  (model 0.2's 709 wins, the weights this MoE starts from) counts decisions where Full House had the
+  highest chips x mult **at the hand levels of that moment**: 2,274. It played Full House 0 times and
+  split it into Two Pair 2,075 times. A leveled Two Pair doesn't explain those; in each of them Two
+  Pair was the lower hand by the game's own table.
+- The first MoE run agrees: across 443 eval handoffs the router never picked Full House by rule.
+  With Full House's base rate near zero, one Full House play in antes 1–3 would almost always have
+  won the vote, so the early head played essentially none.
+- Where Two Pair can be right: Square Joker (exactly 4 cards), effects of cards held in hand (a
+  fifth card kept back), and Two Pair leveled twice or more. The pin covers the early game only,
+  fades, and leaves discards open, so these cases still have a way out.
+
+**2. "Why not leave it to exploration or to RL?"** Both were tried. Hand-type exploration
+(`--explore-hands 0.05`, CHANGELOG 0.8.0) was added for exactly this and was on through 0.3 and the
+first MoE run; the habit stayed. RL alone can't fix it: the reward is blinds beaten, and score past a
+blind's target pays nothing. In antes 1–3 a Two Pair usually clears the blind, so both plays get the
+same return and the gradient between them is zero. The habit came in by cloning v1 (CHANGELOG 0.7.1)
+and nothing in the reward removes it.
+
+**3. "Why not change the reward instead?"** The reward is the variable under study. The main
+experiment (sections C and G) varies the ought and holds everything else fixed; a bonus for bigger
+hands would put a second ought into every run, unrecorded in the reward of record. The pin leaves the
+reward untouched, acts only on which plays are allowed, is logged per decision (`moe.early_pin`:
+offered, bound, plays, discards while on offer), and goes to 0.
+
+**4. "Why the early game?"** It's where the choice is cleanest and where it decides the most.
+Levels haven't diverged yet, so the Full House is the higher hand almost every time. And the early
+game feeds a loop: Two Pair played early sends the run to the Two Pair expert, which levels Two Pair,
+after which Two Pair over Full House becomes correct. The Full House expert can only be reached
+through early Full House plays. Pinning the experts alone (the first run's design) never reached it.
+
+**5. "Rate 1.0 is heavy-handed."** It is, at the start. It fades linearly to 0 over 100,000 games,
+the same schedule as the expert pins, and the stall stop waits for it. "Or higher" keeps it from
+forcing a Full House over a Four of a Kind, Straight Flush or the secret hands. Discards stay legal,
+so the bot can dodge the pin; `discard_offered` counts how often it does.
+
+**6. "The router minimum of 2 is arbitrary."** It's a judgment call. With a near-zero base rate, a
+single Full House play would outvote a run built on a dozen Pairs. One play is weak evidence that a
+deck suits Full House; two is the smallest step up. The routing counts in every eval show whether
+it's too strict (Full House starved) or too loose (Full House flooded).
+
+**7. What the pin costs (stated, not defended).**
+- **Path dependence.** After the fade, the weights still carry the pin's history. If moe2 plays Full
+  House with the pin at 0, that does not show the reward led there; it may be a habit the pin
+  installed and nothing removed, the mirror image of the Two Pair habit cloning installed. moe2 alone
+  can't separate the two.
+- **For the Hume aim**, the pin is an ought from chud entering through the action mask rather than
+  the reward. It's recorded and it ends; it isn't nothing.
+- **The control that would separate them:** the same code and settings with `MOE_EARLY_PIN=none`
+  (a run `moe2-nopin`). Not registered or run yet. Without it, results from moe2 are about the MoE
+  with an early Full House pin, not about the MoE.
+
