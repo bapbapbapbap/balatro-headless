@@ -20,3 +20,4 @@ __pycache__/
 
 # Training output (checkpoints, metrics)
 train/runs/
+tools/immolate/.immolate/
