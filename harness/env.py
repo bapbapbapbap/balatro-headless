@@ -36,7 +36,8 @@ def to_py(x):
 
 
 class BalatroEnv:
-    def __init__(self, src, mods=None, fast=True, unlock_all=True, mode="controls", save_mode=False):
+    def __init__(self, src, mods=None, fast=True, unlock_all=True, mode="controls", save_mode=False,
+                 count_progress=False):
         """save_mode: a real save. The profile starts as the game makes a new one (nothing unlocked
         beyond the defaults), unlocks and stickers accrue as the game awards them, and runs count
         for progress (see boot.lua start_run). Published routes were played all-unlocked and won't
@@ -47,7 +48,9 @@ class BalatroEnv:
             self.H.strip_visuals()
         if unlock_all and not save_mode:
             self.H.unlock_all()
-        self.H.save_mode = bool(save_mode)
+        # count_progress: runs count toward the profile, as in save mode, but the profile keeps
+        # everything unlocked (to read what the game credits to a published, all-unlocked route).
+        self.H.save_mode = bool(save_mode or count_progress)
         self.H.mode = mode   # "controls" (the game's own controls) or "subsets" (see env.lua)
         self.lua.execute(open(os.path.join(HERE, "env.lua")).read(), self.H)
         self._acts = None
@@ -73,6 +76,14 @@ class BalatroEnv:
 
     def joker_keys(self):
         return list(to_py(self.H.joker_keys()) or [])
+
+    def clear_progress(self):
+        self.H.clear_progress()
+
+    def progress_record(self):
+        r = to_py(self.H.progress_record()) or {}
+        return {"jokers": dict(r.get("jokers") or {}), "decks": dict(r.get("decks") or {}),
+                "challenges": list(r.get("challenges") or [])}
 
     def jokers_held(self):
         return list(to_py(self.H.jokers_held()) or [])

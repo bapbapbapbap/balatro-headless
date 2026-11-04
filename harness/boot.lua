@@ -211,6 +211,35 @@ function H.jokers_held()
   return out
 end
 
+-- The game's own progress record (the profile): which jokers and decks it has credited with a win
+-- at which stake, and which challenges it marks completed. clear_progress empties it, so the
+-- record after one replay is what the game credits to that run alone.
+function H.clear_progress()
+  local p = G.PROFILES[G.SETTINGS.profile]
+  p.joker_usage, p.deck_usage = {}, {}
+  p.challenge_progress = { completed = {}, unlocked = p.challenge_progress and p.challenge_progress.unlocked or {} }
+end
+
+local function best_stake(wins)
+  local m = 0
+  for s, n in pairs(wins or {}) do
+    s = tonumber(s)
+    if s and type(n) == "number" and n > 0 and s > m then m = s end
+  end
+  return m
+end
+
+function H.progress_record()
+  local p = G.PROFILES[G.SETTINGS.profile]
+  local out = { jokers = {}, decks = {}, challenges = {} }
+  for k, v in pairs(p.joker_usage or {}) do local m = best_stake(v.wins); if m > 0 then out.jokers[k] = m end end
+  for k, v in pairs(p.deck_usage or {}) do local m = best_stake(v.wins); if m > 0 then out.decks[k] = m end end
+  for id, done in pairs((p.challenge_progress or {}).completed or {}) do
+    if done then out.challenges[#out.challenges + 1] = id end
+  end
+  return out
+end
+
 function H.deck_keys()
   local out = {}
   for k, v in pairs(G.P_CENTERS) do
