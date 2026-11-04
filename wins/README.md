@@ -41,6 +41,10 @@ routes with the corrected check: 435 are wins and stay in `routes.jsonl`; the 1,
 They are the project's record of runs that got to the last fight, and its data on that fight.
 
 ## Independent check on the untouched game (2026-11-03)
+
+> **Correction (2026-11-03, later).** These checks confirmed that each route reproduces its run
+> exactly. They read the outcome from `G.GAME.won` alone, so they also passed the 1,114 routes that
+> lost to the Ante 8 boss; "the same win" below means the same run. See "Final-boss near misses".
 The 850 seeds published on 2026-11-02 (every seed after the first 121) were published as
 training-verified: each win had been replayed exactly in the training sim, which strips visuals.
 They were then all replayed again on the **untouched** game (`--full`, nothing stripped), move by

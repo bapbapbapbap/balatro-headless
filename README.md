@@ -47,13 +47,24 @@ sees; and a public record of every seed the bot has beaten, each with a route an
 All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
 Every claim links to its data or its pre-registration.
 
+> **Correction, 2026-11-03.** Until this date every win count here included runs that **lost** to
+> the Ante 8 boss. Balatro sets `G.GAME.won` at the end of the Ante 8 boss round whether or not the
+> boss was beaten, and the harness read that flag alone. Of 1,549 seeds published as beaten, **435
+> are wins**; 1,114 reached the Ante 8 boss and lost it, and stay posted as near misses. The
+> reward "blinds beaten" also paid that loss as a beaten blind. F1, H1 and R were scored on the
+> wrong count and are being re-scored, as registered, with only the win test corrected
+> ([correction](docs/hypotheses.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins)).
+> Found by chud's save-progress ledger, which reads the game's own record of each win.
+
 ### Seeds proven beatable
 The count is at the top; the list (`beaten_seeds.csv`) and the routes (`routes.jsonl`) are in
 [`wins/`](wins/README.md).
-- Every route was replayed exactly before it was listed.
-- All 1,549 were then replayed a second time on the **untouched** game (nothing stripped): every
-  one reproduced the same win, move for move. Anyone with the game can rerun that check with one
-  command: `train/verify_games.py --full`.
+- Every route was replayed exactly before it was listed, and all of them a second time on the
+  **untouched** game (nothing stripped): each reproduced the same run, move for move. Those checks
+  read the win from `G.GAME.won` alone, so they passed the final-boss losses too.
+- On 2026-11-03 every route was replayed again with the game's own win test
+  (`tools/recount_wins.py`): 435 wins stay in `routes.jsonl`, 1,114 final-boss losses moved to
+  `near_misses.jsonl`. Anyone with the game can rerun it: `train/verify_games.py --full`.
 
 ### Pre-registered tests
 Each prediction, window and test was committed to [`docs/hypotheses.md`](docs/hypotheses.md)
@@ -62,9 +73,9 @@ never edited; results are added as new dated sections.
 
 | Test | Prediction | Result |
 |---|---|---|
-| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Pass.** 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
-| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Pass.** 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
-| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Pass.** 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). A win is largely a property of the seed ([result](docs/hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
+| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Void as scored; re-scoring.** Counted final-boss losses as wins. As scored: 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
+| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Void as scored; re-scoring.** Counted final-boss losses as wins. As scored: 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
+| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Void as scored; re-scoring.** Counted final-boss losses as wins, among the seeds and in the games. As scored: 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). ([result](docs/hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
 
 H1 has no concurrent control (one machine), so 0.3's two changes and its extra training can't be
 told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b in
@@ -73,10 +84,11 @@ told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b 
 ### Models
 - **Released: model 1.0** ([`weights/`](weights/README.md), [model card](docs/models.md)), 1.6M
   parameters: the final weights of the 0.3 run (round 810, 90,720 games), the end of the training
-  line (0.1 → 0.2 → 0.3) that won all 1,549 seeds above.
-- **1.0's current performance: it wins 2.5% of seeds** (5 of 200 fixed evaluation seeds) and
-  beats 12.79 blinds per game on average (out of 24). The snapshot is chosen by blinds, not wins;
-  0.3-beta beat fewer blinds (12.035) but won 7.
+  line (0.1 → 0.2 → 0.3) that won the 435 seeds above.
+- **1.0's current performance: being re-measured.** 2.5% of seeds (5 of 200 fixed evaluation
+  seeds) and 12.79 blinds per game were counted with the old win test, so both include final-boss
+  losses (each such loss counted as a win and as 24 blinds instead of 23). Its reward never paid
+  more for beating the last boss than for losing to it.
 - **The 0.3 run has ended.** It stopped itself on 2026-11-03 when its training score had not
   improved for 3 hours, as its safety rules require. 0.3-beta (12.035) is its mid-run snapshot;
   the seeds the run beat are counted under 0.3.
@@ -84,8 +96,10 @@ told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b 
   is the bottleneck: about 35 ms per move against about 8 ms for the model.
 
 ### What the bot has learned
-From 709 of 0.2's wins, replayed move by move and tested against baselines
-([`docs/won_games_analysis.md`](docs/won_games_analysis.md)):
+From 709 of 0.2's saved "wins", replayed move by move and tested against baselines
+([`docs/won_games_analysis.md`](docs/won_games_analysis.md)). Most of those were final-boss losses
+(see the correction above), so this describes runs that reached the Ante 8 boss, not wins; it is
+to be rerun on real wins:
 - **Learned:** it picks planets for the hand it plays (91% of the time, against 25% by chance),
   and picks jokers that fit its Two Pair play.
 - **Not learned:** Full House (played 0 times in 2,274 chances), playing around three of the
