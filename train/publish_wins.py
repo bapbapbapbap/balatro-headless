@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from sim import Sim  # noqa: E402
 
-KEEP = ("seed", "back", "stake", "challenge", "jokers_held", "found_utc", "actions", "enc", "acts", "desc", "final", "n", "progress", "mode", "iteration",
+KEEP = ("win_check", "seed", "back", "stake", "challenge", "jokers_held", "found_utc", "actions", "enc", "acts", "desc", "final", "n", "progress", "mode", "iteration",
         "retry", "arm", "commit", "converted_from")
 
 
@@ -65,7 +65,10 @@ def main():
                 cands[k] = dict(r, source=os.path.join(os.path.basename(os.path.dirname(os.path.abspath(f))), os.path.basename(f)))
     sims, added, bad, trusted = {}, 0, 0, 0
     for k, r in sorted(cands.items()):
-        if r.get("verified") is True and not args.replay:      # training replayed it with the same check
+        # Trusted without a replay only if training checked it with the corrected win test
+        # (win_check 2, 2026-11-03). Older wins.jsonl lines include final-boss losses (G.GAME.won is
+        # set on those too), so they are replayed here and published only if the boss was beaten.
+        if r.get("verified") is True and r.get("win_check") == 2 and not args.replay:
             have[k] = {x: r[x] for x in KEEP if x in r} | {"source": r["source"], "game": args.game}
             added += 1
             trusted += 1
@@ -78,7 +81,7 @@ def main():
             bad += 1
             print(f"NOT PUBLISHED {r['seed']}: replay {'won' if prog['won'] else 'lost'} {problems[:1]}")
             continue
-        have[k] = {x: r[x] for x in KEEP if x in r} | {"source": r["source"], "game": args.game}
+        have[k] = {x: r[x] for x in KEEP if x in r} | {"source": r["source"], "game": args.game, "win_check": 2}
         added += 1
     with open(rpath, "w") as f:
         for k in sorted(have):

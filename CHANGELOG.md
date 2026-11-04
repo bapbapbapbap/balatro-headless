@@ -29,6 +29,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ### Fixed
 - **Final-boss losses were counted as wins.** Balatro 1.0.1o sets `G.GAME.won = true` at the end of the ante-8 boss round whether or not the boss was beaten (`end_round`, `functions/state_events.lua`); on a loss the game goes to `GAME_OVER` and never calls `win_game()`. The harness read `G.GAME.won` alone, so every count of wins (training, retries, evals, `wins/`, F1, H1, R) included runs that ran out of hands on the final boss, and the `blinds` reward paid such a loss the same 24 blinds as a win. Found by chud's save-progress ledger: the game credited nothing to 1,114 of 1,549 published wins. A win is now the game's own test, `G.GAME.won` and not `GAME_OVER` (`train/sim.py`, `harness/env.py`, `analysis/replay_events.py`); a final-boss loss no longer counts as a blind beaten.
+- `publish_wins.py` trusts a training win without replaying it only if it carries `win_check: 2` (written by training from this fix on). Older `wins.jsonl` lines are replayed with the corrected check, so a publish can't bring the removed losses back.
 - `tools/recount_wins.py`: replays every published route with the corrected check, keeps the real wins in `wins/routes.jsonl` and moves the rest to `wins/not_won.jsonl` with their final state, chips and target.
 
 ## [0.13.1] - 2026-11-03
