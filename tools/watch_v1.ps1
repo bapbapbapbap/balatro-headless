@@ -3,6 +3,8 @@
 # if it died unexpectedly. Run it in its own PowerShell window and leave it open:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\watch_v1.ps1 -Run v2b
 #   ... -Run v2      watch (and restart) v2 instead of v1 (or -Run v2b)
+#   ... -Run expert-full-house / early-s3 / moe   the strategy experts, early-game models and joint
+#       run (-Stake / -Back for a run at another stake or deck)
 # Options: -Interval 60       seconds between status lines
 #          -StaleMinutes 15   no health update for this long, and no training process = died
 #          -NoRestart         only watch, never restart
@@ -15,7 +17,9 @@
 param(
     [string]$Work = (Join-Path $env:USERPROFILE "balatro-work"),
     [string]$Distro = "Ubuntu-24.04",
-    [ValidateSet("v1", "v2", "v2b")][string]$Run = "v1",
+    [string]$Run = "v1",
+    [int]$Stake = 1,
+    [string]$Back = "b_red",
     [int]$Interval = 60,
     [int]$StaleMinutes = 15,
     [int]$Hours = 168,
@@ -34,7 +38,27 @@ $runDir = Join-Path $Work ("runs\" + $Run)   # not $run: PowerShell names ignore
 $healthPath = Join-Path $runDir "health.json"
 $metricsPath = Join-Path $runDir "metrics.jsonl"
 $wslWork = "/mnt/c/" + ($Work.Substring(3) -replace '\\', '/')
-$launch = "cd ~/balatro/balatro-headless && bash train/run_$Run.sh $wslWork $Hours $Workers"
+$hoursGiven = $PSBoundParameters.ContainsKey("Hours")
+function Hours-For([int]$d) { if ($hoursGiven) { return $Hours } else { return $d } }
+$Slugs = @{ "pair" = "Pair"; "two-pair" = "Two Pair"; "three-of-a-kind" = "Three of a Kind"; "straight" = "Straight";
+            "flush" = "Flush"; "full-house" = "Full House"; "four-of-a-kind" = "Four of a Kind"; "straight-flush" = "Straight Flush" }
+$base = $Run -replace '(-stake\d+)?(-b_\w+)?$', ''
+if ($Run -match '-stake(\d+)') { $Stake = [int]$Matches[1] }      # the run's folder name says its stake and deck
+if ($Run -match '-(b_\w+)$') { $Back = $Matches[1] }
+$env_ = "export STAKE=$Stake BACK=$Back;"
+if (@("v1", "v2", "v2b") -contains $Run) {
+    $launch = "cd ~/balatro/balatro-headless && bash train/run_$Run.sh $wslWork $Hours $Workers"
+} elseif ($base -match '^expert-(.+)$' -and $Slugs.ContainsKey($Matches[1])) {
+    $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_expert.sh $wslWork '$($Slugs[$Matches[1]])' $(Hours-For 12) $Workers"
+} elseif ($base -match '^early-s(\d+)$') {
+    $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_early.sh $wslWork $($Matches[1]) $(Hours-For 8) $Workers"
+} elseif ($base -eq "moe") {
+    $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_moe.sh $wslWork $(Hours-For 24) $Workers"
+} else {
+    Write-Host "don't know how to restart run '$Run'; watching only" -ForegroundColor Yellow
+    $NoRestart = $true
+    $launch = ""
+}
 $seenAlerts = @{}
 $restarts = 0
 

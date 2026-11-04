@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.13.2] - 2026-11-03
+
+### Added
+- **Controller commands for the MoE and the save** (`tools/balatro.ps1`, from Windows PowerShell, no WSL commands by hand): `checks`, `experts` (`-Hands`), `earlies` (`-Seeds`), `moe` (`-TrainEarly`), `save` (`-Weights`, `-Save`, `-Runs`), `checksave`, `progress`. Every one takes `-Stake` / `-Back` and `-Workers`. `-Hours` is per expert or early model, and each command has its own default (12, 8, 24) unless you give one. `status` and `stop` work for any `-Run` (e.g. `expert-full-house`, `early-s3`, `moe`). `train` still starts v1/v2/v2b only.
+- **The watcher restarts the new runs** (`watch -Run expert-full-house | early-s3 | moe`), at the stake and deck in the run's name.
+
+### Checked (cloud, PowerShell 7.4.6, wsl and Start-Process stubbed)
+- Both scripts parse; `help` prints the new list; each new command builds the WSL command line it should (paths with spaces, `-Hands "Full House|Flush"`, `-Seeds "1 2 3"`, Windows `-Weights` paths). The watcher builds the right restart for v2b, `expert-full-house`, `expert-two-pair-stake8` (stake 8), `early-s3` and `moe`, and only watches a run it doesn't know. Found and fixed while checking: a helper named `H` is PowerShell's alias for Get-History.
+
 ## [0.13.1] - 2026-11-03
 
 ### Added
