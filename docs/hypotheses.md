@@ -742,7 +742,7 @@ sampled.
 - **R8. ≥ +2 blinds per game: pass** (+4.75).
 
 Tally: R0 pass. Of R1–R8, 4 pass (R1, R3, R4, R8), 3 missed without being falsified (R2, R5, R6),
-1 missed (R7). Every miss went the same way: seeds matter more than Claude predicted.
+1 missed (R7). R2 and R7 both missed high: seeds differ more than Claude predicted.
 
 ### Reported alongside (post hoc, not registered)
 - **Self-selection bound.** From the control's own per-seed counts, seeds picked by 1.0's own wins
