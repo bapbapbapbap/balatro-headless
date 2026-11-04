@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.14.1] - 2026-11-03
+
+### Documented
+- **The MoE run started** (21:25 CST, commit `17c1602`, chud's machine): settings and the round-0 starting point (600 eval seeds: 5 wins, 9 near wins, 11.67 blinds per game) in `docs/hypotheses.md` and a "Running now" line in the README.
+
 ## [0.14.0] - 2026-11-03
 
 ### Changed: the mixture of experts, streamlined (requested by chud: "go fix what you can fix")
