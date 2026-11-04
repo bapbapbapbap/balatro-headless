@@ -51,12 +51,13 @@ def parse(buf, act_width=9):
 
 
 class Sim:
-    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False):
+    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False, count_progress=False):
         """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll), or
         "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags).
         enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards)."""
         lua_mode = "ordered" if mode == "ordered-capped" else mode
-        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, save_mode=save_mode)
+        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, save_mode=save_mode,
+                              count_progress=count_progress)
         self.H = self.env.H
         self.H.drag_cap = mode == "ordered-capped"
         self.H.enc = enc

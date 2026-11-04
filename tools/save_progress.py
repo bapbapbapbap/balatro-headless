@@ -8,9 +8,13 @@ for each thing a full save asks for (chud's 100%, docs/hypotheses.md roadmap):
 the FIRST seed that achieved it. First means earliest found: model 0.1's line (v1 and its A/B
 runs) by training round, then 0.2, then 0.3, then any later run by the time it was found.
 
-Which jokers a win held is not in older routes. Those routes are replayed once (in parallel) and
-the result is kept in wins/won_with.jsonl; a replay that doesn't reproduce the saved win is
-reported and left out. Challenge wins count for challenges only, not for deck or joker stakes.
+What a win earned is the game's own record, not ours. The bot's runs were never recorded by the
+game: every run is seeded, and the game keeps no progress for seeded runs, in a profile that was
+thrown away. So each route is replayed once (in parallel), with the profile emptied first and the
+seeded flag cleared, and the game's profile is read afterwards: which jokers and which deck it
+credited with a win at which stake, and which challenge it marked complete. The result is kept in
+wins/won_with.jsonl, with the jokers held at the win as a cross-check. A replay that doesn't
+reproduce the saved win is reported and left out.
 
 Writes wins/save_progress.json and the generated part of docs/proof.md (between the markers).
 
@@ -48,11 +52,14 @@ def _replay(job):
     from sim import Sim
     sim = _replay.sims.get((r.get("actions", "subsets"), r.get("enc", 1)))
     if sim is None:
-        sim = Sim(src, fast=not full, mode=r.get("actions", "subsets"), enc=r.get("enc", 1))
+        sim = Sim(src, fast=not full, mode=r.get("actions", "subsets"), enc=r.get("enc", 1), count_progress=True)
         _replay.sims[(r.get("actions", "subsets"), r.get("enc", 1))] = sim
+    sim.env.clear_progress()
     prog, n, final, problems = sim.replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"], r.get("challenge"))
     ok = not problems and n == r["n"] and final == r["final"] and prog["won"]
-    return key(r), (sim.env.jokers_held() if ok else None), (problems[:1] if problems else [])
+    if not ok:
+        return key(r), None, (problems[:1] if problems else ["final state or outcome differs"])
+    return key(r), {"record": sim.env.progress_record(), "jokers_held": sim.env.jokers_held()}, []
 
 
 _replay.sims = {}
@@ -88,21 +95,20 @@ def main():
         for line in open(cache_path):
             if line.strip():
                 c = json.loads(line)
-                held[(c["seed"], c["back"], c["stake"], c.get("challenge"))] = c["jokers_held"]
-    for k, r in routes.items():
-        if r.get("jokers_held") is not None:
-            held.setdefault(k, r["jokers_held"])
+                if "record" in c:
+                    held[(c["seed"], c["back"], c["stake"], c.get("challenge"))] = c
     todo = [r for k, r in routes.items() if k not in held]
     bad = []
     if todo:
-        print(f"replaying {len(todo)} wins to see which jokers they held ({a.jobs} processes)", flush=True)
+        print(f"replaying {len(todo)} wins to read what the game credits each one ({a.jobs} processes)", flush=True)
         with mp.Pool(a.jobs) as pool, open(cache_path, "a") as out:
-            for i, (k, jokers, problems) in enumerate(pool.imap_unordered(_replay, [(a.src, a.full, r) for r in todo], chunksize=4)):
-                if jokers is None:
+            for i, (k, got, problems) in enumerate(pool.imap_unordered(_replay, [(a.src, a.full, r) for r in todo], chunksize=4)):
+                if got is None:
                     bad.append((k, problems))
                     continue
-                held[k] = jokers
-                out.write(json.dumps({"seed": k[0], "back": k[1], "stake": k[2], "challenge": k[3], "jokers_held": jokers}) + "\n")
+                c = {"seed": k[0], "back": k[1], "stake": k[2], "challenge": k[3], **got}
+                held[k] = c
+                out.write(json.dumps(c) + "\n")
                 if (i + 1) % 100 == 0:
                     print(f"  {i + 1}/{len(todo)}", flush=True)
 
@@ -112,15 +118,21 @@ def main():
     names = {k: str(env.lua.globals().G.P_CENTERS[k].name) for k in decks + jokers}
 
     first = {"deck": {}, "joker": {}, "challenge": {}}         # item -> stake -> route
+    unrecorded, disagree = [], []
     for k, r in sorted(routes.items(), key=lambda kv: found_order(kv[1])):
         if k not in held:
             continue
-        if r.get("challenge"):
-            first["challenge"].setdefault(r["challenge"], {}).setdefault(1, r)
-            continue
-        first["deck"].setdefault(r["back"], {}).setdefault(r["stake"], r)
-        for j in held[k]:
-            first["joker"].setdefault(j, {}).setdefault(r["stake"], r)
+        rec = held[k]["record"]
+        for c in rec["challenges"]:
+            first["challenge"].setdefault(c, {}).setdefault(1, r)
+        for d, s in rec["decks"].items():
+            first["deck"].setdefault(d, {}).setdefault(int(s), r)
+        for j, s in rec["jokers"].items():
+            first["joker"].setdefault(j, {}).setdefault(int(s), r)
+        if not (rec["challenges"] or rec["decks"] or rec["jokers"]):
+            unrecorded.append(k)                  # a win the game credited with nothing
+        elif not r.get("challenge") and set(rec["jokers"]) != set(held[k]["jokers_held"]):
+            disagree.append(k)                    # credited jokers differ from those held at the win
 
     def best(item_map):
         return max(item_map) if item_map else 0
@@ -137,6 +149,7 @@ def main():
         "decks_gold": len(gold_decks), "decks": len(decks), "jokers_gold": len(gold_jokers), "jokers": len(jokers),
         "challenges_won": len(done_ch), "challenges": len(challenges),
         "wins_counted": len(held), "wins_not_reproduced": len(bad),
+        "wins_credited_nothing": len(unrecorded), "wins_where_credited_jokers_differ_from_held": len(disagree),
         "first": {kind: {item: {str(s): {"seed": r["seed"], "back": r["back"], "stake": r["stake"],
                                          "challenge": r.get("challenge"), "source": r.get("source"),
                                          "iteration": r.get("iteration")} for s, r in sorted(m.items())}
@@ -172,6 +185,11 @@ def main():
     open(proof, "w").write(head + "<!-- proof:start -->\n" + "\n".join(L) + "\n<!-- proof:end -->" + tail)
     for k, p in bad[:10]:
         print(f"  not reproduced: {k} {p}")
+    if unrecorded:
+        print(f"  the game credited nothing to {len(unrecorded)} wins (e.g. {unrecorded[0]}): check that the "
+              f"profile fields read in boot.lua progress_record match the pinned source")
+    if disagree:
+        print(f"  {len(disagree)} wins: the game credited different jokers than were held (e.g. {disagree[0]})")
     print(json.dumps({x: summary[x] for x in summary if x != "first"}))
 
 
