@@ -16,6 +16,11 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Not checked here
 - No torch or game in this environment. `tests/moe_check.py` on chud's machine is the first run of the new MoE.
 
+## [0.13.4] - 2026-11-03
+
+### Documented
+- **Correction everywhere the old win count appeared.** `docs/hypotheses.md`: a dated correction section (F1, H1 and R void as scored; re-scored as registered with only the win test changed; the MoE decision). README: a correction notice, the test table marked void as scored with the old figures beside it, 1.0's performance marked as being re-measured, the won-games analysis flagged. `docs/proof.md` now proves with `Y45RM46C` (model 0.1, round 351), the first published win by the game's own test, checked on the untouched game; `4XNRUA21` was a final-boss loss. `wins/README.md`, `weights/README.md`, `docs/models.md` corrected.
+
 ## [0.13.3] - 2026-11-03
 
 ### Fixed

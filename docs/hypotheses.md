@@ -753,3 +753,59 @@ Tally: R0 pass. Of R1–R8, 4 pass (R1, R3, R4, R8), 3 missed without being fals
   `resolve_1.0_wins.jsonl`; none are published or replayed on the untouched game yet.
 - **Ranking.** `ranked.csv` orders all 3,098 seeds by 1.0's wins; 16 published seeds were won
   10 of 10 and 2 control seeds were too.
+
+---
+
+## Added 2026-11-03 ~20:50 CST: correction: final-boss losses were counted as wins
+
+Nothing above is edited. This section says which results above stand, which are void as scored,
+and how they are re-scored.
+
+### What was wrong
+- **The game's flag.** Balatro 1.0.1o sets `G.GAME.won = true` at the end of the Ante 8 boss round
+  whether or not the boss was beaten (`end_round`, `functions/state_events.lua`). On a loss it
+  then goes to `GAME_OVER` and never calls `win_game()`, so nothing is recorded.
+- **The harness** read `G.GAME.won` alone. Every count of wins since the v1 run included runs that
+  ran out of hands on the Ante 8 boss.
+- **The reward** `blinds` paid that loss as a beaten blind, so the final fight carried no signal:
+  losing it scored 24 blinds, the same as winning it. Nothing else in the reward was affected.
+- **Found by** chud's save-progress ledger (~20:12 CST), which reads the game's own record of
+  each win: the game had credited nothing to 1,114 of the 1,549 published wins. Claude traced the
+  cause in the game source and confirmed it on `4XNRUA21` (the proof seed): `GAME_OVER`, 82,500
+  of 100,000 against Verdant Leaf, 0 hands left.
+
+### Fixed (CHANGELOG 0.13.2–0.13.3)
+- A win is the game's own test: `G.GAME.won` and not `GAME_OVER`. A final-boss loss is no longer a
+  beaten blind.
+- The 1,549 published routes were replayed with the corrected test (`tools/recount_wins.py`, run
+  by chud): **435 wins** (0.1: 24, 0.2: 179, 0.3: 232). The **1,114** losses stay posted as
+  final-boss near misses (`wins/near_misses.jsonl`, chud: "we keep them posted").
+- Near wins (reached the Ante 8 boss, lost it) are logged in every game, metric and eval from now
+  on, next to wins (chud: the win rate against the reach-the-boss rate).
+- The pre-flight's saved "win" (v1 round 250, `9MN9TD5T`) was itself a final-boss loss and was
+  replaced by a real v1 win.
+
+### Status of the results above
+- **F1, H1, R0–R8: void as scored.** Each counted final-boss losses as wins, in both arms.
+- **A1–A7, E1, G, I1:** not scored yet; when they are, it is with the corrected test.
+- **Eval figures** (1.0's 5 of 200, every eval's blinds per game) include the same error: a
+  final-boss loss counted as a win and as 24 blinds instead of 23.
+- **`docs/won_games_analysis.md`** described 0.2's saved "wins"; most were final-boss losses.
+
+### Re-scoring (registered before any re-scored number is read)
+F1, H1 and R are re-scored exactly as registered: same windows, same arms, same seeds, same tests,
+same thresholds. The only change is the win test. The error only ever added wins, so only the games
+each test counted as wins are replayed (from each run's saved `wins.jsonl` and the resolve run's
+`resolve_1.0_wins.jsonl`), each with the corrected test. Denominators (games played) don't change.
+Each re-scored result is added as a new dated section, with the old figure beside it.
+- For F1 and H1 a "new beaten seed" is re-derived from real wins only, including the sets of seeds
+  beaten earlier that F1 excluded.
+- Publishing kept one route per seed (the shortest claimed win), so a seed can have a real win in a
+  run's files behind a shorter final-boss loss. The re-scoring replays every saved claimed win, and
+  any real win found that way is published.
+
+### Decision recorded (chud, 20:41 CST)
+The mixture of experts (section I) is trained from model 0.2's weights, as built, under the
+corrected reward. Claude's case, which chud accepted: the error touched only the final fight, so
+0.2's play up to the Ante 8 boss was learned on a correct signal, and the early head (antes 1–3)
+never saw the error.
