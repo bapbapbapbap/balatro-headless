@@ -51,12 +51,12 @@ def parse(buf, act_width=9):
 
 
 class Sim:
-    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1):
+    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False):
         """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll), or
         "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags).
         enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards)."""
         lua_mode = "ordered" if mode == "ordered-capped" else mode
-        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode)
+        self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, save_mode=save_mode)
         self.H = self.env.H
         self.H.drag_cap = mode == "ordered-capped"
         self.H.enc = enc
@@ -66,8 +66,8 @@ class Sim:
         lua.execute(PROGRESS, self.H)
         self.vocab = self.H.vocab().split("\n")
 
-    def reset(self, seed, back, stake):
-        self.env.reset(seed, back, stake)
+    def reset(self, seed, back, stake, challenge=None):
+        self.env.reset(seed, back, stake, challenge)
         self.steps = 0
         self._prog = {"blinds_beaten": 0, "bosses_beaten": 0, "won": False, "ante": 1, "phi": 0.0}
         self._last_state = self.H.state_name()
@@ -110,11 +110,11 @@ class Sim:
         """Hash of everything the player sees at this point (the encoded observation and actions)."""
         return hashlib.sha1(self.H.encode().encode()).hexdigest()[:16]
 
-    def replay(self, seed, back, stake, acts, desc=None):
+    def replay(self, seed, back, stake, acts, desc=None, challenge=None):
         """Plays a saved game again, exactly as play_games does (observe before every action).
         Returns (progress, steps, final_hash, problems); problems is empty when every step was the
         same move as saved."""
-        o = self.reset(seed, back, stake)
+        o = self.reset(seed, back, stake, challenge)
         problems, done = [], False
         for k, a in enumerate(acts):
             if done:

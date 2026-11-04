@@ -169,11 +169,55 @@ function H.settle(max_steps)
   return -max_steps   -- negative: never settled
 end
 
-function H.start_run(back_name, stake, seed)
+-- challenge: a challenge id from G.CHALLENGES. Started the way the game's challenge menu does
+-- (G.FUNCS.start_challenge_run): stake 1, the challenge passed to start_run, which applies its
+-- deck, rules, starting jokers and bans.
+function H.start_run(back_name, stake, seed, challenge)
   G.GAME = G.GAME or G:init_game_object()
+  local ch = nil
+  if challenge then
+    for _, c in ipairs(G.CHALLENGES) do if c.id == challenge then ch = c end end
+    assert(ch, "no such challenge: " .. tostring(challenge))
+    back_name, stake = "b_challenge", 1
+  end
   G.GAME.viewed_back = G.P_CENTERS[back_name] and { name = G.P_CENTERS[back_name].name } or { name = back_name }
-  G:start_run({ stake = stake, seed = seed })
+  G:start_run({ stake = stake, seed = seed, challenge = ch })
+  if H.save_mode then
+    -- A save counts progress (unlocks, stickers, deck and challenge wins) only for unseeded runs.
+    -- The seed still drives every random draw; only the flag the game checks before recording
+    -- progress is cleared, so a run from a random seed counts as an ordinary run would.
+    G.GAME.seeded = false
+  end
   return H.settle()
+end
+
+function H.challenge_ids()
+  local out = {}
+  for _, c in ipairs(G.CHALLENGES or {}) do out[#out + 1] = c.id end
+  return out
+end
+
+function H.joker_keys()
+  local out = {}
+  for k, v in pairs(G.P_CENTERS) do if v.set == "Joker" then out[#out + 1] = k end end
+  table.sort(out)
+  return out
+end
+
+-- Keys of the jokers held right now, in slot order (what earns a joker its win sticker).
+function H.jokers_held()
+  local out = {}
+  for i, c in ipairs(G.jokers and G.jokers.cards or {}) do out[i] = c.config.center.key end
+  return out
+end
+
+function H.deck_keys()
+  local out = {}
+  for k, v in pairs(G.P_CENTERS) do
+    if v.set == "Back" and k ~= "b_challenge" then out[#out + 1] = k end
+  end
+  table.sort(out)
+  return out
 end
 
 function H.state_name()

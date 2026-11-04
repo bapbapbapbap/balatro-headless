@@ -10,9 +10,9 @@ N_KINDS = 16       # token kinds (encode.lua KIND), 0 = padding
 N_ACT_TYPES = 19   # action types (encode.lua ACTION, reroll_boss = 18 in v2), 0 = padding
 F = 32             # features per token
 ACT = 9            # v1 row: type, a, b, c1..c5, hand_type
-ACT_WIDTH = {1: 9, 2: 18}
+ACT_WIDTH = {1: 9, 2: 18, 3: 18}
 # Fields that are embedding ids or numbers (padded with 0); every other field is a token index (-1 = none).
-ZERO_FIELDS = {1: (0, 8), 2: (0, 8, 16, 17)}
+ZERO_FIELDS = {1: (0, 8), 2: (0, 8, 16, 17), 3: (0, 8, 16, 17)}
 
 
 class Net(nn.Module):
@@ -25,13 +25,13 @@ class Net(nn.Module):
         layer = nn.TransformerEncoderLayer(d, heads, 2 * d, dropout=0.0, batch_first=True, norm_first=True)
         self.encoder = nn.TransformerEncoder(layer, layers, enable_nested_tensor=False)
         self.norm = nn.LayerNorm(d)
-        self.type_emb = nn.Embedding(N_ACT_TYPES if enc == 2 else 18, d)   # v1 checkpoints have 18
+        self.type_emb = nn.Embedding(N_ACT_TYPES if enc >= 2 else 18, d)   # v1 checkpoints have 18
         self.proj_a = nn.Linear(d, d)
         self.proj_b = nn.Linear(d, d)
         self.proj_c = nn.Linear(d, d)
         self.policy = nn.Sequential(nn.Linear(2 * d, d), nn.ReLU(), nn.Linear(d, 1))
         self.value = nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, 1))
-        if enc == 2:
+        if enc >= 2:                           # v3 = v2's network; only the tokens differ
             self.proj_s = nn.Linear(d, d)      # scoring cards
             self.proj_l = nn.Linear(d, d)      # lead card / card Death copies
             self.proj_h = nn.Linear(d, d)      # the hand type's token (level, chips, mult, increments)
@@ -62,7 +62,7 @@ class Net(nn.Module):
         a = a + self.proj_c(cg.sum(2) / n)
         ht = act[..., 8]
         a = a + self.vocab_emb(ht) * (ht > 0).unsqueeze(-1)
-        if self.enc == 2:
+        if self.enc >= 2:
             ss = act[..., 9:14]
             sg = self._gather(h, ss.reshape(B, A * 5)).reshape(B, A, 5, self.d)
             ns = (ss >= 0).sum(-1, keepdim=True).clamp(min=1).float()
