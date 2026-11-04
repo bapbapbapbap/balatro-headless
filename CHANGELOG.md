@@ -16,6 +16,16 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Not checked here
 - No torch or game in this environment. `tests/moe_check.py` on chud's machine is the first run of the new MoE.
 
+## [0.13.5] - 2026-11-03
+
+### Fixed
+- **Encoding 3 crashed the sim** (`KeyError: 3` in `Sim.__init__`): `train/sim.py`'s action-width table stopped at encoding 2, so every encoding-3 run (the MoE, `save_progress`, start checks) failed at start. The sim now takes the width from `encode.lua` (`H.ACT_WIDTH`) and checks it against the table.
+
+### Checked (cloud, torch 2.15.0 CPU, unmodded 1.0.1o)
+- `tests/moe_check.py` from model 0.2, encoding 3: PASS (routing, pins after the handoff, exact replay).
+- `train.py --moe` from 0.2 with `run_moe.sh`'s settings, 2 workers: 3 rounds of play, PPO updates and evals, then a resume from `latest.pt` for a 4th; near wins reported in rounds and evals.
+- The run's other pre-flights: saved real win on the untouched game PASS, `ordered_semantics.py` ALL PASS, `diff_check.py --mode ordered --encode --enc 2` (5 runs) PASS.
+
 ## [0.13.4] - 2026-11-03
 
 ### Documented

@@ -12,7 +12,7 @@ sys.path.insert(0, HARNESS)
 from env import BalatroEnv  # noqa: E402
 
 F = 32
-ACT_WIDTH = {1: 9, 2: 18}     # action row width per encoding version (encode.lua)
+ACT_WIDTH = {1: 9, 2: 18, 3: 18}     # action row width per encoding version (encode.lua)
 
 PROGRESS = r"""
 local H = ...
@@ -69,10 +69,12 @@ class Sim:
         self.H = self.env.H
         self.H.drag_cap = mode == "ordered-capped"
         self.H.enc = enc
-        self.enc, self.mode, self.act_width = enc, mode, ACT_WIDTH[enc]
         lua = self.env.lua
         lua.execute(open(os.path.join(HARNESS, "encode.lua")).read(), self.H)
         lua.execute(PROGRESS, self.H)
+        # action row width from encode.lua itself (it sets H.ACT_WIDTH for the encoding loaded)
+        self.enc, self.mode, self.act_width = enc, mode, int(self.H.ACT_WIDTH)
+        assert self.act_width == ACT_WIDTH[enc], (enc, self.act_width)
         self.vocab = self.H.vocab().split("\n")
 
     def reset(self, seed, back, stake, challenge=None):
