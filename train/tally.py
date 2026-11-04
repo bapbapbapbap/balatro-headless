@@ -52,13 +52,28 @@ def count_lines(path):
     return sum(1 for line in open(path) if line.strip())
 
 
+def near_misses(path):
+    """Final-boss near misses (wins/near_misses.jsonl): runs that reached the ante-8 boss and lost it.
+    Returns (count, median share of the boss's target scored, how many scored 90% or more)."""
+    if not os.path.exists(path):
+        return 0, 0.0, 0
+    fr = []
+    for line in open(path):
+        if line.strip():
+            e = json.loads(line).get("recount", {}).get("end", {})
+            fr.append(e["chips"] / e["target"] if e.get("target") else 0.0)
+    fr.sort()
+    med = (fr[len(fr) // 2] if len(fr) % 2 else (fr[len(fr) // 2 - 1] + fr[len(fr) // 2]) / 2) if fr else 0.0
+    return len(fr), med, sum(f >= 0.9 for f in fr)
+
+
 def stake_text(top_stake):
     if not top_stake:
         return "none yet"
     return f"{top_stake} of 8 ({STAKE.get(top_stake, f'stake {top_stake}')})"
 
 
-def block(total, by_model, by_setup, top_stake, naneinf, wins_link, naneinf_link):
+def block(total, by_model, by_setup, top_stake, naneinf, wins_link, naneinf_link, near=(0, 0.0, 0), near_link=""):
     models = ", ".join(f"{by_model[m]:,} by model {m}" for m in sorted(by_model))
     setups = ", ".join(f"{n:,} on {d}, {s}" for (d, s), n in sorted(by_setup.items()))
     return (f"**Seeds proven beatable: {total:,}** ({models}; {setups}). Each one is a route in "
@@ -67,7 +82,11 @@ def block(total, by_model, by_setup, top_stake, naneinf, wins_link, naneinf_link
             f"**naneinf seeds proven: {naneinf:,}.** A seed counts once its route in "
             f"[`{naneinf_link}`]({naneinf_link}) replays move for move to a played hand with non-finite "
             "chips (see `naneinf/README.md`).\n\n"
-            f"**Highest stake beaten: {stake_text(top_stake)}.**\n")
+            f"**Highest stake beaten: {stake_text(top_stake)}.**\n"
+            + (f"\n**Final-boss near misses: {near[0]:,}.** Seeds where the bot reached the Ante 8 boss and "
+               f"lost it, kept with their routes in [`{near_link}`]({near_link}): median {near[1]:.0%} of the "
+               f"boss's target scored, {near[2]:,} at 90% or more. Until 2026-11-03 these were counted as wins "
+               "(see the CHANGELOG, 0.13.2).\n" if near[0] else ""))
 
 
 def put(path, text):
@@ -87,20 +106,25 @@ def main():
     args = ap.parse_args()
     total, by_model, by_setup, top_stake = count(os.path.join(args.wins, "routes.jsonl"))
     naneinf = count_lines(args.naneinf)
+    near = near_misses(os.path.join(args.wins, "near_misses.jsonl"))
     badges = {
         "badge.json": ("seeds proven beatable", f"{total:,}", "brightgreen"),
         "badge_naneinf.json": ("naneinf seeds proven", f"{naneinf:,}", "brightgreen" if naneinf else "lightgrey"),
         "badge_stake.json": ("highest stake beaten", stake_text(top_stake), "blue"),
+        "badge_near.json": ("final-boss near misses", f"{near[0]:,}", "orange"),
     }
     for name, (label, message, color) in badges.items():
         with open(os.path.join(args.wins, name), "w") as f:
             json.dump({"schemaVersion": 1, "label": label, "message": message, "color": color}, f)
             f.write("\n")
-    put(args.readme, block(total, by_model, by_setup, top_stake, naneinf, "wins/", "naneinf/proven.jsonl"))
+    put(args.readme, block(total, by_model, by_setup, top_stake, naneinf, "wins/", "naneinf/proven.jsonl",
+                               near, "wins/near_misses.jsonl"))
     put(os.path.join(args.wins, "README.md"),
-        block(total, by_model, by_setup, top_stake, naneinf, "routes.jsonl", "../naneinf/proven.jsonl"))
+        block(total, by_model, by_setup, top_stake, naneinf, "routes.jsonl", "../naneinf/proven.jsonl",
+              near, "near_misses.jsonl"))
     print(f"tally: {total:,} seeds proven beatable ({dict(sorted(by_model.items()))}); "
-          f"{naneinf:,} naneinf seeds proven; highest stake beaten {stake_text(top_stake)}")
+          f"{naneinf:,} naneinf seeds proven; highest stake beaten {stake_text(top_stake)}; "
+          f"{near[0]:,} final-boss near misses")
 
 
 if __name__ == "__main__":
