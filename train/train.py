@@ -1142,7 +1142,9 @@ def main():
             saved["games"] += len(recs)
         for r in recs:
             if r["progress"]["won"]:
-                line = json.dumps(r | {"commit": prov["commit"][:12]}) + "\n"
+                # win_check 2: won by the game's own test (G.GAME.won and not GAME_OVER, sim.py);
+                # wins saved before 2026-11-03 lack it and are replayed again before publishing.
+                line = json.dumps(r | {"commit": prov["commit"][:12], "win_check": 2}) + "\n"
                 with open(os.path.join(out, "wins.jsonl"), "a") as f:
                     f.write(line)
                 mirror_win(line)
