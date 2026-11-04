@@ -1,14 +1,15 @@
 """Pre-flight check for joint MoE training (train.py --moe; docs/hypotheses.md section I).
 
-Builds the MoE from the early-game model and the 8 experts, plays games through the trainer's own
-play_games, and checks:
+Builds the MoE (shared trunk, 9 heads) the way train.py does, plays games through the trainer's
+own play_games, and checks:
   1. each game's decisions are made by member 0 (early model) up to the handoff and by one expert
      after it, and a game routed at the handoff names that expert;
   2. after the handoff, every bound pin decision took an allowed move;
   3. each game replays move for move from its saved route on a fresh sim.
 
-usage: python3 tests/moe_check.py --src ~/balatro/local/source --early E.pt --experts "Pair=P.pt" ...
-                                  [--games 4] [--stake 1] [--back b_red]
+usage: python3 tests/moe_check.py --src ~/balatro/local/source --init weights/balatro-bot-0.2.pt
+                                  [--early E.pt] [--experts "Pair=P.pt" ...] [--enc 3] [--games 4]
+                                  [--stake 1] [--back b_red]
 Last line is PASS or FAIL.
 """
 import argparse
@@ -24,33 +25,26 @@ sys.path.insert(0, os.path.join(HERE, "..", "train"))
 from model import EXPERT_HANDS, MoE  # noqa: E402
 from rewards import REWARDS  # noqa: E402
 from sim import Sim  # noqa: E402
-from train import PLAY, HAND_COL, play_games  # noqa: E402
-
-
-def load(path):
-    ck = torch.load(path, map_location="cpu", weights_only=False)
-    return ck, (ck["model"] if "model" in ck else ck["state_dict"])
+from train import load_moe, play_games  # noqa: E402
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", required=True)
-    ap.add_argument("--early", required=True)
-    ap.add_argument("--experts", nargs="+", required=True)
+    ap.add_argument("--init", default=None)
+    ap.add_argument("--early", default=None)
+    ap.add_argument("--experts", nargs="*", default=[])
+    ap.add_argument("--enc", type=int, default=3)
     ap.add_argument("--games", type=int, default=4)
     ap.add_argument("--stake", type=int, default=1)
     ap.add_argument("--back", default="b_red")
     a = ap.parse_args()
 
-    ck, sd = load(a.early)
-    sim = Sim(a.src, fast=True, mode="ordered-capped", enc=2)
-    fresh = Sim(a.src, fast=True, mode="ordered-capped", enc=2)
-    assert list(ck["vocab"]) == sim.vocab, "early model's vocabulary differs from this game"
-    model = MoE(len(sim.vocab), d=192, layers=4, heads=6, enc=2)
-    model.members[0].load_state_dict(sd)
-    given = dict(x.rsplit("=", 1) for x in a.experts)
-    for i, h in enumerate(EXPERT_HANDS):
-        model.members[1 + i].load_state_dict(load(given[h])[1])
+    sim = Sim(a.src, fast=True, mode="ordered-capped", enc=a.enc)
+    fresh = Sim(a.src, fast=True, mode="ordered-capped", enc=a.enc)
+    model = MoE(len(sim.vocab), d=192, layers=4, heads=6, enc=a.enc)
+    load_moe(model, argparse.Namespace(moe_init=a.init, moe_early=a.early, moe_experts=a.experts, enc=a.enc),
+             sim.vocab, "cpu")
     model.base_rate.fill_(1.0)
     model.eval()
     args = argparse.Namespace(seed=0, pin_hand=None, pin_rate=1.0, moe=True, moe_handoff=4, moe_random=0.5,

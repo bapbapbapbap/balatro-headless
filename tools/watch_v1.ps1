@@ -52,8 +52,9 @@ if (@("v1", "v2", "v2b") -contains $Run) {
     $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_expert.sh $wslWork '$($Slugs[$Matches[1]])' $(Hours-For 12) $Workers"
 } elseif ($base -match '^early-s(\d+)$') {
     $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_early.sh $wslWork $($Matches[1]) $(Hours-For 8) $Workers"
-} elseif ($base -eq "moe") {
-    $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_moe.sh $wslWork $(Hours-For 24) $Workers"
+} elseif ($base -match '^moe(-s(\d+))?$') {
+    $ms = if ($Matches[2]) { "export MOE_SEED=$($Matches[2]);" } else { "" }
+    $launch = "cd ~/balatro/balatro-headless && $env_ $ms bash train/run_moe.sh $wslWork $(Hours-For 24) $Workers"
 } else {
     Write-Host "don't know how to restart run '$Run'; watching only" -ForegroundColor Yellow
     $NoRestart = $true

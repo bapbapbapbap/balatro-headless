@@ -692,3 +692,15 @@ is one MoE checkpoint that completes the save on every deck, stake and challenge
   challenge). One checkpoint across decks needs that as an input. The deck keys are already in
   the vocabulary, so weights can carry over; it would go in as a new encoding version, so the
   published routes, which are checked against encoding 2, keep verifying.
+
+### Architecture change (2026-11-03 ~18:32 CST; chud: "go fix what you can fix"; the changes are Claude's)
+The MoE as built at 17:54 (above) is replaced before any of it ran:
+- One shared trunk and 9 heads, in place of 9 separate networks. Each head learns only from its
+  own decisions; the trunk learns from all of them.
+- Trained jointly from the start, from model 0.2's weights; solo expert and early-game runs are
+  optional warm starts for the heads they cover.
+- The early head's returns end at the handoff, so inside the joint run it is judged only on
+  reaching ante 4 (chud, 17:43: "make it's win rate only to get to 4"). It trains by default.
+- Encoding 3 from the start; evals on 600 seeds; several seeds of the whole MoE.
+Unchanged: the router rule (chud, 17:54), the 30% random handoffs, the pins and their annealing,
+the natural-bias measure.

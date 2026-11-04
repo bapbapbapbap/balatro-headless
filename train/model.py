@@ -48,6 +48,15 @@ class Net(nn.Module):
         """kind, vocab (B,T) long; feat (B,T,F) float; tok_mask (B,T) bool (True = real token);
         act (B,A,9) long; act_mask (B,A) bool (True = legal action).
         Returns logits (B,A) (illegal = -inf) and value (B,)."""
+        a, pooled = self.features(kind, vocab, feat, tok_mask, act)
+        A = a.shape[1]
+        logits = self.policy(torch.cat([a, pooled.unsqueeze(1).expand(-1, A, -1)], -1)).squeeze(-1)
+        logits = logits.masked_fill(~act_mask, float("-inf"))
+        return logits, self.value(pooled).squeeze(-1)
+
+    def features(self, kind, vocab, feat, tok_mask, act):
+        """What the policy and value heads read: one vector per legal action (B,A,d) and one for the
+        state (B,d)."""
         x = self.feat(feat) + self.kind_emb(kind) + self.vocab_emb(vocab)
         h = self.norm(self.encoder(x, src_key_padding_mask=~tok_mask))
         m = tok_mask.unsqueeze(-1).float()
@@ -69,10 +78,7 @@ class Net(nn.Module):
             a = a + self.proj_s(sg.sum(2) / ns)
             a = a + self.proj_l(self._gather(h, act[..., 14])) + self.proj_h(self._gather(h, act[..., 15]))
             a = a + self.num(act[..., 16:18].float() / 10000.0)
-
-        logits = self.policy(torch.cat([a, pooled.unsqueeze(1).expand(-1, A, -1)], -1)).squeeze(-1)
-        logits = logits.masked_fill(~act_mask, float("-inf"))
-        return logits, self.value(pooled).squeeze(-1)
+        return a, pooled
 
 
 def param_count(model):
@@ -85,10 +91,11 @@ EXPERT_HANDS = ["Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Ful
                 "Four of a Kind", "Straight Flush"]
 
 
-class MoE(nn.Module):
-    """Member 0 is the early-game model; members 1..8 are the hand experts. Each decision is made
-    by exactly one member, named per observation (collate's 7th tensor, `member`). Each member is a
-    Net with its own weights; a member's parameters get gradient only from its own decisions.
+class MoE(Net):
+    """One shared trunk (Net's encoder and action features) and one head per member: member 0 is
+    the early-game model, member 1 + i the expert for EXPERT_HANDS[i]. A head is a policy and a
+    value network. Every decision trains the trunk; only the member that made it trains its head.
+    Each decision names its member (collate's 7th tensor, `member`).
 
     Buffers travel with the weights to the workers:
       base_rate (8,): average plays of each expert's hand in the early game (antes 1-3) by the
@@ -97,18 +104,32 @@ class MoE(nn.Module):
       pin_scale (1,): multiplier on every expert's pin rate (annealed from 1 to 0)."""
 
     def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
-        super().__init__()
-        self.members = nn.ModuleList([Net(n_vocab, d, layers, heads, enc) for _ in range(1 + len(EXPERT_HANDS))])
+        super().__init__(n_vocab, d, layers, heads, enc)
+        del self.policy, self.value
+        self.heads = nn.ModuleList([nn.ModuleDict({
+            "policy": nn.Sequential(nn.Linear(2 * d, d), nn.ReLU(), nn.Linear(d, 1)),
+            "value": nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, 1)),
+        }) for _ in range(1 + len(EXPERT_HANDS))])
         self.register_buffer("base_rate", torch.zeros(len(EXPERT_HANDS)))
         self.register_buffer("pin_scale", torch.ones(1))
 
     def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
+        a, pooled = self.features(kind, vocab, feat, tok_mask, act)
         B, A = act.shape[0], act.shape[1]
         logits = torch.full((B, A), float("-inf"), device=act.device)
         value = torch.zeros(B, device=act.device)
         for m in torch.unique(member).tolist():
             i = (member == m).nonzero(as_tuple=True)[0]
-            lg, v = self.members[m](kind[i], vocab[i], feat[i], tok_mask[i], act[i], act_mask[i])
-            logits = logits.index_put((i,), lg)
-            value = value.index_put((i,), v)
+            h = self.heads[m]
+            lg = h["policy"](torch.cat([a[i], pooled[i].unsqueeze(1).expand(-1, A, -1)], -1)).squeeze(-1)
+            logits = logits.index_put((i,), lg.masked_fill(~act_mask[i], float("-inf")))
+            value = value.index_put((i,), h["value"](pooled[i]).squeeze(-1))
         return logits, value
+
+    @staticmethod
+    def split_net_state(sd):
+        """A plain Net's state dict -> (trunk part, head part as {"policy.*", "value.*"})."""
+        trunk = {k: v for k, v in sd.items() if not k.startswith(("policy.", "value."))}
+        head = {k: v for k, v in sd.items() if k.startswith(("policy.", "value."))}
+        return trunk, head
+
