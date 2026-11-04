@@ -104,7 +104,7 @@ end
 function H.final()
   local hp = {}
   for k, v in pairs(G.GAME.hands) do hp[k] = { level = v.level, played = v.played } end
-  return { jokers = jokers(), hands = hp, money = G.GAME.dollars, won = G.GAME.won and true or false,
+  return { jokers = jokers(), hands = hp, money = G.GAME.dollars, won = (G.GAME.won and G.STATE ~= G.STATES.GAME_OVER) and true or false,
            ante = G.GAME.round_resets.ante, vouchers = (function() local o = {}; for k, v in pairs(G.GAME.used_vouchers or {}) do if v then o[#o + 1] = k end end; table.sort(o); return o end)() }
 end
 """
