@@ -4,7 +4,8 @@ Builds the MoE (shared trunk, one head per member) the way train.py does, plays 
 own play_games, and checks:
   1. each game's decisions are made by member 0 (early model) up to the handoff and by one expert
      after it, and a game routed at the handoff names that expert;
-  2. after the handoff, every bound pin decision took an allowed move;
+  2. every bound pin decision (the early model's pin before the handoff, the expert's after) took an
+     allowed move, and an eval game is routed by rule only to a hand played its minimum (--min-plays);
   3. each game replays move for move from its saved route on a fresh sim.
 
 usage: python3 tests/moe_check.py --src ~/balatro/local/source --init weights/balatro-bot-0.2.pt
@@ -25,7 +26,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "train"))
 from model import EXPERT_HANDS, MoE  # noqa: E402
 from rewards import REWARDS  # noqa: E402
 from sim import Sim  # noqa: E402
-from train import load_moe, play_games  # noqa: E402
+from train import load_moe, moe_min_plays, play_games  # noqa: E402
 
 
 def main():
@@ -38,6 +39,8 @@ def main():
     ap.add_argument("--games", type=int, default=4)
     ap.add_argument("--stake", type=int, default=1)
     ap.add_argument("--back", default="b_red")
+    ap.add_argument("--early-pin", default="Full House=1.0")
+    ap.add_argument("--min-plays", nargs="*", default=["Full House=2"])
     a = ap.parse_args()
 
     sim = Sim(a.src, fast=True, mode="ordered-capped", enc=a.enc)
@@ -48,7 +51,7 @@ def main():
     model.base_rate.fill_(1.0)
     model.eval()
     args = argparse.Namespace(seed=0, pin_hand=None, pin_rate=1.0, moe=True, moe_handoff=4, moe_random=0.5,
-                              moe_pin=["Pair=0.5"], moe_train_early=0, explore_hands=0.0, back=a.back,
+                              moe_pin=["Pair=0.5"], moe_early_pin=a.early_pin, moe_min_plays=a.min_plays, moe_train_early=0, explore_hands=0.0, back=a.back,
                               stake=a.stake, max_steps=1500, shaping=1.0, gamma=0.995, stop_ante=0,
                               backs=[], stakes=[], challenges=[], challenge_share=0.25)
     state = {k: v.clone() for k, v in model.state_dict().items()}
@@ -69,19 +72,22 @@ def main():
                     want = 1 + EXPERT_HANDS.index(m["expert"])
                     if any(members[:k]) or any(x != want for x in members[k:]):
                         fails.append(f"{e['seed']}: members don't switch once, at step {k}, to {m['expert']}")
-                    for s in e["steps"][k:]:
-                        o, act = s[0], s[1]
-                        if "allow" in o and not o["allow"][act]:
-                            fails.append(f"{e['seed']}: pinned decision took a disallowed move")
+                for s in e["steps"]:
+                    o, act = s[0], s[1]
+                    if "allow" in o and not o["allow"][act]:
+                        fails.append(f"{e['seed']}: pinned decision took a disallowed move")
             elif m["expert"]:
                 handoffs += 1
+                need = moe_min_plays(m["expert"], args)
+                if m["early_counts"][EXPERT_HANDS.index(m["expert"])] < need:
+                    fails.append(f"{e['seed']}: routed to {m['expert']} with fewer than {need} plays of it")
                 if m["routed"] != "rule":
                     fails.append(f"{e['seed']}: eval game routed '{m['routed']}', should be by rule")
             _, n2, f2, problems = fresh.replay(e["seed"], a.back, a.stake, e["acts"], e["desc"])
             if problems or n2 != e["n"] or f2 != e["final"]:
                 fails.append(f"{e['seed']}: route does not replay ({problems[:1] or 'final state differs'})")
             print(f"{mode} {e['seed']}: {e['n']} moves, ante {e['progress']['ante']}, expert {m['expert']} ({m['routed']}), "
-                  f"early plays {m['early_counts']}, pin {e['pin']}")
+                  f"early plays {m['early_counts']}, early pin {m['early_pin']}, pin {e['pin']}")
     if handoffs == 0:
         fails.append("no game reached the handoff: routing was not checked")
     for f in fails[:10]:

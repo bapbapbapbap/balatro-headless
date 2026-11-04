@@ -87,9 +87,10 @@ def param_count(model):
 
 # ---------------- mixture of experts (docs/hypotheses.md section I, chud's design) ----------------
 # The hand types that get an expert, in a fixed order: member 1 + i is the expert for EXPERT_HANDS[i].
-# No High Card and no secret hands (chud, 2026-11-03 17:19); no Straight Flush (chud, 21:11).
-EXPERT_HANDS = ["Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House",
-                "Four of a Kind"]
+# No High Card and no secret hands (chud, 2026-11-03 17:19); no Straight Flush (chud, 21:11); no Four
+# of a Kind (chud, 2026-11-04 13:20: a flex hand, not a strategy of its own). A MoE checkpoint saved
+# with a different list doesn't load into this one.
+EXPERT_HANDS = ["Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House"]
 
 
 class MoE(Net):
@@ -104,7 +105,9 @@ class MoE(Net):
         preference is a hand's plays in this run relative to that rate.
       pin_scale (experts,): multiplier on each expert's pin rate, annealed from 1 to 0 by the run's
         games, but never below the share of its minimum (--moe-min-games) the expert has yet to play.
-      expert_games (experts,): training games handed to each expert so far."""
+      expert_games (experts,): training games handed to each expert so far.
+      early_pin_scale (1,): multiplier on the early model's own pin (--moe-early-pin), annealed from 1
+        to 0 by the run's games."""
 
     def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
         super().__init__(n_vocab, d, layers, heads, enc)
@@ -116,6 +119,7 @@ class MoE(Net):
         self.register_buffer("base_rate", torch.zeros(len(EXPERT_HANDS)))
         self.register_buffer("pin_scale", torch.ones(len(EXPERT_HANDS)))
         self.register_buffer("expert_games", torch.zeros(len(EXPERT_HANDS)))
+        self.register_buffer("early_pin_scale", torch.ones(1))
 
     def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
         a, pooled = self.features(kind, vocab, feat, tok_mask, act)

@@ -2,6 +2,19 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.15.0] - 2026-11-04
+
+### Changed: MoE, second run (chud's calls; `docs/hypotheses.md`, 2026-11-04 section)
+- **No Four of a Kind expert**: `EXPERT_HANDS` is 6 hands, the MoE 7 heads. A MoE checkpoint from the first run (8 heads) doesn't load into this one.
+- **`--moe-early-pin "Hand=rate"`**: a pin on the early model (member 0). Where a play of that hand or a higher one is on offer, only those plays are allowed with that rate; it fades with the run's games (buffer `early_pin_scale`). Its stats are in each game's `moe.early_pin` and in the summaries' `moe.early_pin`. `run_moe.sh` default `MOE_EARLY_PIN="Full House=1.0"` (`none` turns it off).
+- **`--moe-min-plays "Hand=N"`**: the router picks a hand's expert by rule only after N plays of it in antes 1-3. `run_moe.sh` default `MOE_MIN_PLAYS="Full House=2"`.
+- **Stall stop waits for the pins**: in a MoE run the 3-hour clock starts once every expert pin and the early pin are 0.
+- `run_moe.sh`: `MOE_RUN` names the run folder (default `moe`).
+- `tests/moe_check.py` checks bound pins before the handoff too (the early pin), and that no eval game is routed to a hand below its minimum plays.
+
+### Not checked here
+- No game or torch in this environment: the MoE pre-flight in `run_moe.sh` on chud's machine is the first run of this code.
+
 ## [0.14.1] - 2026-11-03
 
 ### Documented

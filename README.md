@@ -106,10 +106,12 @@ to be rerun on real wins:
   bosses, and spending money past the interest cap.
 
 ### Running now
-**The mixture of experts** (`hypotheses.md` section I, chud's design), started 2026-11-03 21:25 CST:
-an early-game head for antes 1–3, then one of 7 hand experts, all from model 0.2, trained jointly on
-the corrected reward. Starting point at round 0: 5 wins and 14 runs reaching the final boss in 600
-evaluation seeds ([details](docs/hypotheses.md#added-2026-11-03-2135-cst-the-moe-run-started-section-i)).
+**The mixture of experts, second run** (`hypotheses.md` section I, chud's design): an early-game
+head for antes 1–3, then one of 6 hand experts, all from model 0.2. The first run (2026-11-03)
+stopped on the stall rule before its pins had faded (best eval 12.73 blinds per game, 11 wins in
+600 seeds); the second drops Four of a Kind, pins Full House in the early game, and waits for the
+pins to fade before the stall rule applies
+([details](docs/hypotheses.md#added-2026-11-04-1340-cst-the-first-moe-run-stopped-changes-for-the-second-section-i)).
 
 ### Open
 - **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
