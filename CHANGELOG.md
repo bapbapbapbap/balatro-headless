@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.15.1] - 2026-11-04
+
+### Fixed
+- **The watcher relaunched training every minute while the relaunch was still in its pre-flight** (`tools/watch_v1.ps1`). It counted only `train.py` as training, and the launchers' pre-flight checks run for minutes before `train.py` starts, so each minute it saw a stale `health.json` with no trainer and launched another copy (4 in 4 minutes on moe2, 2026-11-04). Now a launcher (`train/run_*.sh`) or a pre-flight check (`moe_check.py`, `pin_check.py`, `diff_check.py`) counts as running, and after a restart no other restart happens for 30 minutes unless training has written `health.json` since. Checked under PowerShell 7.4.6 with `wsl` and `Start-Process` stubbed: one restart, then it waits.
+
 ## [0.15.0] - 2026-11-04
 
 ### Changed: MoE, second run (chud's calls; `docs/hypotheses.md`, 2026-11-04 section)

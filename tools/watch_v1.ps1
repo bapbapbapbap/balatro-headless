@@ -64,14 +64,20 @@ $seenAlerts = @{}
 $restarts = 0
 
 function Training-Running {
-    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run" *> $null
+    # train.py for this run, or any launcher still in its pre-flight checks (they can take minutes
+    # before train.py starts; a launcher of another run also counts, which errs toward not restarting)
+    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run|train/run_(v1|v2|v2b|moe|expert|early)s?\.sh|tests/(moe|pin)_check\.py|diff_check\.py" *> $null
     return ($LASTEXITCODE -eq 0)
 }
+
+$GraceMinutes = 30          # after a restart, no other restart until training has written health.json or this long has passed
+$lastLaunch = $null
 
 function Start-Training($why) {
     $script:restarts++
     Write-Host ("{0}  RESTARTING training ({1}); restart #{2}" -f (Get-Date -Format "HH:mm:ss"), $why, $script:restarts) -ForegroundColor Yellow
     Start-Process -FilePath "wsl.exe" -ArgumentList @("-d", $Distro, "--", "bash", "-c", "`"$launch`"") -WindowStyle Minimized
+    $script:lastLaunch = Get-Date
 }
 
 function Train-Average {
@@ -117,6 +123,10 @@ try {
                         $died = $true; $why = "no update for $([int]$age) min and no training process"
                     } elseif ($h.status -match "^stopped: (crashed|workers failed|workers could not restart)" -and -not (Training-Running)) {
                         $died = $true; $why = $h.status.Substring(0, [Math]::Min(80, $h.status.Length))
+                    }
+                    if ($died -and $lastLaunch -and $updated -lt $lastLaunch -and ($now - $lastLaunch).TotalMinutes -lt $GraceMinutes) {
+                        $died = $false      # the last restart is still starting up (pre-flight); give it time
+                        Write-Host ("   restarted {0:N0} min ago; waiting for it to start training (up to {1} min)" -f ($now - $lastLaunch).TotalMinutes, $GraceMinutes) -ForegroundColor DarkYellow
                     }
                     if ($died) {
                         if ($restarts -ge 5) {
