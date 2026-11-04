@@ -22,7 +22,8 @@
 #             at White and Gold Stake and on every challenge
 #   experts   train the hand experts one after another (-Hands "Full House|Flush" for some; -Hours each)
 #   earlies   grow early-game models (-Seeds "1 2 3"; -Hours each)
-#   moe       joint training from the best early model and the 8 experts (-TrainEarly to train it too)
+#   moe       the mixture of experts, trained jointly from model 0.2 (uses any solo early/expert runs
+#             that exist); -Seeds "2" grows another one (runs\moe-s2)
 #   save      play one save from a new profile with -Weights, writing every run to -Save (-Runs N)
 #   checksave replay -Save in order on a new profile; says SAVE 100% PROVEN only at 100%
 #   progress  the save-progress tables in docs\proof.md from the published wins; commit and push
@@ -30,7 +31,7 @@
 #
 # Options: -Work C:\Users\<you>\balatro-work   -Run v2b   -Distro Ubuntu-24.04
 #          -Workers 14   -Hours 168   -Stake 1   -Back b_red
-#          -Hands "..."   -Seeds "..."   -TrainEarly   -Weights <file>   -Save <file>   -Runs 100
+#          -Hands "..."   -Seeds "..."   -Weights <file>   -Save <file>   -Runs 100
 #
 # Nothing here touches the game's files except "lock" (read-only flag on Steam's manifest, a
 # shortcut and a backup; see lock_balatro.ps1). Training, the game source and every result live
@@ -47,7 +48,6 @@ param(
     [string]$Back = "b_red",
     [string]$Hands = "",
     [string]$Seeds = "",
-    [switch]$TrainEarly,
     [string]$Weights = "",
     [string]$Save = "",
     [int]$Runs = 100
@@ -166,8 +166,8 @@ function Cmd-Earlies {
 
 function Cmd-Moe {
     $w = Wsl-Path $Work
-    $t = if ($TrainEarly) { "MOE_TRAIN_EARLY=1 " } else { "" }
-    Start-Window "joint training (moe)" "${t}bash train/run_moe.sh '$w' $(Hours-Or 24) $Workers"
+    $t = if ($Seeds) { "MOE_SEED=$Seeds " } else { "" }
+    Start-Window "the mixture of experts" "${t}bash train/run_moe.sh '$w' $(Hours-Or 24) $Workers"
 }
 
 function Save-Path {

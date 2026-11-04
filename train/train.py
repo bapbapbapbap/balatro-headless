@@ -256,6 +256,38 @@ def load_weights_into(net, sd, ck_vocab, vocab):
     net.load_state_dict(sd)
 
 
+def load_moe(model, args, vocab, device):
+    """Fills a MoE: the trunk and the early head (member 0) from --moe-early if given, else from
+    --moe-init; each expert head from its --moe-experts file if given, else from --moe-init's head
+    (or the early file's, without --moe-init). Any plain Net file works: a training checkpoint or
+    released weights, encoding 2 or 3 (the vocabulary may grow)."""
+    def read(path):
+        ck = torch.load(path, map_location=device, weights_only=False)
+        have = ck.get("arch", {}).get("enc", 1)
+        assert enc_compatible(have, args.enc), f"{path}: enc={have}, this run has enc={args.enc}"
+        ckv = list(ck["vocab"])
+        assert list(vocab[:len(ckv)]) == ckv, f"{path}: vocabulary differs from this game's (not a prefix)"
+        return MoE.split_net_state(ck["model"] if "model" in ck else ck["state_dict"])
+    base = args.moe_early or args.moe_init
+    assert base, "--moe needs --moe-init (e.g. weights/balatro-bot-0.2.pt) or --moe-early"
+    trunk, head0 = read(base)
+    cur = model.state_dict()
+    for k, v in trunk.items():
+        if k.endswith("vocab_emb.weight") and v.shape[0] < cur[k].shape[0]:
+            w = cur[k].clone()
+            w[:v.shape[0]] = v
+            v = w
+        cur[k] = v
+    model.load_state_dict(cur)
+    model.heads[0].load_state_dict(head0)
+    init_head = read(args.moe_init)[1] if args.moe_init else head0
+    given = dict(x.rsplit("=", 1) for x in args.moe_experts)
+    for i, h in enumerate(EXPERT_HANDS):
+        model.heads[1 + i].load_state_dict(read(given[h])[1] if h in given else init_head)
+    return {"trunk": os.path.basename(os.path.dirname(base)) + "/" + os.path.basename(base),
+            "experts_from_solo_runs": sorted(h for h in EXPERT_HANDS if h in given)}
+
+
 def enc_compatible(have, want):
     """A network trained on encoding 2 can continue on encoding 3 (same network, more tokens)."""
     return have == want or (have, want) == (2, 3)
@@ -396,7 +428,13 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
     for ep in episodes:
         r = [s[4] for s in ep["steps"]]
         v = [s[3] for s in ep["steps"]]
-        a = gae(r, v, args.gamma, args.lam)
+        k = (ep.get("moe") or {}).get("handoff_step") if getattr(args, "moe_cut", 0) else None
+        if k:
+            # The early head's run ends at the handoff: its returns count only up to ante 4 (chud's
+            # spec), and the expert's start there.
+            a = np.concatenate([gae(r[:k], v[:k], args.gamma, args.lam), gae(r[k:], v[k:], args.gamma, args.lam)])
+        else:
+            a = gae(r, v, args.gamma, args.lam)
         for s, ai, vi in zip(ep["steps"], a, v):
             if getattr(args, "moe", False) and not args.moe_train_early and s[0].get("member") == 0:
                 continue          # the early-game model is frozen in joint training (--moe-train-early 0)
@@ -725,13 +763,14 @@ def main():
     ap.add_argument("--stop-ante", type=int, default=0,
                     help="early-game model: a game ends once this ante is reached (the boss before it beaten), "
                          "counted as 'reached', not as a win; 0 = off")
-    ap.add_argument("--best-by", choices=["blinds", "reached"], default="blinds",
+    ap.add_argument("--best-by", choices=["blinds", "reached", "wins"], default="blinds",
                     help="what picks best.pt from the evals: blinds per game, or share of games reaching --stop-ante")
     ap.add_argument("--moe", action="store_true",
                     help="joint training of the early-game model and the 8 hand experts (model.MoE; see play_games)")
-    ap.add_argument("--moe-early", help="MoE: checkpoint or weights file for the early-game model (member 0)")
+    ap.add_argument("--moe-init", help="MoE: plain Net file the trunk and every head start from (e.g. weights/balatro-bot-0.2.pt)")
+    ap.add_argument("--moe-early", help="MoE: a solo early-game run's file; trunk and early head start from it instead")
     ap.add_argument("--moe-experts", nargs="*", default=[],
-                    help="MoE: 'Hand=FILE' for each of the 8 experts (checkpoint or weights file)")
+                    help="MoE: 'Hand=FILE' for experts trained solo first (optional; others start from --moe-init)")
     ap.add_argument("--moe-handoff", type=int, default=4, help="MoE: the ante at which the expert takes over")
     ap.add_argument("--moe-random", type=float, default=0.3,
                     help="MoE: share of training-game handoffs sent to an expert picked at random (load balancing)")
@@ -739,8 +778,12 @@ def main():
                     help="MoE: experts' pin rates before annealing, 'Hand=rate' (others 1.0)")
     ap.add_argument("--moe-anneal-games", type=int, default=100000,
                     help="MoE: pins fall linearly to 0 over this many training games of the joint run")
-    ap.add_argument("--moe-train-early", type=int, default=0,
-                    help="MoE: 1 = the early-game model also trains on the whole run's return; 0 = frozen")
+    ap.add_argument("--moe-train-early", type=int, default=1,
+                    help="MoE: 1 = the early head trains (on returns up to the handoff with --moe-cut); 0 = its "
+                         "head is left as loaded (the shared trunk still trains)")
+    ap.add_argument("--moe-cut", type=int, default=1,
+                    help="MoE: 1 = the early head's returns end at the handoff (it is judged on reaching ante 4); "
+                         "0 = it learns from the whole run's return")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)
@@ -865,22 +908,12 @@ def main():
         print(f"starting from weights {os.path.basename(args.init_weights)} (model {w.get('model_version')}), "
               f"fresh optimizer, round 0", flush=True)
     elif args.moe:
-        def load_member(net, path):
-            ck = torch.load(path, map_location=device, weights_only=False)
-            have = ck.get("arch", {}).get("enc", 1)
-            assert enc_compatible(have, args.enc), f"{path}: enc={have}, this run has enc={args.enc}"
-            load_weights_into(net, ck["model"] if "model" in ck else ck["state_dict"], ck["vocab"], vocab)
-        assert args.moe_early, "--moe needs --moe-early"
-        load_member(model.members[0], args.moe_early)
-        given = dict(x.rsplit("=", 1) for x in args.moe_experts)
-        missing = [h for h in EXPERT_HANDS if h not in given]
-        assert not missing, f"--moe-experts is missing {missing}"
-        for i, h in enumerate(EXPERT_HANDS):
-            load_member(model.members[1 + i], given[h])
-        print(f"MoE: early-game model {os.path.basename(os.path.dirname(args.moe_early))}, 8 experts loaded; "
-              f"handoff at ante {args.moe_handoff}, {args.moe_random:.0%} random handoffs in training, pins "
-              f"annealed to 0 over {args.moe_anneal_games:,} games, early model "
-              f"{'trained' if args.moe_train_early else 'frozen'}", flush=True)
+        src = load_moe(model, args, vocab, device)
+        print(f"MoE (shared trunk, 9 heads): trunk from {src['trunk']}; expert heads from solo runs: "
+              f"{src['experts_from_solo_runs'] or 'none'}; handoff at ante {args.moe_handoff}, "
+              f"{args.moe_random:.0%} random handoffs in training, pins annealed to 0 over "
+              f"{args.moe_anneal_games:,} games, early head {'trained' if args.moe_train_early else 'frozen'}"
+              f"{', its returns cut at the handoff' if args.moe_cut else ''}", flush=True)
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
     print(f"model {param_count(model):,} params on {device}; {args.workers} workers; reward '{args.reward}' "
@@ -1265,7 +1298,9 @@ def main():
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
                 save(it, f"ckpt_{it:05d}")
-                score = ev["reached"] / max(ev["games"], 1) if args.best_by == "reached" else ev["blinds_mean"]
+                score = (ev["reached"] / max(ev["games"], 1) if args.best_by == "reached" else
+                         ev["wins"] / max(ev["games"], 1) + ev["blinds_mean"] / 1e4 if args.best_by == "wins" else
+                         ev["blinds_mean"])
                 if score > best_eval:
                     best_eval = score
                     save(it, "best")

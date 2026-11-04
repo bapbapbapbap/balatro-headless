@@ -8,7 +8,7 @@
 # from when the run has no latest.pt yet, e.g. runs/v2/latest.pt for v2b; see run_v2b.sh), INIT_WEIGHTS
 # (a released weights file to start from instead, fresh optimizer; see run_expert.sh), PIN_HAND and
 # PIN_RATE (strategy-expert hand pin; see run_expert.sh), FROM_SCRATCH=1 (random weights, no cloning;
-# see run_early.sh), MOE_EARLY and MOE_EXPERT_ARGS (joint training; see run_moe.sh), STAKE (1-8, default 1 = White) and BACK (deck, default b_red).
+# see run_early.sh), MOE_ON, MOE_INIT, MOE_EARLY and MOE_EXPERT_ARGS (joint training; see run_moe.sh), STAKE (1-8, default 1 = White) and BACK (deck, default b_red).
 set -uo pipefail
 SHARED="${1:?usage: run_v2.sh <shared folder> [hours] [workers]}"
 RUN="${RUN:-v2}"
@@ -41,7 +41,7 @@ if [ -f "$OUT/latest.pt" ]; then
   RESUME=(--resume "$OUT/latest.pt"); echo "resuming from $OUT/latest.pt"
 elif [ -n "${RESUME_FROM:-}" ]; then
   RESUME=(--resume "$RESUME_FROM"); echo "starting $RUN from $RESUME_FROM"
-elif [ -n "${MOE_EARLY:-}" ]; then
+elif [ -n "${MOE_ON:-}" ]; then
   echo "starting $RUN as a mixture of experts (members loaded by train.py)"
 elif [ -n "${FROM_SCRATCH:-}" ]; then
   echo "starting $RUN from scratch (random weights, no behavior cloning)"
@@ -61,7 +61,12 @@ else
 fi
 
 MOE=()
-if [ -n "${MOE_EARLY:-}" ]; then MOE=(--moe --moe-early "$MOE_EARLY"); eval "MOE+=(${MOE_EXPERT_ARGS:-})"; fi
+if [ -n "${MOE_ON:-}" ]; then
+  MOE=(--moe)
+  [ -n "${MOE_INIT:-}" ] && MOE+=(--moe-init "$MOE_INIT")
+  [ -n "${MOE_EARLY:-}" ] && MOE+=(--moe-early "$MOE_EARLY")
+  eval "MOE+=(${MOE_EXPERT_ARGS:-})"
+fi
 MIX=()
 [ -n "${BACKS:-}" ] && MIX+=(--backs $BACKS)
 [ -n "${STAKES:-}" ] && MIX+=(--stakes $STAKES)

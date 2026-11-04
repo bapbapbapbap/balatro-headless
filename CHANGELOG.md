@@ -2,6 +2,20 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.14.0] - 2026-11-03
+
+### Changed: the mixture of experts, streamlined (requested by chud: "go fix what you can fix")
+- **One shared trunk, 9 heads** (`model.MoE`). Before, 9 separate full networks each relearned the whole game, and in joint training each saw about an eighth of the games. Now every game trains the trunk (the encoder and the move features), and each head (a policy and a value network: the early-game model, then one per hand) learns only from its own decisions. The experts share what they see, not what they choose; the pins act on the choosing.
+- **Joint from the start.** `run_moe.sh` starts the trunk and every head from model 0.2, so no solo stage is needed. Solo early-game or expert runs, if they exist, are used for the heads they cover (`load_moe`). `experts` and `earlies` stay, but they're optional.
+- **The early head is judged on reaching ante 4 inside the joint run** (`--moe-cut 1`, default): its returns end at the handoff, and the expert's start there. It now trains by default (`--moe-train-early 1`).
+- **Encoding 3** for every new run (MoE, experts, early-game models), so nothing has to migrate when other decks come in. Encoding-2 weights (0.2, 1.0) load into it.
+- **Evals on 600 seeds every 20 rounds** for the MoE (`EVAL_GAMES`, `EVAL_EVERY`). `--best-by wins` added (win rate, ties broken by blinds); the MoE still picks `best.pt` by blinds.
+- **Several MoEs** (chud's "grow a handful"): `MOE_SEED=<n>` / `b moe -Seeds 2` makes `runs/moe-s<n>`. The watcher restarts them.
+- `tests/moe_check.py` builds the MoE the same way (`--init`, optional `--early`/`--experts`, `--enc`).
+
+### Not checked here
+- No torch or game in this environment. `tests/moe_check.py` on chud's machine is the first run of the new MoE.
+
 ## [0.13.2] - 2026-11-03
 
 ### Added

@@ -16,6 +16,6 @@ W="${BALATRO_HOME:-$HOME/balatro}"
 R="$W/balatro-headless"
 git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
 SUFFIX=""; [ "${STAKE:-1}" != 1 ] && SUFFIX="$SUFFIX-stake${STAKE}"; [ "${BACK:-b_red}" != b_red ] && SUFFIX="$SUFFIX-${BACK}"
-export RUN="early-s$SEED$SUFFIX" ACTIONS=ordered-capped LR="${LR:-1e-4}" FROM_SCRATCH=1 RUN_V2_UPDATED=1
+export ENC="${ENC:-3}" RUN="early-s$SEED$SUFFIX" ACTIONS=ordered-capped LR="${LR:-1e-4}" FROM_SCRATCH=1 RUN_V2_UPDATED=1
 export TRAIN_ARGS="--seed $SEED --stop-ante ${STOP_ANTE:-4} --best-by reached --retry 0 --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
 exec bash "$R/train/run_v2.sh" "$SHARED" "$HOURS" "$WORKERS"
