@@ -849,3 +849,46 @@ baseline the experts are measured from, not a measure of 0.2 itself (the pins ch
 No prediction is registered for this run. The test of I1 is still to be registered before it is
 scored, on seeds apart from the 600 eval seeds.
 
+## Added 2026-11-04 ~13:40 CST: the first MoE run stopped; changes for the second (section I)
+
+### The first run (`runs/moe`, commit `17c1602`)
+Stopped itself at 02:54 CST on the stall rule (training score flat for 3 h; best 10-round average
+12.14 blinds per game), 5.4 h into its 24-hour cap: 220 rounds, 24,640 training games, 256 training
+wins (game's own outcomes, all replay-verified). Evals on the 600 seeds:
+
+| round | wins | near wins | blinds/game |
+|---|---|---|---|
+| 0 | 5 | 9 | 11.67 |
+| 40 | 3 | 8 | 12.22 |
+| 100 | 5 | 7 | 12.59 |
+| 120 | 11 | 6 | 12.60 |
+| 160 | 6 | 10 | 12.17 |
+| 200 | 9 | 15 | 12.68 |
+| 220 | 11 | 10 | 12.73 |
+
+Not a test of the design: at the stop, every expert pin was still at 0.75 of its starting rate
+(the fade had covered 24,640 of 100,000 games) and no expert had its 5,000 games (Pair 3,486, Flush
+3,383, Three of a Kind 3,177, Straight 3,101, Two Pair 2,679, Four of a Kind 1,195, Full House 907).
+The stall rule read a score held down by pins that hadn't faded. Full House got no handoff by rule
+in any eval: only random ones in training. At eval 220, Three of a Kind had the most handoffs (108)
+and 0 wins. Heat-throttling alerts from about 02:00.
+
+### Changes for the second run (chud, 2026-11-04 13:20; implementation Claude's)
+- **No Four of a Kind expert** (chud: a flex hand, not a strategy of its own). 6 experts, 7 heads.
+- **Early-game Full House pin** (chud: the bot takes Two Pair over Full House, and the early game is
+  the worst time for it). At an early-model decision where a Full House or a higher hand (Four of a
+  Kind, Straight Flush, Five of a Kind, Flush House, Flush Five) is on offer, only those plays are
+  allowed, at rate 1.0 times the fade; discards and other moves stay allowed. It fades over the same
+  100,000 games as the expert pins. Why the early game: a Full House contains Two Pair, so every
+  Two Pair joker still fires on it, and at level 1 it scores 40 x 4 against 20 x 2; Two Pair
+  only overtakes it after about three Uranus. The reward (`blinds`) pays nothing past a blind's
+  target, so it doesn't separate the two while Two Pair clears the blind. This pin is an ought
+  from chud, put into the early game, not into the reward.
+- **Router minimum**: Full House's expert is picked by rule only after 2 Full House plays in antes
+  1–3 (a single play against a near-zero base rate would otherwise win almost every such game).
+- **The stall clock starts once every pin (experts' and the early one) is 0.** The 24-hour, now
+  36-hour, cap is the backstop.
+- Fresh start in `runs/moe2` (a checkpoint with 8 heads doesn't load into 7).
+
+No prediction is registered for this run either. I1's test is still to be registered before scoring.
+

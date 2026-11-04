@@ -127,6 +127,10 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             hand_ids = [pin_vocab_id(sim.vocab, h) for h in EXPERT_HANDS]
             base = model.base_rate.numpy().astype(np.float64)
             rates = [moe_pin_rate(h, args) * float(model.pin_scale[i]) for i, h in enumerate(EXPERT_HANDS)]
+            # The early model's own pin (--moe-early-pin): its hand or any higher one, fading by the run's games.
+            early_ids, early_rate = early_pin(sim.vocab, args)
+            early_rate *= float(model.early_pin_scale[0])
+            min_plays = np.array([moe_min_plays(h, args) for h in EXPERT_HANDS], dtype=np.float64)
         episodes = []
         for seed in seeds:
             seed = seed or rand_seed(rng)
@@ -134,7 +138,10 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             # The pin's own coin, apart from the sampling RNG, so pinning doesn't shift eval sampling.
             prng = random.Random(f"pin-eval-{seed}" if mode == "eval" else f"pin-{args.seed}-{wid}-{it}-{seed}")
             pin_id, pin_rate = pin_id0, args.pin_rate
+            if args.moe and early_ids:
+                pin_id, pin_rate = early_ids, early_rate
             pst = new_pin_stats() if pin_id is not None else None
+            early_pst = pst if args.moe else None
             member, routed, counts, handoff_at = 0, None, np.zeros(len(EXPERT_HANDS)), None
             back, stake, challenge = game_config(seed, args)
             o = sim.reset(seed, back, stake, challenge)
@@ -185,7 +192,9 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                         if mode == "train" and prng.random() < args.moe_random:
                             k, routed = min(int(prng.random() * len(EXPERT_HANDS)), len(EXPERT_HANDS) - 1), "random"
                         else:
-                            k, routed = int(np.argmax((counts + 1.0) / (base + 1.0))), "rule"
+                            # A hand with a minimum (--moe-min-plays) needs that many plays to be chosen.
+                            score = np.where(counts >= min_plays, (counts + 1.0) / (base + 1.0), -np.inf)
+                            k, routed = int(np.argmax(score)), "rule"
                         member, handoff_at = 1 + k, sim.steps
                         pin_id, pin_rate, pst = hand_ids[k], rates[k], new_pin_stats()
                 if not done:
@@ -199,9 +208,10 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
-                  "t_model": t_model, "t_sim": t_sim, "pin": pst, "reached": reached,
+                  "t_model": t_model, "t_sim": t_sim, "pin": pst if pst is not early_pst else None, "reached": reached,
                   "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
-                           "early_counts": counts.tolist(), "handoff_step": handoff_at} if args.moe else None)}
+                           "early_counts": counts.tolist(), "handoff_step": handoff_at,
+                  "early_pin": early_pst} if args.moe else None)}
             if ep["progress"]["won"] or ep["progress"].get("near_win"):
                 ep["jokers_held"] = sim.env.jokers_held()      # before the replay check resets the sim
                 if getattr(args, "verify_wins", True):     # off when playing a save: a replay would count twice
@@ -308,10 +318,15 @@ def new_pin_stats():
     return {"offered": 0, "bound": 0, "plays": 0, "plays_pinned": 0, "discard_offered": 0}
 
 
+def _pinned(hand_col, pin_id):
+    """pin_id is one hand's vocab id, or a tuple of them (the early pin: a hand or any higher one)."""
+    return np.isin(hand_col, pin_id) if isinstance(pin_id, tuple) else hand_col == pin_id
+
+
 def apply_pin(o, pin_id, rate, rng, st):
     act = o["act"]
     play = act[:, 0] == PLAY
-    target = play & (act[:, HAND_COL] == pin_id)
+    target = play & _pinned(act[:, HAND_COL], pin_id)
     if not target.any():
         return
     st["offered"] += 1
@@ -319,6 +334,31 @@ def apply_pin(o, pin_id, rate, rng, st):
     if rate >= 1.0 or rng.random() < rate:
         o["allow"] = ~play | target
         st["bound"] += 1
+
+
+# The game's poker hands, lowest to highest (its own G.handlist, reversed).
+HAND_RANK = ["High Card", "Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House",
+             "Four of a Kind", "Straight Flush", "Five of a Kind", "Flush House", "Flush Five"]
+
+
+def early_pin(vocab, args):
+    """--moe-early-pin "Hand=rate": (vocab ids of that hand and every higher one, rate), or ((), 0).
+    At an early-model decision where a play of one of them is on offer, the pin binds with that rate
+    (times the fade): only those plays are allowed; discards and other moves stay allowed."""
+    if not getattr(args, "moe_early_pin", None):
+        return (), 0.0
+    hand, rate = args.moe_early_pin.rsplit("=", 1)
+    assert hand in HAND_RANK, f"--moe-early-pin {hand!r}: no such poker hand"
+    return tuple(pin_vocab_id(vocab, h) for h in HAND_RANK[HAND_RANK.index(hand):]), float(rate)
+
+
+def moe_min_plays(hand, args):
+    """Plays of a hand in antes 1-3 needed before the router may pick its expert (--moe-min-plays)."""
+    for item in getattr(args, "moe_min_plays", []) or []:
+        h, n = item.rsplit("=", 1)
+        if h == hand:
+            return int(n)
+    return 0
 
 
 def moe_pin_rate(hand, args):
@@ -334,7 +374,7 @@ def count_pin_move(o, a, pin_id, st):
     row = o["act"][a]
     if row[0] == PLAY:
         st["plays"] += 1
-        st["plays_pinned"] += int(row[HAND_COL] == pin_id)
+        st["plays_pinned"] += int(bool(_pinned(row[HAND_COL], pin_id)))
     elif row[0] == DISCARD and o.get("offered"):
         st["discard_offered"] += 1
 
@@ -607,6 +647,9 @@ def pin_summary(episodes):
                 for k, v in (e.get("pin") or {}).items():
                     b[k] += v
         out["moe"] = {"handoffs": sum(1 for m in moe if m["expert"]), "by_expert": by}
+        ep_pins = [m["early_pin"] for m in moe if m.get("early_pin")]
+        if ep_pins:
+            out["moe"]["early_pin"] = {k: sum(p[k] for p in ep_pins) for k in ep_pins[0]}
     return out
 
 
@@ -780,6 +823,12 @@ def main():
                     help="MoE: share of training-game handoffs sent to an expert picked at random (load balancing)")
     ap.add_argument("--moe-pin", nargs="*", default=["Pair=0.5"],
                     help="MoE: experts' pin rates before annealing, 'Hand=rate' (others 1.0)")
+    ap.add_argument("--moe-early-pin", default=None,
+                    help="MoE: 'Hand=rate' pin on the early model: where a play of that hand or a higher one is on "
+                         "offer, only those plays are allowed with this rate, fading to 0 with the expert pins "
+                         "(chud 2026-11-04: Full House, which it passes over for Two Pair)")
+    ap.add_argument("--moe-min-plays", nargs="*", default=[],
+                    help="MoE: 'Hand=N': the router picks that hand's expert only after N plays of it in antes 1-3")
     ap.add_argument("--moe-min-games", type=int, default=5000,
                     help="MoE: an expert's pin doesn't finish fading until the expert has had this many training games")
     ap.add_argument("--moe-anneal-games", type=int, default=100000,
@@ -919,7 +968,10 @@ def main():
               f"{src['experts_from_solo_runs'] or 'none'}; handoff at ante {args.moe_handoff}, "
               f"{args.moe_random:.0%} random handoffs in training, pins annealed to 0 over "
               f"{args.moe_anneal_games:,} games and not before each expert's {args.moe_min_games:,}, early head {'trained' if args.moe_train_early else 'frozen'}"
-              f"{', its returns cut at the handoff' if args.moe_cut else ''}", flush=True)
+              f"{', its returns cut at the handoff' if args.moe_cut else ''}"
+              f"{f'; early pin {args.moe_early_pin} (that hand or higher), fading with the run' if args.moe_early_pin else ''}"
+              f"{f'; router minimum plays {args.moe_min_plays}' if args.moe_min_plays else ''}"
+              f"; stall clock starts once every pin is 0", flush=True)
     prov = provenance(args, vocab)
     json.dump(prov, open(os.path.join(out, "provenance.json"), "w"), indent=2)
     print(f"model {param_count(model):,} params on {device}; {args.workers} workers; reward '{args.reward}' "
@@ -1367,6 +1419,7 @@ def main():
                     run_frac = min(1.0, (games_total + len(eps)) / max(args.moe_anneal_games, 1))
                     own = (model.expert_games / max(args.moe_min_games, 1)).clamp(max=1.0)
                     model.pin_scale.copy_(1.0 - torch.minimum(own, torch.full_like(own, run_frac)))
+                    model.early_pin_scale.fill_(1.0 - run_frac)
             sil, sil_info = sil_data(it)
             add_to_buffer(it, eps)       # after sampling: this round's games are already in the PPO batch
             if args.overlap and not stop_requested:
@@ -1408,6 +1461,8 @@ def main():
             wins_total += sum(e["progress"]["won"] for e in eps)
             train_hist.append(s["blinds_mean"])
             roll = float(np.mean(train_hist[-10:]))
+            if args.moe and float(torch.cat([model.pin_scale, model.early_pin_scale]).max()) > 0:
+                best_time = time.time()     # the stall clock starts once every MoE pin has faded to 0
             if len(train_hist) >= 10 and roll > best_roll + 0.05:
                 best_roll, best_time = roll, time.time()
             elif len(train_hist) >= 10 and (time.time() - best_time) / 3600 > args.stall_hours:
@@ -1425,6 +1480,7 @@ def main():
             if st["entropy"] < 0.05:
                 alert(f"policy entropy {st['entropy']:.3f}: the policy has become nearly deterministic")
             rec = {**({"moe_pin_scale": dict(zip(EXPERT_HANDS, [round(float(x), 3) for x in model.pin_scale])),
+                       "moe_early_pin_scale": round(float(model.early_pin_scale[0]), 3),
                       "moe_expert_games": dict(zip(EXPERT_HANDS, [int(x) for x in model.expert_games]))} if args.moe else {}),
                    "iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
