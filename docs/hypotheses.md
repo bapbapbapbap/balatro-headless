@@ -809,3 +809,16 @@ The mixture of experts (section I) is trained from model 0.2's weights, as built
 corrected reward. Claude's case, which chud accepted: the error touched only the final fight, so
 0.2's play up to the Ante 8 boss was learned on a correct signal, and the early head (antes 1–3)
 never saw the error.
+
+### Before launch (2026-11-03 ~21:15 CST)
+- **Experts: 7** (chud, 21:11: "no straight flush"): Straight Flush dropped. The router doesn't count
+  Straight Flush plays, as it doesn't count High Card.
+- **A minimum of training per expert** (chud, 21:11: "we need a minimum amount of training, and the
+  more common ones will just get more games"). Each expert's pin can't finish fading before the
+  expert has had 5,000 training games of its own. The number is Claude's, at chud's request ("what's
+  your gut say?"): at the 30% random handoffs, the rarest expert gets roughly 200–250 games an
+  hour, so about a day.
+- **Outcomes read from the game itself** (chud: tie the harness to the game): win = the game's own
+  `win_game()`; blinds and bosses = the game's own `Defeated` marks. Checked step for step against the
+  previous counters on 141 replayed games, with no difference.
+

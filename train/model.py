@@ -87,8 +87,9 @@ def param_count(model):
 
 # ---------------- mixture of experts (docs/hypotheses.md section I, chud's design) ----------------
 # The hand types that get an expert, in a fixed order: member 1 + i is the expert for EXPERT_HANDS[i].
+# No High Card and no secret hands (chud, 2026-11-03 17:19); no Straight Flush (chud, 21:11).
 EXPERT_HANDS = ["Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House",
-                "Four of a Kind", "Straight Flush"]
+                "Four of a Kind"]
 
 
 class MoE(Net):
@@ -98,10 +99,12 @@ class MoE(Net):
     Each decision names its member (collate's 7th tensor, `member`).
 
     Buffers travel with the weights to the workers:
-      base_rate (8,): average plays of each expert's hand in the early game (antes 1-3) by the
+      base_rate (experts,): average plays of each expert's hand in the early game (antes 1-3) by the
         early-game model, over recent training games that reached the handoff. The router's
         preference is a hand's plays in this run relative to that rate.
-      pin_scale (1,): multiplier on every expert's pin rate (annealed from 1 to 0)."""
+      pin_scale (experts,): multiplier on each expert's pin rate, annealed from 1 to 0 by the run's
+        games, but never below the share of its minimum (--moe-min-games) the expert has yet to play.
+      expert_games (experts,): training games handed to each expert so far."""
 
     def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
         super().__init__(n_vocab, d, layers, heads, enc)
@@ -111,7 +114,8 @@ class MoE(Net):
             "value": nn.Sequential(nn.Linear(d, d), nn.ReLU(), nn.Linear(d, 1)),
         }) for _ in range(1 + len(EXPERT_HANDS))])
         self.register_buffer("base_rate", torch.zeros(len(EXPERT_HANDS)))
-        self.register_buffer("pin_scale", torch.ones(1))
+        self.register_buffer("pin_scale", torch.ones(len(EXPERT_HANDS)))
+        self.register_buffer("expert_games", torch.zeros(len(EXPERT_HANDS)))
 
     def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
         a, pooled = self.features(kind, vocab, feat, tok_mask, act)

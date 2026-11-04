@@ -16,6 +16,17 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Not checked here
 - No torch or game in this environment. `tests/moe_check.py` on chud's machine is the first run of the new MoE.
 
+## [0.14.0] - 2026-11-03
+
+### Changed
+- **Outcomes come from the game itself** (`train/sim.py`; chud: tie the harness to the game). A win is the game running `win_game()` (hooked once per runtime), the routine that records the win and hands out stickers. A blind beaten is the game marking it `Defeated` in `round_resets.blind_states` (skips are `Skipped`); a boss beaten is `Boss` marked `Defeated`. `final_boss` is the game's `G.GAME.won`. The harness no longer defines any outcome.
+  - Checked with `tests/outcome_check.py`, which replays saved games with the old counters running alongside (`Sim.compare`) and fails on any step where they differ: 141 games (40 wins, 53 near wins, all 13 published routes that skip a blind, 48 early losses), 0 mismatches, every replay exact.
+- **MoE: 7 experts** (chud, 21:11: no Straight Flush): Pair, Two Pair, Three of a Kind, Straight, Flush, Full House, Four of a Kind. 8 heads with the early head.
+- **MoE: a minimum of training per expert** (chud: "we need a minimum amount of training, and the more common ones will just get more games"): each expert's pin fades with the run's games but not before the expert has had `--moe-min-games` training games of its own (`MOE_MIN_GAMES`, default 5,000, Claude's pick at chud's request). `pin_scale` and `expert_games` are per expert, carried with the weights, and logged in `metrics.jsonl` (`moe_pin_scale`, `moe_expert_games`).
+
+### Checked (cloud, torch 2.15.0 CPU)
+- Pre-flights on this code: saved real win on the untouched game PASS, `moe_check.py` PASS (7 experts), `ordered_semantics.py` ALL PASS, `diff_check.py` PASS. `train.py --moe` 2 rounds, then a resume for a 3rd: expert game counts carried over, pins held at 1.0 below the minimum.
+
 ## [0.13.5] - 2026-11-03
 
 ### Fixed
