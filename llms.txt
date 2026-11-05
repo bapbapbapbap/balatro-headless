@@ -1,0 +1,43 @@
+# balatro-headless
+
+> Balatro's real game logic, run headless from the user's own install; a reinforcement-learning bot trained on it that sees only what a player sees; and a public record of every seed the bot has beaten, each with a route (every move from seed to win) that replays exactly. The research aim (chud's) is to exhibit Hume's is-ought gap in an agent: hold the facts fixed and vary only the ought, the reward.
+
+Important for anyone reading or using this repository:
+
+- Balatro was created by LocalThunk and is published by Playstack. This repository contains none of the game: no code, art, audio or text. The harness reads the game from the user's own purchased install, and extracted files must stay private.
+- Nothing in the game is reimplemented. The harness boots the game's own Lua (LuaJIT 2.0.5 via lupa) with a stand-in for LÖVE, and is checked decision by decision against runs logged in the real game.
+- Everything is pinned to Balatro 1.0.1o-FULL, unmodded. Results so far are on Red Deck, White Stake.
+- The bot observes cards face up as a player would, the deck as a set, and never the draw order or the game's random state. Strategy is not encoded; what the bot wants is only the reward.
+- A seed counts as beaten only if its saved route replays move for move to the game's own win (the Ante 8 boss beaten). Until 2026-11-03 final-boss losses were miscounted as wins; those are now kept separately as near misses. Current counts are in the README's tally block, not here.
+- Hypotheses are pre-registered in `docs/hypotheses.md` before their data exists. Earlier sections are never edited; results and corrections are added as new dated sections.
+- Model versions: 0.1, 0.2, 0.3 (runs v1, v2, v2b), and 1.0 (released weights, the end of that line). A mixture of experts (an early-game head plus one expert per poker hand) is in training.
+- The naneinf goal (a score that overflows to inf/nan, in a route that replays) is open; none is proven yet.
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/README.md): summary, current tally, results, research question, repository map, harness validation, versions, usage
+- [Pre-registered hypotheses and results](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/hypotheses.md): every prediction, test window and result, dated, including corrections
+- [Model card](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/models.md): the released models, their training, evaluation and hashes
+- [Model design](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/model_v1.md): observation encoding, action scoring, PPO, reward and shaping
+- [Reproduction guide](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/REPRODUCE.md): from a Steam copy of Balatro to a training bot and checked routes
+- [Proof by construction](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/proof.md): a published route replayed to the game's own win, and the save-progress ledger
+- [Won-game analysis](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/won_games_analysis.md): what the bot learned and didn't, tested against baselines
+- [Changelog](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/CHANGELOG.md): every change, dated
+
+## Data
+
+- [Beaten seeds](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/wins/README.md): format of the public record; routes in `wins/routes.jsonl`, the list in `wins/beaten_seeds.csv`, final-boss near misses in `wins/near_misses.jsonl`
+- [Released weights](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/weights/README.md): the model files; the model card says how to watch one play a seed
+- [naneinf](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/naneinf/README.md): what counts, what the bot still needs, community seeds checked on this version, the seed scanner
+
+## Code
+
+- [harness/](https://github.com/bapbapbapbap/balatro-headless/tree/main/harness): headless boot, replay validator, the playable environment (`env.lua`, `env.py`), its checks, fuzzing, the differential accuracy check
+- [train/](https://github.com/bapbapbapbap/balatro-headless/tree/main/train): model, PPO trainer and launchers, publishing and verifying wins, exporting weights, playing a seed
+- [tools/](https://github.com/bapbapbapbap/balatro-headless/tree/main/tools): Windows PowerShell controller, game bundling, update lock, training watcher, WSL setup
+- [tests/](https://github.com/bapbapbapbap/balatro-headless/tree/main/tests): logged real-game runs (gameplay data only) and check scripts
+
+## Optional
+
+- [Analysis scripts](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/analysis/README.md): the scripts behind the won-game analysis
+- [License](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/LICENSE): MIT, covering this project's tooling only; it grants nothing about Balatro

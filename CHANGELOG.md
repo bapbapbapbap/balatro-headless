@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.1] - 2026-11-04
+
+### Added
+- **`llms.txt`** (requested by chud): a plain-text guide to the repository for language models, following the llms.txt convention: what the project is, the facts a reader must not get wrong (no game in the repo, nothing reimplemented, the pinned version, what counts as a win, pre-registration), and links to the docs, data and code.
+
 ## [0.16.0] - 2026-11-04
 
 ### Added
