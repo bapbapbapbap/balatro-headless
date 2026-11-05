@@ -1185,3 +1185,40 @@ no-pin control (`moe2-nopin`) is still unrun.
 1. `analysis/paired_experts.py` on `pins0.pt`. chud's predictions, if any, are registered in J first.
 2. Split `ppo.kl` by explored and sampled moves, and a low-temperature eval of `pins0.pt`.
 3. Then `--moe-cut 0` from `pins0.pt`, as a MoE or a single network depending on 1.
+
+
+## Added 2026-11-05 ~15:45 CST: Claude's predictions for the first paired run (section J)
+
+Registered before `analysis/paired_experts.py` has run on anything. These are Claude's predictions,
+made at chud's invitation ("would you like to make predictions?"); chud registered none. The run:
+`pins0.pt`, 200 seeds (`--seed-tag paired-v1`, outside the eval 600), one rollout, handoff antes 3, 4 and 5.
+
+### What this run can and can't resolve
+About 74% of seeds reach the ante-4 handoff (442 of 600 in the pins-zero eval), so each player gets
+about 150 games at ante 4. At the ~2% win rate after the handoff, that is about 3 wins each.
+**Win rates can't be ranked at this size**, so none of the predictions below uses them; they use
+blinds per game and the play-share table. Ranking win rates would take roughly ten times the seeds
+(an overnight run). The tool's rows for different handoff antes are also not on the same seeds:
+ante 5 only counts seeds that reach ante 5, which are stronger runs. So comparing antes in its
+summary is biased, and no prediction is made about the best handoff ante until the summary compares
+antes on the seeds common to all three.
+
+### Predictions (all at handoff ante 4; scored from the tool's summary)
+- **C1. The experts are not redundant (70%).** In the play-share table, for at least 3 of the 6
+  hands, the expert named for that hand has a higher share of it than every other player (the 5
+  other experts and "no handoff"). Expected among them: Two Pair, Straight, Flush. Not expected:
+  Pair. *Falsified* if fewer than 3.
+- **C2. The handoff beats playing on with the early head (60%).** "No handoff" averages at least
+  0.5 fewer blinds per game than the mean of the 6 experts. Reason: the early head's return has
+  ended at ante 4 for 100,000 games, so nothing has trained its play past there. *Falsified* if the
+  gap is under 0.5 or the other way round.
+- **C3. The experts are close (65%).** Between the best and worst expert, blinds per game differ by
+  less than 1.0. Reason: across all of moe2's games, final-boss conversion spans only 15.5–20.7% by
+  expert. *Falsified* at 1.0 or more.
+- **C4. The router adds nothing over picking an expert at random (65%).** "Router (its own choice)"
+  is within 0.3 blinds per game of the mean of the 6 experts. *Falsified* if it is 0.3 or more above.
+- **C5. Full House is not among the top 2 experts by blinds per game (65%).** This bets against
+  I2's second half on this measure (I2 is about win rate, which this run can't rank).
+
+Any prediction whose condition can't be read from the summary (e.g. a player with no games) is
+scored as void, not as passed.
