@@ -125,8 +125,11 @@ both are recorded in [`docs/REPRODUCE.md`](docs/REPRODUCE.md#the-training-machin
 ### Open
 - **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
   Registered, not yet run.
-- **Full House:** 0.3 played it 5 times in 497 chances, about the rate its exploration alone
-  would produce. No evidence yet that the policy plays it.
+- **Full House:** not learned. 0.3 played it 5 times in 497 chances, about the rate its exploration
+  alone would produce. In the second MoE run (through round 900, about 87,000 games), neither the Full
+  House expert nor the early head played one beyond what its pin forced, and the Full House expert's
+  share of games fell from 81 per eval to 5 as the pins faded
+  ([details](docs/hypotheses.md#added-2026-11-05-1040-cst-full-house-not-learned-so-far-moe2-through-round-900)).
 - **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
   0.3).
 - **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)). Proving one
