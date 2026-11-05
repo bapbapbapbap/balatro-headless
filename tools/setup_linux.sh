@@ -32,9 +32,10 @@ git -C "$R" log --oneline -1
 step "python env"
 python3 -m venv "$W/venv" || fail "venv (install python3-venv)"
 . "$W/venv/bin/activate"
-pip install -q --upgrade pip setuptools wheel cython || fail "pip"
-python3 -c "import numpy" 2>/dev/null || pip install -q numpy || fail "numpy"
-python3 -c "import torch" 2>/dev/null || pip install -q torch || fail "torch (PyPI's Linux wheel includes CUDA)"
+pip install -q --upgrade pip || fail "pip"
+# the versions training ran on (requirements.txt); LOCK=1 installs the exact recorded environment
+REQ="$R/requirements.txt"; [ "${LOCK:-0}" = 1 ] && REQ="$R/requirements-lock.txt"
+pip install -q setuptools wheel -r "$REQ" || fail "python packages ($REQ; PyPI's Linux torch wheel includes CUDA)"
 python3 --version
 python3 -c "import numpy, torch; print('numpy', numpy.__version__, '| torch', torch.__version__, '| cuda', torch.cuda.is_available())"
 

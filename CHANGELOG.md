@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.3] - 2026-11-04
+
+### Added
+- **Pinned Python packages** (chud): `requirements.txt` (torch 2.15.0, numpy 2.5.4, Cython 3.3.1) and `requirements-lock.txt` (the training venv's full `pip freeze`, 33 packages, recorded 2026-11-04). `tools/setup_linux.sh` installs `requirements.txt` instead of whatever torch and numpy were newest; `LOCK=1` installs the lock file. README and REPRODUCE's Versions tables point to it; the "not pinned" gap is closed.
+
 ## [0.16.2] - 2026-11-04
 
 ### Documented

@@ -1,0 +1,9 @@
+# What training needs, pinned to the versions it ran on (training machine, recorded 2026-11-04;
+# see docs/REPRODUCE.md#the-training-machine). PyPI's Linux torch wheel brings its own CUDA 13.2
+# libraries (the nvidia-* packages), so no extra index is needed. The exact environment, every
+# package included, is requirements-lock.txt.
+# lupa is not here: the harness builds its own (lupa 2.8 against LuaJIT 2.0.5) into vendor/lupa
+# with harness/build_lupa_luajit.sh, which needs Cython.
+torch==2.15.0
+numpy==2.5.4
+Cython==3.3.1
