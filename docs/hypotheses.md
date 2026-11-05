@@ -1222,3 +1222,43 @@ antes on the seeds common to all three.
 
 Any prediction whose condition can't be read from the summary (e.g. a player with no games) is
 scored as void, not as passed.
+
+
+## Added 2026-11-05 ~15:45 CST: the first paired run's size (2,000 seeds), and its pilot
+
+**Size changed by chud, from 200 to 2,000 seeds** (15:37 CST: "why don't I try and do 2000 seeds?").
+Same weights (`pins0.pt`), seed tag (`paired-v1`), handoff antes (3, 4, 5) and one rollout. The seed
+list is fixed by the tag, so the first 200 of the 2,000 are the 200 that C1–C5 were registered
+against. **C1–C5 are scored on all 2,000**, and also reported on the first 200.
+
+### The pilot (32 seeds), and what was read from it
+chud started the 200-seed run at ~15:35 and stopped it with Ctrl+C after 32 seeds, to size the run.
+The 32 records are kept, and the 2,000-seed run resumes from them. Claude read the pilot **after**
+C1–C5 were registered, and only to size the run: the time per seed, whether the moves before the
+handoff matched, how often each ante was reached, the per-player counts, and the spread of paired
+blind differences. No prediction was added or changed after reading it, and the pilot scores nothing.
+
+- **The tool works on the game.** The moves before the handoff were identical for every player on every
+  seed (0 mismatches at all three antes). The pins read 0 in the weights.
+- **Speed.** 52.9 s per seed per worker, about 750–800 seeds an hour on 12 workers. 2,000 seeds is
+  about 2.5–3 hours.
+- **Spread.** The SD of the paired difference in blinds per game between two players on the same seed
+  at ante 4 was 2.75 (range 2.0–3.6 across the 21 pairs).
+- **To watch, too small to read:** 1 win in 378 games across all three antes, and the ante-4
+  handoff reached on 18 of 32 seeds (56%), against 74% in the pins-zero eval.
+
+### What 2,000 seeds can resolve (Claude's power estimates, two-sided α = 0.05, power 0.8)
+Assuming ~74% of seeds reach the ante-4 handoff (fewer if the pilot's 56% holds):
+
+| Difference between two players at ante 4 | Seeds needed |
+|---|---|
+| 0.5 blinds per game, any of the 21 pairs (Bonferroni) | ~800 |
+| 0.3 blinds per game, one pair | ~1,200 |
+| Win rate 2% vs 4% (paired) | ~2,000 |
+| Win rate 2% vs 3% (paired) | ~6,000 |
+
+So 2,000 seeds settles the blinds-per-game questions (C1–C5 and chud's three questions on that
+measure), and shows whether any expert wins about twice as often as another. Smaller win-rate
+differences, which I2's ranking may need, would take ~6,000 seeds. The run can be extended to that
+later without changing anything, because the file resumes and the seed list is fixed. If the win
+rate after the handoff is nearer 1% than 2%, as the pilot hints, every win-rate row needs more seeds.
