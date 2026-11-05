@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.18.2] - 2026-11-05
+
+### Documented
+- `llms.txt` brought up to date (chud): the `-e` rule for WSL commands containing `$`; the MoE run's state (pins, Full House not learned, section J); what launching does (pre-flight time, resume, hours per launch, the stop and publish at pins zero, Ctrl+C saves); the watcher's grace period and that restarts pull fixes; new commands (paired expert comparison, GPU state, branch cleanup); the machine's limits behind the GPU settings (6 GB card, the cap and minibatch split, no expandable segments under WSL, heat).
+
 ## [0.18.1] - 2026-11-05
 
 ### Added
