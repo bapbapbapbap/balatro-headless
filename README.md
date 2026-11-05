@@ -113,6 +113,15 @@ stopped on the stall rule before its pins had faded (best eval 12.73 blinds per 
 pins to fade before the stall rule applies
 ([details](docs/hypotheses.md#added-2026-11-04-1340-cst-the-first-moe-run-stopped-changes-for-the-second-section-i)).
 
+As of 2026-11-04 18:40 CST (round 121, about 11,600 games, pins at about 0.88 of their starting
+strength): best eval **12.57 blinds per game, 11 wins and 14 near wins in 600 seeds** (round 120),
+still under the first run's 12.73. In that eval every expert but Flush won at least once,
+Three of a Kind for the first time (0 in 108 games in the first run), and Full House won 2 of 81 games.
+The same 600 seeds have swung 3 to 11 wins between evals, so single evals are noisy. 158 of the 600 eval games
+ended in antes 1–3, before any expert took over.
+The run was interrupted twice by machine crashes and slowed by GPU memory; both are fixed, and
+both are recorded in [`docs/REPRODUCE.md`](docs/REPRODUCE.md#the-training-machine) and the CHANGELOG.
+
 ### Open
 - **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
   Registered, not yet run.
@@ -120,7 +129,9 @@ pins to fade before the stall rule applies
   would produce. No evidence yet that the policy plays it.
 - **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
   0.3).
-- **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)).
+- **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)). Proving one
+  waits for a base mixture of experts (chud, 2026-11-04). Until then, `naneinf/scan.py` looks for
+  seeds with an early Perkeo, on the game itself; it hasn't run on the game yet.
 
 ## The research question
 
