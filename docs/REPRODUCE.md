@@ -37,10 +37,10 @@ Linux user.
 | | Used here | Needed |
 |---|---|---|
 | Game | Balatro on Steam (app 2379780), Windows | The Windows Steam build. Other platforms ship a different runtime (see [LuaJIT](#why-luajit-205)). |
-| OS | Windows 11 + WSL2 | Windows to extract the game; Linux or WSL2 for the harness |
-| CPU | Intel Core Ultra 9 285H, 16 cores | Any x86_64. Training speed scales with cores (one sim per worker). |
-| Memory | 16 GB+ | About 0.45 GB per training worker plus about 1 GB of headroom. Training stops itself below 1 GB free. |
-| GPU | NVIDIA RTX 40-series laptop GPU | Optional. Model updates run on it if present. |
+| OS | Windows 11 Home 26H2 + WSL2 (Ubuntu 24.04.5) | Windows to extract the game; Linux or WSL2 for the harness |
+| CPU | Intel Core Ultra 9 285H, 16 cores / 16 threads | Any x86_64. Training speed scales with cores (one sim per worker). |
+| Memory | 24 GB (8 + 16 GB DDR5-5600; WSL capped at 14 GB) | About 0.45 GB per training worker plus about 1 GB of headroom. Training stops itself below 1 GB free. |
+| GPU | NVIDIA GeForce RTX 4050 Laptop GPU, 6 GB | Optional. Model updates run on it if present. |
 | Disk | — | A few GB for saved games (every training game is kept). |
 
 ## 1. The game (Windows)
@@ -193,14 +193,52 @@ python3 tally.py
 | LuaJIT | 2.0.5 | git `0bf80b07`, built by `harness/build_lupa_luajit.sh` |
 | lupa | 2.8, rebuilt against LuaJIT 2.0.5 | |
 | Python | 3.12.3 (WSL, training) and 3.13.18 (development checks) | |
-| PyTorch | 2.15.0+cu132 | not pinned in the repo |
-| numpy | not recorded | not pinned in the repo |
+| PyTorch | 2.15.0+cu132 (CUDA 13.2, cuDNN 9.26.0) | not pinned in the repo |
+| numpy | 2.5.4 (WSL, training; recorded 2026-11-04) | not pinned in the repo |
+| NVIDIA driver | 595.79 (Linux) / 32.0.15.9579 (Windows, 2026-03-03); CUDA 13.2 | |
+| WSL | 2.6.3.0, kernel 6.6.87.2-microsoft-standard-WSL2; Ubuntu 24.04.5 LTS | `.wslconfig`: processors=16, memory=14GB, swap=8GB |
+| gcc | 13.3.0 (builds LuaJIT and lupa) | |
 | Lovely / Steamodded / Antelytics | 0.10.0 / 26.1002.0 / 1.3.0~alpha | only for logging and the modded game |
 
+To record your own machine the same way: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\sysinfo.ps1`
+(hardware, Windows, WSL, GPU driver, CUDA, Python packages, repo commit and game hash; no host or user names).
 To record the exact Python packages of your own run: `~/balatro/venv/bin/pip freeze > balatro-work/pip_freeze.txt`.
+
+## The training machine
+
+Every model and run in this repository (v1 through moe2) was trained on one laptop. Recorded
+2026-11-04 with `tools/sysinfo.ps1`; the raw record is
+[`docs/machines/2026-11-04-training-laptop.txt`](machines/2026-11-04-training-laptop.txt).
+
+| | Recorded 2026-11-04 |
+|---|---|
+| Machine | ASUS Vivobook Pro 15 (N6506CU), BIOS N6506CU.303 (2025-01-01) |
+| CPU | Intel Core Ultra 9 285H, 16 cores / 16 threads |
+| Memory | 24 GB DDR5-5600 (8 + 16 GB); 23.4 GB visible to Windows |
+| GPU | NVIDIA GeForce RTX 4050 Laptop GPU, 6 GB (training); Intel Arc 140T (integrated, unused) |
+| Windows | Windows 11 Home 26H2, build 26300.9711; power plan Balanced, on AC power; Memory Integrity on |
+| WSL | 2.6.3.0, kernel 6.6.87.2; Ubuntu 24.04.5 LTS; 16 processors, 14 GB memory, 8 GB swap (`.wslconfig`) |
+| NVIDIA | driver 595.79 (Linux) / 32.0.15.9579 (Windows, 2026-03-03); CUDA 13.2 |
+| Python | 3.12.3 venv: torch 2.15.0+cu132 (cuDNN 9.26.0), numpy 2.5.4; lupa 2.8 from `vendor/lupa` (built by the harness, not in the venv) |
+| Toolchain | gcc 13.3.0, git 2.43.0 |
+| Game | `Balatro.exe` SHA-256 `0D75FE16…DE93F47` (1.0.1o-FULL) |
+
+Changes to this machine that bear on runs, dated:
+- **2026-11-04, 00:22:** Windows Update installed *ASUSTeK System Driver Update 3.1.73.0* (ASUS System Control
+  Interface v3). It took effect at a restart at 13:22. moe2 then crashed the machine twice
+  (14:08 and about 15:20), both times with bugcheck 0x20001 HYPERVISOR_ERROR, first argument 0x28
+  (an internal error in the hypervisor's I/O MMU module). WSL2 runs on that hypervisor.
+- **2026-11-04, about 16:55:** the driver was rolled back to **3.1.72.0** and Windows Update driver installs were turned
+  off (`ExcludeWUDriversInQualityUpdate`). moe2 has run since 17:00 without a crash. That supports
+  the driver as the cause, but doesn't prove it.
+- **2026-11-04, 18:07:** an external fan was set to vent heat away from the laptop, after moe2's heat-throttling alert
+  (541 decisions/s against 1,056 in its first half hour).
+- Under sustained load this laptop heat-throttles. Throughput figures in this repository (games per
+  hour, decisions per second) are this machine's and vary with heat.
 
 ## Known gaps
 
-- PyTorch and numpy versions aren't pinned; a `requirements.txt` from a working machine would fix that.
+- PyTorch and numpy versions aren't pinned; a `requirements.txt` from a working machine would fix that. The versions training ran on are recorded above.
+- Training runs haven't been checked for bit-for-bit reproducibility: same seeds and settings on another machine (or GPU) aren't shown to give the same weights. What is exact is each saved game: a route replays move for move on any machine with the pinned game.
 - Only the Windows Steam build is supported. Mac, Linux-native and mobile builds ship other runtimes.
 - The environment hasn't been checked on the modded game; training uses the unmodded game.
