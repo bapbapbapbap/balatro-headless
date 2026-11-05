@@ -33,6 +33,7 @@ import os
 import random
 import sys
 import time
+import traceback
 from collections import defaultdict
 
 import numpy as np
@@ -114,8 +115,30 @@ def one_seed(job):
     return rec
 
 
+def one_seed_safe(job):
+    """one_seed, but an error on a seed comes back as text in the record. An exception object from the
+    game (a lupa LuaError) can't be unpickled in the main process, which doesn't load lupa: the pool's
+    result thread died on one at seed ~150 of the first 2,000-seed run and the run hung. The seed's sim
+    is rebuilt after an error, in case the error left it in a bad state."""
+    try:
+        return one_seed(job)
+    except Exception:
+        err = traceback.format_exc()[-4000:]
+        try:
+            from sim import Sim
+            a = G["args"]
+            G["sim"] = Sim(a.src, a.mods, mode=a.actions, enc=a.enc)
+        except Exception:
+            err += "\n(rebuilding the sim also failed: " + traceback.format_exc()[-1000:] + ")"
+        return {"seed": job[0], "error": err}
+
+
 def summarize(recs, out=sys.stdout):
     P = lambda *x: print(*x, file=out)
+    errs = [r for r in recs if r.get("error")]
+    if errs:
+        P(f"{len(errs)} seed(s) ended in an error and are left out: " + ", ".join(r["seed"] for r in errs))
+        recs = [r for r in recs if not r.get("error")]
     antes = sorted({a for r in recs for a in r.get("by_ante", {})}, key=int)
     for ante in antes:
         rows = [r["by_ante"][ante] for r in recs if ante in r.get("by_ante", {})]
@@ -199,9 +222,11 @@ def main():
     t0 = time.time()
     with mp.Pool(a.workers, initializer=init, initargs=(a.weights, a.src, a.max_steps)) as pool, \
             open(a.out, "a") as f:
-        for i, rec in enumerate(pool.imap_unordered(one_seed, todo), 1):
+        for i, rec in enumerate(pool.imap_unordered(one_seed_safe, todo), 1):
             f.write(json.dumps(rec) + "\n")
             f.flush()
+            if rec.get("error"):
+                print(f"seed {rec['seed']}: error, recorded and skipped:\n{rec['error'].strip().splitlines()[-1]}", flush=True)
             if i % 10 == 0 or i == len(todo):
                 print(f"{time.strftime('%H:%M:%S')}  {i} of {len(todo)} seeds  "
                       f"{i / max(time.time() - t0, 1e-9) * 3600:,.0f} seeds/h", flush=True)
