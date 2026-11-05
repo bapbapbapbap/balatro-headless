@@ -11,11 +11,13 @@ Trained weights of the Balatro bot. **1.0** is the final weights of the 0.3 run,
 | `balatro-bot-0.2.pt` | 0.2 (earlier run) | 11.62 (6) |
 | `balatro-bot-0.1.pt` | 0.1 (first run) | 11.395 (1) |
 
-All four were trained on Red Deck, White Stake, with the reward "blinds beaten", on unmodded Balatro 1.0.1o-FULL. The bot sees only what a player sees.
+**`balatro-bot-moe2-pins0.pt`**: a mixture of experts (an early-game head, six hand experts and a routing rule; 2.3M parameters), from the second MoE run at its first round with every pin at 0 (round 1042, 100,032 games). Eval: 12.94 blinds per game, 9 wins and 13 near wins in **600** fixed seeds, scored with the game's own outcomes, so it doesn't line up with the 200-seed numbers above. A research snapshot: it hasn't learned Full House and hasn't been compared with 1.0. [System card](../docs/system_card_moe2.md).
+
+All five were trained on Red Deck, White Stake, with the reward "blinds beaten", on unmodded Balatro 1.0.1o-FULL. The bot sees only what a player sees.
 
 It was trained on one laptop: Core Ultra 9 285H (16 cores), RTX 40-series laptop GPU, about 23 GB RAM, under WSL2.
 
-The model card covers what it has learned, what it hasn't (it never plays Full House, for one), file hashes, and how to watch it play a seed: [docs/models.md](../docs/models.md).
+The model card (and, for the mixture of experts, the system card) covers what it has learned, what it hasn't (it never plays Full House, for one), file hashes, and how to watch it play a seed: [docs/models.md](../docs/models.md).
 
 You need your own copy of Balatro to run it. The files contain no game code.
 
