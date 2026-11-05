@@ -2,6 +2,16 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.18.0] - 2026-11-05
+
+### Added
+- **`analysis/paired_experts.py`** (chud's three questions; `docs/hypotheses.md` section J): every expert, and a no-handoff control, plays from the same handoff state on seeds outside the eval 600, optionally at several handoff antes. It reports: win rate per expert on identical positions; the positions on which each is best; the router's own choice and a perfect router's ceiling; each player's plays after the handoff by hand type (does the handoff change play); all of it per handoff ante. Every game's moves before the handoff are checked against the seed's first game (`prefix_ok`). Resumable; `--summary` reads an existing output.
+- `train.py` `play_games`: `args.moe_force` (an expert index, or -1 for no handoff) and `args.moe_rollout` (its own sampling after the handoff, shared across experts), both off by default. Games record `rule_choice` (the router's pick, even when forced) and `late_counts` / `late_plays` (plays after the handoff by hand). Training, evals and replays are unchanged.
+- `docs/hypotheses.md` section J: the design draft for the next MoE (nothing registered).
+
+### Not checked here
+- No game or torch in the cloud. The summary was checked on synthetic results; the play-outs run for the first time on chud's machine.
+
 ## [0.17.0] - 2026-11-05
 
 ### Added

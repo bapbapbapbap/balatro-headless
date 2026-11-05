@@ -1053,3 +1053,66 @@ games are the measurement points.
 
 ### An idea for later (chud, 2026-11-05)
 Train each expert only on the games that expert won. Not designed or registered.
+
+
+## Added 2026-11-05 ~11:00 CST: J, the next mixture of experts (design draft; nothing registered)
+
+### What chud asked for (10:37–10:39 CST)
+> "begin the formulation of a superior MOE based on the results of our currently running pin method,
+> and we should also comb the winning strategies on the winning seeds and link it back to each
+> expert. if we find out that a single expert is clearly better, (hopefully we can train a full
+> house expert) we should probably have the early game model steer into the strategy that wins the
+> most"
+
+> "if the handoff is at the wrong blind, that'd be good to know. if the handoff doesn't work and
+> doesn't modify strategy, that'd be good to know. if one strategy wins lots, that'd be good to know."
+
+### Measurement first: `analysis/paired_experts.py`
+Each expert's own record mixes the expert with the games the router gives it (Full House only gets
+runs that already made Full Houses), so the logs can't link winning strategies to experts. The
+tool plays every expert from the **same** handoff state: the early head plays a seed to the
+handoff exactly as in an eval, then each of the 6 experts plays the rest. A seventh player is the
+control: no handoff, so the early head plays on. Seeds are outside the eval 600. Repeated with the handoff at
+other antes. What it gives, against chud's three questions:
+1. **One strategy wins the most?** Each expert's win rate on the same positions, the positions on which each expert
+   is best, the router's own choice, and the ceiling of a perfect router.
+2. **Does the handoff change play?** The control's win rate against the experts', and each expert's
+   plays after the handoff by hand type, from the same positions. Experts that play alike, or that don't beat
+   the control, mean the handoff adds nothing.
+3. **Is the handoff at the right blind?** All of it at handoff antes 3, 4 and 5 (moe2 trained at 4;
+   at other antes the experts face positions they weren't trained from, so read it as a probe).
+It also serves I2's paired test and the Full House completion criterion. First run: on `pins0.pt`
+(moe2, every pin at 0).
+
+### Design options, by what the measurement shows
+- **One expert best from most positions:** a single expert may beat the mixture, and steering the
+  early game toward its strategy is the right move.
+- **The best expert depends on the position:** a learned router, which predicts each expert's outcome from the
+  handoff state and is trained on the paired play-outs, instead of the hand-count rule. This also ends
+  Full House's starvation, which comes from the rule (it needs Full House plays in antes 1–3).
+- **Experts don't beat the control, or play alike:** the handoff isn't working; the experts need
+  another design before anything is built on them.
+- **Another ante is clearly better:** move the handoff there.
+
+### How to steer the early game (Claude's recommendation)
+- **Not with pins or a hand-specific bonus.** moe2's pins forced Full House for ~100,000 games, and
+  the policy took none of it up: through round 900, Full House plays never exceeded what the pins forced
+  (section above). A pin changes behavior while it binds; it doesn't change what the policy prefers.
+  Steering by hand also writes a "how" into the ought, which aim 1 (behavior from the reward alone)
+  can't afford.
+- **Extend the early head's return through the handoff** (`--moe-cut 0`). Today its returns stop at
+  ante 4 (chud's spec for moe1/moe2), so it is rewarded for reaching ante 4, not for reaching it
+  in a position the experts can win from. With the return running to the end of the game, the
+  reward alone favors whatever setups the experts convert. If a Full House expert wins most, the
+  early head would learn to build toward it without being told to.
+
+### Later
+- chud's idea: train each expert only on the games it won. Close to self-imitation, which was turned off after it
+  collapsed entropy (0.6.0). At ~1% wins the data is thin. Worth revisiting with the paired
+  play-outs, which give more wins from good positions.
+
+### Before moe3
+Predictions about the paired results (chud's, if any) get registered here **before** the tool's first run
+on `pins0.pt`. The scoring rules stay as written whatever the outcome, including if Full House doesn't win.
+
+Status: **draft**.
