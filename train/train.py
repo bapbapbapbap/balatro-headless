@@ -833,6 +833,8 @@ def main():
     ap.add_argument("--save-at-games", default="",
                     help="comma-separated training-game counts: save a checkpoint games_<N>.pt at the first round "
                          "that reaches each (rounds are ~100 games, so within one round of N)")
+    ap.add_argument("--stop-after-pins0", type=int, default=0,
+                    help="MoE: stop cleanly once the pins-zero eval is done and every --save-at-games checkpoint is saved")
     ap.add_argument("--eval-at-pins-zero", type=int, default=1,
                     help="MoE: run an eval (and save pins0.pt) at the first round after every pin has faded to 0")
     ap.add_argument("--eval-games", type=int, default=200)
@@ -1410,6 +1412,7 @@ def main():
         save_at = [g for g in save_at if not os.path.exists(os.path.join(out, f"games_{g}.pt"))]
         force_eval = False
         pins0_done = os.path.exists(os.path.join(out, "pins0.pt")) or not (args.moe and args.eval_at_pins_zero)
+        pins0_evaled = os.path.exists(os.path.join(out, "pins0.pt"))
         for it in range(start_it, args.iterations):
             if stop_requested:
                 raise Stop(stop_requested[0])
@@ -1441,6 +1444,7 @@ def main():
                     alert(f"every MoE pin is 0 (at {games_total:,} games): eval {it} is the first without pins, "
                           f"{ev['blinds_mean']:.3f} blinds/game, {ev['wins']} wins; weights in pins0.pt")
                     force_eval = False
+                    pins0_evaled = True
                 score = (ev["reached"] / max(ev["games"], 1) if args.best_by == "reached" else
                          ev["wins"] / max(ev["games"], 1) + ev["blinds_mean"] / 1e4 if args.best_by == "wins" else
                          ev["blinds_mean"])
@@ -1553,6 +1557,7 @@ def main():
                 alert(f"saved games_{g}.pt at round {it}, {games_total:,} training games")
             if not pins0_done and float(torch.cat([model.pin_scale, model.early_pin_scale]).max()) == 0:
                 pins0_done = force_eval = True          # the next round starts with the eval
+            stop_pins0 = args.moe and args.stop_after_pins0 and pins0_evaled and not save_at
             fresh = [e for e in eps if not e["retry"]]
             s = summarize(fresh or eps)       # the learning curve stays on fresh seeds only
             sr = summarize([e for e in eps if e["retry"]]) if source else None
@@ -1611,6 +1616,9 @@ def main():
                          decisions_per_second=rec["decisions_per_second"], saved=dict(saved), sil=sil_info,
                          last_retry=sr, alloc=round_alloc, arms={a: dict(v) for a, v in arms.items()},
                          pools={a: len(v) for a, v in pools.items()}, beaten_seeds=len(beaten))
+            if stop_pins0:
+                raise Stop(f"every pin at 0: the pins-zero eval is done (pins0.pt) and the checkpoints are saved "
+                           f"(--stop-after-pins0), at {games_total:,} games")
     except Stop as e:
         reason = str(e)
     except Exception:
