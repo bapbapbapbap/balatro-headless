@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.18.1] - 2026-11-05
+
+### Added
+- **Stop and publish at pins zero** (chud): `train.py --stop-after-pins0 1` stops cleanly once the pins-zero eval has run (`pins0.pt`) and every `--save-at-games` checkpoint is saved. `run_moe.sh` turns it on by default (`MOE_STOP_AFTER_PINS0=0` keeps training). After a deliberate stop (not a crash), `run_v2.sh` with `PUBLISH_ON_STOP=1` (on in `run_moe.sh` whenever the stop is) publishes the run's wins and near wins: replayed, added to `wins/`, tally updated, committed, pushed. The watcher never restarts a deliberate stop.
+- For moe2: every pin reaches 0 at 100,000 games (round ~1,041); the next round runs the eval; `games_100200.pt` follows about two rounds later; then the run stops and publishes.
+
 ## [0.18.0] - 2026-11-05
 
 ### Added

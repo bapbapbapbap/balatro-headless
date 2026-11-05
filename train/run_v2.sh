@@ -86,3 +86,14 @@ python3 train.py --src "$W/local/source" --run "$RUN" --out "$OUT" --hours "$HOU
   --mirror-dir "${MIRROR_DIR:-/mnt/f/balatro data/$RUN}" --spill-dir "${SPILL_DIR:-/mnt/f/balatro data}" \
   "${BC[@]}" --bc-epochs "${BC_EPOCHS:-2}" "${RESUME[@]}" "${PIN[@]}" "${MOE[@]}" "${MIX[@]}" ${TRAIN_ARGS:-}
 echo "== exited $(date)"
+# PUBLISH_ON_STOP=1: after a deliberate stop (not a crash), replay this run's new wins and near wins,
+# add the ones that replay exactly to wins/, update the tally, commit and push.
+STATUS=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('status',''))" "$OUT/health.json" 2>/dev/null || true)
+if [ "${PUBLISH_ON_STOP:-0}" = 1 ] && [[ "$STATUS" == stopped:* ]] && [[ "$STATUS" != "stopped: crashed"* ]]; then
+  echo "== publishing $RUN's wins ($STATUS)"
+  cd "$R/train" && { python3 publish_wins.py --src "$W/local/source" --out ../wins $(ls "$OUT"/wins.jsonl "$OUT"/near_wins.jsonl 2>/dev/null) \
+      || echo "some wins did not replay exactly and were left out (listed above)"; } && python3 tally.py && cd "$R" && git add wins README.md \
+    && if git diff --cached --quiet; then echo "nothing new to publish"; \
+       else git commit -q -m "wins: publish $RUN's beaten seeds and update the tally" && { git push -q && echo "pushed"; } \
+            || echo "committed but not pushed: run git push in $R"; fi
+fi
