@@ -808,6 +808,11 @@ def main():
                     help="stop after this many won training games in total, i.e. runs that beat the ante 8 boss (0 = no limit)")
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--eval-every", type=int, default=10)
+    ap.add_argument("--save-at-games", default="",
+                    help="comma-separated training-game counts: save a checkpoint games_<N>.pt at the first round "
+                         "that reaches each (rounds are ~100 games, so within one round of N)")
+    ap.add_argument("--eval-at-pins-zero", type=int, default=1,
+                    help="MoE: run an eval (and save pins0.pt) at the first round after every pin has faded to 0")
     ap.add_argument("--eval-games", type=int, default=200)
     ap.add_argument("--enc", type=int, choices=[1, 2, 3], default=1,
                     help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score; "
@@ -1378,6 +1383,11 @@ def main():
         if args.bc and resumed is None:
             bc_phase()
         pending = None
+        save_at = sorted(int(x) for x in str(args.save_at_games).replace(" ", "").split(",") if x)
+        # resumed runs: what's already on disk is done
+        save_at = [g for g in save_at if not os.path.exists(os.path.join(out, f"games_{g}.pt"))]
+        force_eval = False
+        pins0_done = os.path.exists(os.path.join(out, "pins0.pt")) or not (args.moe and args.eval_at_pins_zero)
         for it in range(start_it, args.iterations):
             if stop_requested:
                 raise Stop(stop_requested[0])
@@ -1393,7 +1403,7 @@ def main():
             if disk_free_gb(out) < args.min_disk_gb:
                 raise Stop(f"free disk below {args.min_disk_gb} GB")
 
-            if it % args.eval_every == 0:
+            if it % args.eval_every == 0 or force_eval:
                 te = time.time()
                 split = [esd[w::args.workers] for w in range(args.workers)]
                 eval_eps = run_round(split, "eval", it)
@@ -1404,6 +1414,11 @@ def main():
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
                 save(it, f"ckpt_{it:05d}")
+                if force_eval:
+                    save(it, "pins0")
+                    alert(f"every MoE pin is 0 (at {games_total:,} games): eval {it} is the first without pins, "
+                          f"{ev['blinds_mean']:.3f} blinds/game, {ev['wins']} wins; weights in pins0.pt")
+                    force_eval = False
                 score = (ev["reached"] / max(ev["games"], 1) if args.best_by == "reached" else
                          ev["wins"] / max(ev["games"], 1) + ev["blinds_mean"] / 1e4 if args.best_by == "wins" else
                          ev["blinds_mean"])
@@ -1510,6 +1525,12 @@ def main():
             t2 = time.time()
 
             games_total += len(eps)
+            while save_at and games_total >= save_at[0]:
+                g = save_at.pop(0)
+                save(it, f"games_{g}")
+                alert(f"saved games_{g}.pt at round {it}, {games_total:,} training games")
+            if not pins0_done and float(torch.cat([model.pin_scale, model.early_pin_scale]).max()) == 0:
+                pins0_done = force_eval = True          # the next round starts with the eval
             fresh = [e for e in eps if not e["retry"]]
             s = summarize(fresh or eps)       # the learning curve stays on fresh seeds only
             sr = summarize([e for e in eps if e["retry"]]) if source else None
