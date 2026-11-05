@@ -65,5 +65,10 @@ export MOE_ON=1 MOE_INIT="$INIT" MOE_EARLY="$EARLY" MOE_EXPERT_ARGS=""
 [ -n "$EARLY_PIN" ] && MOE_EXPERT_ARGS+=" $(printf '%q ' --moe-early-pin "$EARLY_PIN")"
 [ -n "$MIN_PLAYS" ] && MOE_EXPERT_ARGS+=" $(printf '%q ' --moe-min-plays "${MP[@]}")"
 export MOE_EXPERT_ARGS
-export TRAIN_ARGS="--seed ${MOE_SEED:-0} --moe-train-early ${MOE_TRAIN_EARLY:-1} --moe-cut ${MOE_CUT:-1} --moe-min-games ${MOE_MIN_GAMES:-5000} --eval-games ${EVAL_GAMES:-600} --eval-every ${EVAL_EVERY:-20} --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
+# Known-winnable seeds (chud 2026-11-04): MOE_KNOWN of each round's training games (default 0.25; 0 = off)
+# replay seeds already proven beatable: wins/routes.jsonl (eval seeds left out) plus every seed the run
+# itself wins. Fresh seeds keep their 50%; the retry arms get what is left. Eval is unchanged.
+KNOWN_ARGS=""; [ "${MOE_KNOWN:-0.25}" != 0 ] && KNOWN_ARGS="--known-share ${MOE_KNOWN:-0.25} --known-seeds $R/wins/routes.jsonl"
+echo "known-winnable seeds: ${KNOWN_ARGS:+${MOE_KNOWN:-0.25} of each round}${KNOWN_ARGS:-off}"
+export TRAIN_ARGS="$KNOWN_ARGS --seed ${MOE_SEED:-0} --moe-train-early ${MOE_TRAIN_EARLY:-1} --moe-cut ${MOE_CUT:-1} --moe-min-games ${MOE_MIN_GAMES:-5000} --eval-games ${EVAL_GAMES:-600} --eval-every ${EVAL_EVERY:-20} --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
 exec bash "$R/train/run_v2.sh" "$SHARED" "$HOURS" "$WORKERS"

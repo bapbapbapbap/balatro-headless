@@ -2,6 +2,19 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.17.0] - 2026-11-04
+
+### Added
+- **Training on known-winnable seeds** (chud: "we gotta train experts on winnable seeds"). A new seed arm, `known`: `--known-share` of each training round (MoE default 0.25, `MOE_KNOWN=0` turns it off) replays seeds already proven beatable, so the experts, who take over at ante 4, see runs a win is known to exist for instead of mostly runs that die early (158 of 600 eval games end in antes 1-3). The pool is `wins/routes.jsonl` (418 seeds: the 435 routes less the 17 that are eval seeds) plus every seed the run itself wins in training (`--known-grow 1`). Seeds with the fewest attempts go first.
+  - **Eval unchanged and clean:** the 600 eval seeds are never in the pool. A `wins.jsonl` line only counts if it replayed and passes the game's own win test (`win_check` 2), so pre-0.13.2 boss losses can't get in.
+  - Fresh seeds keep their 50% floor; the retry arms (Thompson sampling) share what is left. Known seeds are never put in a retry pool, and their wins are not new beaten seeds (publishing already keeps one route per seed).
+  - The learning curve and stall stop stay on fresh seeds only. `metrics.jsonl` gains `known` (that arm's summary), `known_pool`, and `alloc.known`; the round line shows `known N games blinds B wins W (pool P)`. The pool's per-seed attempts and wins are saved in the checkpoint.
+  - Routing is unchanged: on a known seed the early head still plays antes 1-3 and the router picks the expert as on any other seed.
+
+### Not checked here
+- No game source in the cloud: `train_seeds` and `update_retries` were run on fake games (10 of 40 games per round on known seeds, pool grows with wins, no seed in both pools, off = no change). The next launch is the first real run.
+- **moe2 changes when it next starts:** `run_moe.sh` pulls main, so any relaunch of moe2 (including after a crash) trains with the known arm from that round on. The round it switched is the first with `known` in `metrics.jsonl`.
+
 ## [0.16.6] - 2026-11-04
 
 ### Fixed
