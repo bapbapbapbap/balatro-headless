@@ -13,6 +13,31 @@ Important for anyone reading or using this repository:
 - Model versions: 0.1, 0.2, 0.3 (runs v1, v2, v2b), and 1.0 (released weights, the end of that line). A mixture of experts (an early-game head plus one expert per poker hand) is in training.
 - The naneinf goal (a score that overflows to inf/nan, in a route that replays) is open; none is proven yet.
 
+## How it is run
+
+Everything is run from **Windows PowerShell**. The game lives on Windows (Steam); the harness and the trainer run in **Linux under WSL2** (Ubuntu 24.04, distro name `Ubuntu-24.04`), and PowerShell starts the Linux side with one command per job:
+
+```
+wsl -d Ubuntu-24.04 -- bash -lc "<linux commands>"
+```
+
+`wsl -d Ubuntu-24.04` picks the Linux install, `--` ends WSL's own options, and `bash -lc "..."` runs the quoted commands in a login shell (so `~` is the Linux home). Two folders matter:
+
+- `~/balatro/` (Linux side): the repo clone (`~/balatro/balatro-headless`), the Python venv (`~/balatro/venv`), and the game's Lua source unpacked from the bundle (`~/balatro/local/source`).
+- `C:\Users\<you>\balatro-work` (Windows side), which Linux sees as `/mnt/c/Users/<you>/balatro-work`: the shared work folder. Training runs (`runs/<name>/`: checkpoints, `health.json`, `metrics.jsonl`, `train.log`, saved games, wins), the game bundle, and the PowerShell scripts run from it. Windows and Linux both read and write it.
+
+The commands in regular use, as typed in PowerShell:
+
+- **Train a run** (here the mixture of experts, run `moe2`, 36 hours, 12 workers): `wsl -d Ubuntu-24.04 -- bash -lc "cd ~/balatro/balatro-headless && git pull -q --ff-only && MOE_RUN=moe2 bash train/run_moe.sh /mnt/c/Users/<you>/balatro-work 36 12"`. It updates the repo, runs pre-flight checks, then trains; if `runs/<name>/latest.pt` exists it resumes from it. `MOE_RUN` names the run folder. Other launchers in `train/` (`run_v2.sh`, `run_expert.sh`, `run_early.sh`) take the same shared-folder, hours and workers arguments.
+- **Watch it** (second PowerShell window): `powershell -NoProfile -ExecutionPolicy Bypass -File $env:USERPROFILE\balatro-work\watch_v1.ps1 -Run moe2 -Hours 36 -Workers 12`. `-ExecutionPolicy Bypass` lets this one script run without changing the system policy. The watcher keeps the PC awake, prints a status line each minute from `health.json`, and restarts training only after an unexpected death (never after a deliberate stop; at most 5 times). It runs from a copy in the work folder because the repo lives on the Linux side; refresh it with `wsl -d Ubuntu-24.04 -- bash -lc "cp ~/balatro/balatro-headless/tools/watch_v1.ps1 /mnt/c/Users/<you>/balatro-work/"`. A Windows reboot stops it too.
+- **The controller** `tools\balatro.ps1 <command>` wraps setup and routine jobs from PowerShell: `check`, `lock`/`unlock` (stop Steam updating the game), `bundle` (extract the game's Lua into `balatro_bundle.zip`), `setup` (build the Linux side and run every check), `train`, `stop`, `status`, `watch`, `verify` (replay every published route on the untouched game), `publish` (add new verified wins to `wins/`, update the tally, commit, push), and the mixture-of-experts and save commands. `help` lists them.
+- **Record the machine**: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\sysinfo.ps1` writes hardware, Windows, WSL, GPU driver, CUDA and package versions to `balatro-work\sysinfo-<date>.txt` (no host or user names).
+- **Record the Python packages**: `wsl -d Ubuntu-24.04 -- bash -lc "~/balatro/venv/bin/pip freeze"` (the source of `requirements-lock.txt`).
+- **Scan seeds for naneinf openings**: `wsl -d Ubuntu-24.04 -- bash -lc "cd ~/balatro/balatro-headless/naneinf && . ~/balatro/venv/bin/activate && BALATRO_SRC=~/balatro/local/source python3 scan.py --check"`, then the same with `--n 200000 --workers 2 --out /mnt/c/Users/<you>/balatro-work/naneinf_hits.jsonl` in place of `--check`. `. ~/balatro/venv/bin/activate` loads the venv; `BALATRO_SRC` tells the harness where the game's Lua source is.
+- **Diagnose a machine crash** (Windows went down under training): `Get-WinEvent -FilterHashtable @{LogName='System'; StartTime=(Get-Date).AddHours(-4)} | ? { $_.Id -in 41,1001,1074,6008 -or $_.ProviderName -match 'WHEA|Thermal' } | Format-List TimeCreated,Id,ProviderName,Message`. 1074 is a requested restart, 1001 a bugcheck (blue screen) with its code, 41 without 1074 an unclean shutdown, WHEA a hardware error.
+
+Every result can also be checked without PowerShell: on any Linux machine with the harness built and the pinned game, `train/verify_games.py` replays saved routes.
+
 ## Docs
 
 - [README](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/README.md): summary, current tally, results, research question, repository map, harness validation, versions, usage
