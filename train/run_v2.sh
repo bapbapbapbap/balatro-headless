@@ -77,6 +77,9 @@ PIN=()
 
 echo "== training"
 cd "$R/train"
+# GPU memory: grow the allocator's segments in place instead of fragmenting (moe2 hit out of memory
+# with 1.63 GiB reserved but unusable). PyTorch warns and ignores it where it isn't supported.
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 python3 train.py --src "$W/local/source" --run "$RUN" --out "$OUT" --hours "$HOURS" --workers "$WORKERS" \
   --enc "${ENC:-2}" --actions "${ACTIONS:-ordered}" --d 192 --layers 4 --heads 6 --lr "${LR:-1e-4}" \
   --reward blinds --back "${BACK:-b_red}" --stake "${STAKE:-1}" --max-wins "${MAX_WINS:-1000000}" \
