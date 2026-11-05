@@ -18,6 +18,8 @@ import torch
 
 
 PATH_KEYS = {"src", "out", "resume", "mirror_dir", "spill_dir", "bc", "sil_seed", "mods", "inject"}
+# Paths to a released weights file or a checkpoint: kept as the file's name, which says what it was.
+NAME_KEYS = {"moe_init", "moe_early", "init_weights"}
 
 
 def public_provenance(prov):
@@ -30,6 +32,8 @@ def public_provenance(prov):
         v = cfg[k]
         if k in PATH_KEYS and v:
             cfg[k] = [os.path.basename(str(x).rstrip("/")) for x in v] if isinstance(v, list) else "<local path>"
+        elif k in NAME_KEYS and v:
+            cfg[k] = [os.path.basename(str(x)) for x in v] if isinstance(v, list) else os.path.basename(str(v))
     return prov
 
 
