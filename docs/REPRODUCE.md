@@ -193,8 +193,8 @@ python3 tally.py
 | LuaJIT | 2.0.5 | git `0bf80b07`, built by `harness/build_lupa_luajit.sh` |
 | lupa | 2.8, rebuilt against LuaJIT 2.0.5 | |
 | Python | 3.12.3 (WSL, training) and 3.13.18 (development checks) | |
-| PyTorch | 2.15.0+cu132 (CUDA 13.2, cuDNN 9.26.0) | not pinned in the repo |
-| numpy | 2.5.4 (WSL, training; recorded 2026-11-04) | not pinned in the repo |
+| PyTorch | 2.15.0+cu132 (CUDA 13.2, cuDNN 9.26.0) | `requirements.txt` |
+| numpy | 2.5.4 (WSL, training; recorded 2026-11-04) | `requirements.txt` |
 | NVIDIA driver | 595.79 (Linux) / 32.0.15.9579 (Windows, 2026-03-03); CUDA 13.2 | |
 | WSL | 2.6.3.0, kernel 6.6.87.2-microsoft-standard-WSL2; Ubuntu 24.04.5 LTS | `.wslconfig`: processors=16, memory=14GB, swap=8GB |
 | gcc | 13.3.0 (builds LuaJIT and lupa) | |
@@ -238,7 +238,7 @@ Changes to this machine that bear on runs, dated:
 
 ## Known gaps
 
-- PyTorch and numpy versions aren't pinned; a `requirements.txt` from a working machine would fix that. The versions training ran on are recorded above.
+- Python packages are pinned (`requirements.txt`, and the full environment in `requirements-lock.txt`, from the training venv on 2026-11-04). `setup_linux.sh` installs `requirements.txt`; `LOCK=1` installs the lock file. System pieces (NVIDIA driver, WSL, kernel) can't be pinned from the repo; they're recorded above.
 - Training runs haven't been checked for bit-for-bit reproducibility: same seeds and settings on another machine (or GPU) aren't shown to give the same weights. What is exact is each saved game: a route replays move for move on any machine with the pinned game.
 - Only the Windows Steam build is supported. Mac, Linux-native and mobile builds ship other runtimes.
 - The environment hasn't been checked on the modded game; training uses the unmodded game.
