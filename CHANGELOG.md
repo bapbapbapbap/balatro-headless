@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.8] - 2026-11-04
+
+### Fixed
+- **`expandable_segments` removed from `run_v2.sh`** (added in 0.16.7). Under WSL it crashed moe2 at 19:50 inside the update's KL pass: `RuntimeError: CUDA driver error: device not ready`, "Failed to create GPU mapping". It isn't ignored with a warning there, as assumed; the GPU mappings it needs fail. Out-of-memory minibatches are still halved in `ppo_update`.
+
 ## [0.16.7] - 2026-11-04
 
 ### Fixed
