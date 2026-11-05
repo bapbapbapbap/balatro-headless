@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.7] - 2026-11-04
+
+### Fixed
+- **Out of GPU memory under the 90% cap** (moe2, round 154, 19:2x): a minibatch of the largest action lists needed 1.09 GiB more, with 3.58 GiB allocated and 1.63 GiB reserved but fragmented under the 5.40 GiB cap. The trainer crashed and the watcher restarted it (one round lost). Now a minibatch that runs out of memory is freed and redone as two half minibatches, recursively; a single step that still doesn't fit is skipped. The counts are logged as `ppo.oom_splits` / `ppo.oom_skipped` in `metrics.jsonl`. The log-prob passes before and after the update halve the same way. `run_v2.sh` sets `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (unless already set) against the fragmentation; PyTorch ignores it with a warning where unsupported.
+- Updates that never hit the limit are unchanged.
+
+### Not checked here
+- No torch in the cloud: compiles only. The next launch is its first run.
+
 ## [0.16.6] - 2026-11-04
 
 ### Fixed
