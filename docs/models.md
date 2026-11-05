@@ -12,6 +12,10 @@ counted under 0.3. Model versions are separate from the tooling versions in the 
 
 All four are in `weights/`.
 
+The mixture of experts released on 2026-11-05 (`balatro-bot-moe2-pins0.pt`) is a separate line, not a
+0.x / 1.0 version: an early-game head, six hand experts and a routing rule, all started from 0.2. It has
+its own [system card](system_card_moe2.md); this card covers 0.1–1.0.
+
 | Model | Params | Actions / encoding | Snapshot (`best.pt`) | Eval: blinds/game (wins in 200) |
 |---|---|---|---|---|
 | **1.0** | 1.61M | ordered-capped / 2 | round 810, 90,720 games; run ended 2026-11-03 | **12.79** (5) |
@@ -88,6 +92,7 @@ The same weights, seed and `--sample-seed` always produce the same game.
 | `balatro-bot-0.3-beta.pt` | `e4ba9779505ce4d5e763c5344b1b620a5f3e71ab3d128c38b58d235c00eefd94` |
 | `balatro-bot-0.2.pt` | `4ea94f54f16cf114f8357689ca4b6a005f1031199406ded126a6c79efa29c4bd` |
 | `balatro-bot-0.1.pt` | `e649df00aaf70d04e3c11bc3edac5aac4a607f360947bd41b85f717987bd4035` |
+| `balatro-bot-moe2-pins0.pt` | `1dc76af9cc45be81a74d8628f11ca30c07b46a5cc59ac185e78a35c8f00fde12` ([system card](system_card_moe2.md)) |
 
 The weights are released under the repository's MIT license. Balatro itself is LocalThunk's
 and Playstack's, and you need your own copy to run anything here.

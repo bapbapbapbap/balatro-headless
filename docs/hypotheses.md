@@ -1116,3 +1116,72 @@ Predictions about the paired results (chud's, if any) get registered here **befo
 on `pins0.pt`. The scoring rules stay as written whatever the outcome, including if Full House doesn't win.
 
 Status: **draft**.
+
+
+## Added 2026-11-05 ~15:40 CST: moe2 at pins zero: results
+
+moe2 stopped itself at 13:42 CST on 2026-11-05, as built (`--stop-after-pins0`, PR #98). The last eval
+was at round 1042, the first round with every pin at 0, after 100,032 training games. Its weights are
+released as `weights/balatro-bot-moe2-pins0.pt` ([system card](system_card_moe2.md)). Full numbers and
+tables are in [moe2_evaluation.md](moe2_evaluation.md). This section scores what was registered and
+records the findings. The analysis is Claude's, done on chud's request ("update the hypothesis and
+write up the evaluation").
+
+### Pins-zero eval (600 fixed seeds)
+12.94 blinds per game, 9 wins, 13 near wins, 22 reached the final boss. Round 0 was 11.59 with 2 wins.
+The run's best eval was 13.08 at round 1020, and its most wins 14 at round 1040.
+
+### Completion criterion (2026-11-04 ~13:40): **not met**
+1. **Early head plays Full House when it's the best hand, at least 75%: fail.** The early pin's counters
+   at pins zero: a Full House or higher was on offer at 1,005 early-head decisions, and it played one
+   once. The criterion's exact measure, "best hand at that moment's levels", uses a subset of those
+   decisions, so its numerator is at most 1. The per-decision replay wasn't run; it can only confirm.
+2. **Every expert at least 50%: not measured.** The Full House expert got no games. The others need the per-decision
+   replay.
+3. **Full House expert routed in at least 5% of eval handoffs: fail.** 0 of 442.
+4. **Holds at two evals: not applicable,** since items 1 and 3 fail.
+
+As the criterion says, the MoE isn't complete, and next steps are decided with these measurements
+in hand. Full House's routing fell 81 → 5 → 0 (rounds 120, 900, 1042), as projected on 2026-11-05
+~10:40.
+
+### I2 (Full House among the strongest experts): **still unscored**
+The evals can't test it: the router sent the Full House expert nothing. The paired test can, because
+`paired_experts.py` forces every expert from the same handoff state, Full House's included. Its
+design still needs chud's confirmation (2026-11-04 ~13:35).
+
+### I1 (MoE beats model 1.0): **still unregistered**
+No comparison exists. moe2 used 600 eval seeds and the earlier models 200, under a win test since
+corrected. 1.0 is still being re-measured.
+
+### Findings (details and tables in the evaluation)
+- **The pins didn't teach the heads their hands.** With the pins at 0, the early head played Full House
+  1 time in 1,005 chances. Experts play their own hand when it's on offer at these rates: Two Pair
+  99.4%, Straight 78%, Flush 42%, Three of a Kind 37%, Pair 7%. Two Pair's near-total rate can't be
+  credited to the pins without a baseline: model 0.2, where every head started, already leaned on
+  Two Pair. The paired tool's no-handoff control gives that baseline.
+- **The mid-run dip was the early game, and it recovered without the pins.** Training games ending
+  by ante 3 went 33% → 42.5% (rounds 200–599) as the pins faded through 0.8–0.5. They were 30.6% by
+  rounds 1000–1043, below the start. The learning rate halved at round 611 (update guard), close to
+  the turn, so that cause isn't separated.
+- **Blinds per game rose to the run's best by the end; wins didn't clearly.** Last six evals: 12.93 blinds and 8.3 wins on
+  average, against 12.49 and 8.2 at rounds 100–200. Fresh-seed training wins: 1.12% (rounds
+  100–199), 1.13% (1000–1043). Eval trend since round 600: +0.51 blinds per 100 rounds.
+- **Most games are lost in antes 4–6** (352 of 600 at pins zero), and 56 by ante 1. Across all moe2
+  games, each expert converts 15.5–20.7% of its final-boss fights.
+- **Unexplained:** `ppo.kl` (policy that played vs policy being updated) rose 0.01 → 0.19 between
+  rounds 200 and 600, while each update's own movement stayed about 0.025. One update of lag accounts for
+  about 0.025. The suspects are hand-type exploration and float32 flooring; neither is tested.
+
+### For aim 1 (Claude's reading, for chud to accept or reject)
+The pins were an ought entered through the action mask, not the reward, and recorded as such
+(review of 2026-11-04 ~13:50, item 7). With them at 0, the forced behavior is mostly gone. The bot
+lost ground as they faded, then rebuilt on the reward and passed its starting point in blinds per game,
+toward play the pins didn't ask for. The review's caveat stands: the weights carry the pins'
+history, so this is a statement about this run, not about what the reward alone does from 0.2. The
+no-pin control (`moe2-nopin`) is still unrun.
+
+### Next (section J; nothing registered)
+1. `analysis/paired_experts.py` on `pins0.pt`. chud's predictions, if any, are registered in J first.
+2. Split `ppo.kl` by explored and sampled moves, and a low-temperature eval of `pins0.pt`.
+3. Then `--moe-cut 0` from `pins0.pt`, as a MoE or a single network depending on 1.

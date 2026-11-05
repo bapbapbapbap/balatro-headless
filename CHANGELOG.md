@@ -2,6 +2,20 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.19.0] - 2026-11-05
+
+### Added
+- **Released `weights/balatro-bot-moe2-pins0.pt`**: the mixture of experts from run `moe2` at its first round with every pin at 0 (round 1042, 100,032 games; 600-seed eval: 12.94 blinds per game, 9 wins, 13 near wins). SHA-256 `1dc76af9…8f00fde12`. Exported on chud's machine.
+- **`docs/system_card_moe2.md`**: the system card (architecture and router, training, evaluation, behavior, limitations, file).
+- **`docs/moe2_evaluation.md`**: the run's evaluation: eval history, 100-round training windows, the experts at pins zero, where games are won and lost, the mid-run dip, and an unexplained rise in `ppo.kl`.
+- **`train/play.py` plays mixture-of-experts weights.** It goes through `train.play_games` in eval mode (early head, router, expert), so a seed reproduces the run's eval game. Checked on chud's machine: CZIZSE25 and 3QS7GI3C matched the pins-zero eval's games move for move and replayed on the untouched game.
+
+### Fixed
+- `train/export_weights.py` failed on MoE checkpoints: `moe_init` holds a local path, which tripped the leak check. `moe_init`, `moe_early` and `init_weights` are now kept as file names.
+
+### Documented
+- `docs/hypotheses.md` 2026-11-05 ~15:40: moe2 at pins zero. The Full House completion criterion is **not met** (1 early Full House play in 1,005 chances; Full House expert routed 0 of 442). I2 is still unscored, and I1 is still unregistered. README, `weights/README.md`, `docs/models.md` and `llms.txt` updated.
+
 ## [0.18.2] - 2026-11-05
 
 ### Documented

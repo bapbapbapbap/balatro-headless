@@ -105,31 +105,30 @@ to be rerun on real wins:
 - **Not learned:** Full House (played 0 times in 2,274 chances), playing around three of the
   bosses, and spending money past the interest cap.
 
-### Running now
-**The mixture of experts, second run** (`hypotheses.md` section I, chud's design): an early-game
-head for antes 1–3, then one of 6 hand experts, all from model 0.2. The first run (2026-11-03)
-stopped on the stall rule before its pins had faded (best eval 12.73 blinds per game, 11 wins in
-600 seeds); the second drops Four of a Kind, pins Full House in the early game, and waits for the
-pins to fade before the stall rule applies
-([details](docs/hypotheses.md#added-2026-11-04-1340-cst-the-first-moe-run-stopped-changes-for-the-second-section-i)).
+### The mixture of experts (moe2, ended 2026-11-05)
+An early-game head for antes 1–3, then one of 6 hand experts chosen by a routing rule at ante 4, all
+from model 0.2 (`hypotheses.md` section I, chud's design). "Pins" forced each head's hand some of the
+time and faded to 0 over 100,000 games. The run stopped itself at the first eval with every pin at 0
+(round 1042): **12.94 blinds per game, 9 wins and 13 near wins in 600 seeds** (round 0: 11.59, 2
+wins). Its best was 13.08 blinds (round 1020) and 14 wins (round 1040).
+- **Full House wasn't learned.** The early head played a Full House or higher 1 time in 1,005 chances, and the
+  router sent the Full House expert no games. The completion criterion is not met.
+- **The pins didn't stick, and the bot recovered without them.** It lost ground as they faded (10.32
+  blinds at round 600) and rebuilt from the reward alone to its best evals.
+- **Blinds per game rose; win rate hasn't clearly passed the run's early peak.** Most games are lost in antes 4–6.
 
-As of 2026-11-04 18:40 CST (round 121, about 11,600 games, pins at about 0.88 of their starting
-strength): best eval **12.57 blinds per game, 11 wins and 14 near wins in 600 seeds** (round 120),
-still under the first run's 12.73. In that eval every expert but Flush won at least once,
-Three of a Kind for the first time (0 in 108 games in the first run), and Full House won 2 of 81 games.
-The same 600 seeds have swung 3 to 11 wins between evals, so single evals are noisy. 158 of the 600 eval games
-ended in antes 1–3, before any expert took over.
-The run was interrupted twice by machine crashes and slowed by GPU memory; both are fixed, and
-both are recorded in [`docs/REPRODUCE.md`](docs/REPRODUCE.md#the-training-machine) and the CHANGELOG.
+Weights: [`weights/balatro-bot-moe2-pins0.pt`](weights/README.md), [system card](docs/system_card_moe2.md).
+Full results: [docs/moe2_evaluation.md](docs/moe2_evaluation.md), scored in
+[hypotheses.md](docs/hypotheses.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results). Next steps are
+section J: measure the experts from the same positions first.
 
 ### Open
 - **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
   Registered, not yet run.
 - **Full House:** not learned. 0.3 played it 5 times in 497 chances, about the rate its exploration
-  alone would produce. In the second MoE run (through round 900, about 87,000 games), neither the Full
-  House expert nor the early head played one beyond what its pin forced, and the Full House expert's
-  share of games fell from 81 per eval to 5 as the pins faded
-  ([details](docs/hypotheses.md#added-2026-11-05-1040-cst-full-house-not-learned-so-far-moe2-through-round-900)).
+  alone would produce. moe2 ended with the pins at 0 and no Full House play left: 1 in 1,005 chances
+  for the early head, and no games for the Full House expert
+  ([details](docs/hypotheses.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results)).
 - **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
   0.3).
 - **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)). Proving one
