@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.4] - 2026-11-04
+
+### Documented
+- `llms.txt`: a section on how the project is run (chud): everything from Windows PowerShell, which starts the Linux side under WSL2 with `wsl -d Ubuntu-24.04 -- bash -lc "..."`; the two folders (Linux `~/balatro`, the shared `balatro-work`); and the commands in regular use, each explained: training, the watcher, the controller, recording the machine and packages, the naneinf scan, and reading Windows' event log after a crash.
+
 ## [0.16.3] - 2026-11-04
 
 ### Added
