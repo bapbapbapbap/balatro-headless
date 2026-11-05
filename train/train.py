@@ -1451,6 +1451,21 @@ def main():
                     raise Stop(f"{strikes} rejected updates in a row")
             else:
                 strikes = 0
+            gpu = {}
+            if str(device).startswith("cuda"):
+                # GPU memory around the update. Near the card's size, WSL's driver can spill to shared
+                # system memory and updates slow ~10x (moe2, 2026-11-04: 46 s -> 3-9 min per update at
+                # 5.9 of 6.1 GB). Releasing the allocator's unused cache each round keeps headroom.
+                try:
+                    tot = torch.cuda.get_device_properties(0).total_memory
+                    gpu = {"peak_allocated_gb": round(torch.cuda.max_memory_allocated() / 2**30, 2),
+                           "peak_reserved_gb": round(torch.cuda.max_memory_reserved() / 2**30, 2),
+                           "total_gb": round(tot / 2**30, 2)}
+                    torch.cuda.empty_cache()
+                    torch.cuda.reset_peak_memory_stats()
+                    gpu["reserved_after_gb"] = round(torch.cuda.memory_reserved() / 2**30, 2)
+                except Exception as ex:           # bookkeeping only; never stop training for it
+                    gpu = {"error": str(ex)[:100]}
             t2 = time.time()
 
             games_total += len(eps)
@@ -1471,19 +1486,26 @@ def main():
             decisions = sum(e["n"] for e in eps)
             ms_model = 1000 * sum(e.get("t_model", 0) for e in eps) / max(decisions, 1)   # per decision, in a worker
             ms_sim = 1000 * sum(e.get("t_sim", 0) for e in eps) / max(decisions, 1)
-            rate = decisions / max(t1 - t0, 1e-6)
-            rates.append((time.time() - t_start, rate))
-            early = [r for t, r in rates if t < 1800]
-            if (time.time() - t_start) > 3600 and early and rate < 0.6 * sorted(early)[len(early) // 2]:
-                alert(f"play speed {rate:.0f} decisions/s is under 60% of the first half hour's "
-                      f"({sorted(early)[len(early) // 2]:.0f}); likely heat throttling")
+            # Decisions per second of the whole round (wait for games + update). With overlap the workers
+            # play during the previous update, so the wait alone can be ~0 s and gave rates like 77,000/s.
+            rate = decisions / max(t2 - t0, 1e-6)
+            rates.append((time.time() - t_start, rate, ms_sim, t2 - t1))
+            early = [r for r in rates if r[0] < 1800]
+            if (time.time() - t_start) > 3600 and early:
+                med = lambda k: sorted(r[k] for r in early)[len(early) // 2]
+                if ms_sim > 1.6 * med(2):
+                    alert(f"sim time {ms_sim:.1f} ms per decision is over 1.6x the first half hour's "
+                          f"({med(2):.1f} ms); likely CPU heat throttling")
+                if t2 - t1 > 3 * med(3) and t2 - t1 > 60:
+                    alert(f"model update took {t2 - t1:.0f} s, over 3x the first half hour's ({med(3):.0f} s); "
+                          f"GPU memory peak {gpu.get('peak_reserved_gb', '?')} of {gpu.get('total_gb', '?')} GB reserved")
             if st["entropy"] < 0.05:
                 alert(f"policy entropy {st['entropy']:.3f}: the policy has become nearly deterministic")
             rec = {**({"moe_pin_scale": dict(zip(EXPERT_HANDS, [round(float(x), 3) for x in model.pin_scale])),
                        "moe_early_pin_scale": round(float(model.early_pin_scale[0]), 3),
                       "moe_expert_games": dict(zip(EXPERT_HANDS, [int(x) for x in model.expert_games]))} if args.moe else {}),
                    "iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
-                   "update_seconds": round(t2 - t1, 1), "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
+                   "update_seconds": round(t2 - t1, 1), "gpu_memory": gpu, "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
                    "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved), "ms_model": round(ms_model, 2), "ms_sim": round(ms_sim, 2),
                    "retry": sr, "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},

@@ -2,6 +2,16 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.5] - 2026-11-04
+
+### Fixed
+- **Model updates slowed ~10x with the GPU nearly full** (moe2 from round 116: updates went from 46 s to 3-9 min, games per hour from ~5,000 to 600-1,900; `nvidia-smi` showed 5,873 of 6,141 MiB in use). WSL's GPU driver can spill to shared system memory near the card's size. The trainer now releases PyTorch's unused GPU cache after every update (`torch.cuda.empty_cache()`), and logs each round's peak allocated and reserved GPU memory in `metrics.jsonl` (`gpu_memory`). The same symptom ended in v2 on 2026-11-02 (0.8.3) and was cleared by a restart; this is the first time memory was looked at.
+- **Decisions per second were wrong with overlapped rounds**: they were divided by the learner's wait for games, which is ~0 s when the workers finished during the update, and showed figures like 77,351/s. Now divided by the whole round's time.
+- **The heat alert** read that rate. It now reads the workers' own sim time per decision (CPU heat), and a second alert fires when an update takes over 3x the first half hour's (and over 60 s), with the GPU memory peak.
+
+### Not checked here
+- No torch in the cloud: the code compiles; the next launch is its first run.
+
 ## [0.16.4] - 2026-11-04
 
 ### Documented
