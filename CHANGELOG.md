@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.19.1] - 2026-11-05
+
+### Fixed
+- **`analysis/paired_experts.py` hung on a game error.** A worker's exception from the game (a lupa `LuaError`) is pickled back to the main process, which doesn't load lupa, so the pool's result thread died (`ModuleNotFoundError: No module named 'lupa'`) and the run waited forever. It happened at seed ~150 of the first 2,000-seed run, with 187 seeds saved. Now an error on a seed is recorded as text in that seed's line (`"error"`), printed, and skipped, and that worker's sim is rebuilt. The summary lists errored seeds and leaves them out.
+
 ## [0.19.0] - 2026-11-05
 
 ### Added
