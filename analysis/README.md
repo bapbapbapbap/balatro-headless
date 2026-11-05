@@ -25,3 +25,18 @@ python3 resolve.py summary resolve_1.0.jsonl --k 10 --ranked resolve_1.0_ranked.
 ### Result, model 1.0 (2026-11-03)
 `results/resolve_1.0/`: `summary.txt`, `ranked.csv` (all 3,098 seeds, easiest first) and every game
 (`resolve_1.0.jsonl.gz`). Scored in `docs/hypotheses.md`, "R result".
+
+## Paired experts: what the mixture of experts learned
+`paired_experts.py` plays every expert from the same ante-4 handoff state on seeds outside the eval
+600, plus a control where the early head plays on with no handoff. It answers three questions (chud,
+2026-11-05): does one strategy win the most; does the handoff change play (plays by hand after the
+handoff, per expert, from the same positions); is the handoff at the right ante (`--handoff-antes`).
+It also scores the router's own choice and the ceiling a perfect router would reach. The weights must
+be a trainer checkpoint (it carries the run's settings).
+```bash
+python3 paired_experts.py /mnt/c/Users/<you>/balatro-work/runs/moe2/pins0.pt --src ~/balatro/local/source \
+    --seeds 200 --handoff-antes 3,4,5 --workers 4 --out paired_moe2.jsonl     # rerun to resume
+python3 paired_experts.py --summary paired_moe2.jsonl
+```
+Cost: per seed and handoff ante, 7 games per rollout (6 experts + the control). Run it when training
+isn't using the CPU, or with few workers.

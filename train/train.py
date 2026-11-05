@@ -143,7 +143,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 pin_id, pin_rate = early_ids, early_rate
             pst = new_pin_stats() if pin_id is not None else None
             early_pst = pst if args.moe else None
-            member, routed, counts, handoff_at = 0, None, np.zeros(len(EXPERT_HANDS)), None
+            member, routed, counts, handoff_at, rule_k = 0, None, np.zeros(len(EXPERT_HANDS)), None, None
+            late, late_plays = np.zeros(len(EXPERT_HANDS)), 0     # plays after the handoff, by hand
             back, stake, challenge = game_config(seed, args)
             o = sim.reset(seed, back, stake, challenge)
             if pst is not None:
@@ -181,7 +182,11 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 if pst is not None:
                     count_pin_move(o, a, pin_id, pst)
-                if args.moe and member == 0:
+                if args.moe and handoff_at is not None and o["act"][a][0] == PLAY:
+                    late_plays += 1
+                    for k2, hid in enumerate(hand_ids):
+                        late[k2] += int(o["act"][a][HAND_COL] == hid)
+                if args.moe and member == 0 and handoff_at is None:
                     row = o["act"][a]
                     if row[0] == PLAY:
                         for k, hid in enumerate(hand_ids):
@@ -190,14 +195,29 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                         # Handoff (the boss before --moe-handoff beaten): the expert for the hand this
                         # run leaned on most, relative to how often the early model plays it; in
                         # training games, --moe-random of them go to an expert picked at random.
-                        if mode == "train" and prng.random() < args.moe_random:
+                        # A hand with a minimum (--moe-min-plays) needs that many plays to be chosen.
+                        score = np.where(counts >= min_plays, (counts + 1.0) / (base + 1.0), -np.inf)
+                        rule_k = int(np.argmax(score))
+                        force = getattr(args, "moe_force", None)
+                        if force == -1:
+                            # no handoff: the early head plays on (analysis control); handoff_at marks
+                            # where the handoff would have been
+                            handoff_at, routed = sim.steps, "none"
+                        elif force is not None:
+                            # analysis/paired_experts.py: every expert from the same handoff state
+                            k, routed = int(force), "forced"
+                        elif mode == "train" and prng.random() < args.moe_random:
                             k, routed = min(int(prng.random() * len(EXPERT_HANDS)), len(EXPERT_HANDS) - 1), "random"
                         else:
-                            # A hand with a minimum (--moe-min-plays) needs that many plays to be chosen.
-                            score = np.where(counts >= min_plays, (counts + 1.0) / (base + 1.0), -np.inf)
-                            k, routed = int(np.argmax(score)), "rule"
-                        member, handoff_at = 1 + k, sim.steps
-                        pin_id, pin_rate, pst = hand_ids[k], rates[k], new_pin_stats()
+                            k, routed = rule_k, "rule"
+                        if force != -1:
+                            member, handoff_at = 1 + k, sim.steps
+                            pin_id, pin_rate, pst = hand_ids[k], rates[k], new_pin_stats()
+                        ro = getattr(args, "moe_rollout", 0)
+                        if ro and mode == "eval":
+                            # another play-out from the same handoff state: same moves up to here, its
+                            # own sampling after (each rollout shares its RNG across experts)
+                            srng = random.Random(f"eval-{seed}-rollout{ro}")
                 if not done:
                     o = sim.observe()
                     if pst is not None:
@@ -211,6 +231,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
                   "t_model": t_model, "t_sim": t_sim, "pin": pst if pst is not early_pst else None, "reached": reached,
                   "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
+                           "rule_choice": EXPERT_HANDS[rule_k] if rule_k is not None else None,
+                           "late_counts": late.tolist(), "late_plays": late_plays,
                            "early_counts": counts.tolist(), "handoff_step": handoff_at,
                   "early_pin": early_pst} if args.moe else None)}
             if ep["progress"]["won"] or ep["progress"].get("near_win"):
