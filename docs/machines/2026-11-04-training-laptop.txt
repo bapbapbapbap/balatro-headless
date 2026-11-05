@@ -1,0 +1,27 @@
+# Recorded 2026-11-04 18:14:08 -06:00 by tools/sysinfo.ps1 (raw output; host and user names are never collected)
+machine: ASUSTeK COMPUTER INC. ASUS Vivobook Pro 15 N6506CU_N6506CU
+bios: N6506CU.303, 2025-01-01
+cpu: Intel(R) Core(TM) Ultra 9 285H; 16 cores, 16 threads, max 2900 MHz
+ram: 23.4 GB
+ram modules: 8 GB @ 5600 MT/s, 16 GB @ 5600 MT/s
+gpu (windows): NVIDIA GeForce RTX 4050 Laptop GPU, driver 32.0.15.9579 (2026-03-03)
+gpu (windows): Intel(R) Arc(TM) 140T GPU (12GB), driver 32.0.101.6554 (2025-01-14)
+windows: Microsoft Windows 11 Home, version 26H2, build 26300.9711
+power plan: Balanced
+on AC power: True
+memory integrity (HVCI) running: True
+asus system driver: ASUS System Control Interface v3 3.1.72.0
+wsl: WSL version: 2.6.3.0 | Kernel version: 6.6.87.2-1 | WSLg version: 1.0.71 | MSRDC version: 1.2.6353 | Direct3D version: 1.611.1-81528511 | DXCore version: 10.0.26100.1-240331-1435.ge-release | Windows version: 10.0.26300.9711
+.wslconfig: [wsl2]; processors=16; memory=14GB; swap=8GB
+Balatro.exe sha256: 0D75FE164ACCF3312734D4B37AC98788DD15F0B8E4F9BB8B7F90C4E59DE93F47
+linux: Ubuntu 24.04.5 LTS, kernel 6.6.87.2-microsoft-standard-WSL2
+linux cpus: 16; linux ram: 13 GB; swap: 8 GB
+gpu (linux): NVIDIA GeForce RTX 4050 Laptop GPU, 595.79, 6141 MiB, [N/A]
+cuda (driver): 13.2
+python (venv): 3.12.3
+torch: 2.15.0+cu132, cuda 13.2, cudnn 92600, gpu available True
+numpy: 2.5.4
+lupa: not importable (ModuleNotFoundError)
+gcc: 13.3.0
+git: 2.43.0
+repo commit: 30b8ccd (2026-11-04)

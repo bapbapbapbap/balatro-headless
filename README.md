@@ -281,7 +281,11 @@ Everything here was built and checked against exactly these. Anything else may d
 | Steamodded | 26.1002.0 | Lovely's dump of the patched game is version-specific |
 | Antelytics (run logger) | 1.3.0-alpha | fixtures recorded with it |
 | Python | 3.12.3 (WSL, training) and 3.13.18 (development checks) | |
-| PyTorch | 2.15.0+cu132 (training) | not pinned in the repo yet |
+| PyTorch | 2.15.0+cu132 (training; CUDA 13.2, cuDNN 9.26.0) | not pinned in the repo yet |
+| numpy | 2.5.4 (training) | not pinned in the repo yet |
+| NVIDIA driver | 595.79 (Linux) / 32.0.15.9579 (Windows) | |
+| WSL | 2.6.3.0, kernel 6.6.87.2, Ubuntu 24.04.5 LTS | |
+| Training machine | ASUS Vivobook Pro 15 (N6506CU): Core Ultra 9 285H, 24 GB, RTX 4050 Laptop 6 GB, Windows 11 Home 26H2 (build 26300.9711) | recorded 2026-11-04; details and dated changes in [`docs/REPRODUCE.md`](docs/REPRODUCE.md#the-training-machine) |
 | OS for the harness | Linux x86_64 (or WSL) | |
 | Claude (wrote the code with chud) | Claude Opus 5.5, high effort | model ID `claude-opus-5-5`; each commit names the session |
 
