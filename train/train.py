@@ -844,6 +844,9 @@ def main():
     ap.add_argument("--vf", type=float, default=0.5)
     ap.add_argument("--grad-clip", type=float, default=0.5)
     ap.add_argument("--device", default="auto")
+    ap.add_argument("--gpu-mem-fraction", type=float, default=0.9,
+                    help="cap PyTorch's GPU memory at this share of the card (0 = no cap). Past the card's size WSL "
+                         "spills to shared system memory and updates slow down; under the cap the allocator reuses its cache")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", help="checkpoint to continue from")
     ap.add_argument("--reset-lr", action="store_true",
@@ -901,6 +904,11 @@ def main():
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     device = ("cuda" if torch.cuda.is_available() else "cpu") if args.device == "auto" else args.device
+    if str(device).startswith("cuda") and args.gpu_mem_fraction > 0:
+        try:
+            torch.cuda.set_per_process_memory_fraction(args.gpu_mem_fraction)
+        except Exception as ex:
+            print(f"could not cap GPU memory: {ex}", flush=True)
     out = args.out or os.path.join(HERE, "runs", args.run)
     os.makedirs(out, exist_ok=True)
     log_alerts = []

@@ -2,6 +2,11 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.16.6] - 2026-11-04
+
+### Fixed
+- **GPU memory capped at 90% of the card** (`--gpu-mem-fraction 0.9`, 0 turns it off). The first rounds logged by 0.15.5 showed what the update really uses: peak allocated 3.6 GB, but peak **reserved 10.2-10.3 GB on a 6.0 GB card** (moe2, rounds 120-121). The allocator's cache was growing past the card, so part of every update ran from shared system memory (updates 62-80 s vs 46 s before round 116). Under the cap the allocator frees and reuses its cache instead. An update that truly needs more than the cap would fail with out of memory; the logged peak is 3.6 of 5.4 GB.
+
 ## [0.16.5] - 2026-11-04
 
 ### Fixed
