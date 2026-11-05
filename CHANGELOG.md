@@ -2,6 +2,14 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.17.0] - 2026-11-05
+
+### Added
+- **What happens when the pins hit 0** (chud): `train.py --eval-at-pins-zero` (MoE, on by default) runs an eval at the first round after every pin has faded to 0, outside the 20-round schedule, and saves those weights as `pins0.pt`; an alert gives the games count and score. `--save-at-games N[,N...]` saves `games_<N>.pt` at the first round that reaches each training-game count (rounds are ~100 games, so within one round of N; the alert gives the exact count). `run_moe.sh` saves at 100,200 by default (`MOE_SAVE_AT`). Both survive a resume: a file already on disk counts as done. For moe2, all six experts are past their 5,000-game minimum, so every pin reaches 0 together at 100,000 games.
+
+### Not checked here
+- No torch in the cloud: compiles only.
+
 ## [0.16.8] - 2026-11-04
 
 ### Fixed

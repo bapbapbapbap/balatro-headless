@@ -65,5 +65,5 @@ export MOE_ON=1 MOE_INIT="$INIT" MOE_EARLY="$EARLY" MOE_EXPERT_ARGS=""
 [ -n "$EARLY_PIN" ] && MOE_EXPERT_ARGS+=" $(printf '%q ' --moe-early-pin "$EARLY_PIN")"
 [ -n "$MIN_PLAYS" ] && MOE_EXPERT_ARGS+=" $(printf '%q ' --moe-min-plays "${MP[@]}")"
 export MOE_EXPERT_ARGS
-export TRAIN_ARGS="--seed ${MOE_SEED:-0} --moe-train-early ${MOE_TRAIN_EARLY:-1} --moe-cut ${MOE_CUT:-1} --moe-min-games ${MOE_MIN_GAMES:-5000} --eval-games ${EVAL_GAMES:-600} --eval-every ${EVAL_EVERY:-20} --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
+export TRAIN_ARGS="--seed ${MOE_SEED:-0} --moe-train-early ${MOE_TRAIN_EARLY:-1} --moe-cut ${MOE_CUT:-1} --moe-min-games ${MOE_MIN_GAMES:-5000} --eval-games ${EVAL_GAMES:-600} --eval-every ${EVAL_EVERY:-20} --save-at-games ${MOE_SAVE_AT:-100200} --explore-hands ${EXPLORE:-0.05} ${TRAIN_ARGS:-}"
 exec bash "$R/train/run_v2.sh" "$SHARED" "$HOURS" "$WORKERS"
