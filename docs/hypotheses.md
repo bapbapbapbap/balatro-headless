@@ -1017,3 +1017,39 @@ I2 (Full House among the strongest experts) is separate and can fail while this 
 
 If moe2 ends without meeting it, the MoE isn't complete: next steps are decided then, with the
 measurements in hand.
+
+
+## Added 2026-11-05 ~10:40 CST: Full House not learned so far (moe2, through round 900)
+
+An observation, not a scored test. The completion criterion above (2026-11-04 ~13:40) is measured
+only once every pin is at 0, at about 100,000 training games (round ~1,041); at round 900 the pins
+are at 0.13. Recorded now, before that eval exists, because chud asked to note that Full House
+training has failed so far. The early head is **trained** in moe2 (`--moe-train-early 1`), not frozen.
+
+### What the eval logs show (600 fixed seeds, every 20 rounds)
+- **Neither the Full House expert nor the early head plays a Full House unless the pin forces it.**
+  From round 540 to 900 (19 evals, pins 0.45 → 0.13): the Full House expert had a Full House on
+  offer at 993 decisions; the pin bound 330 of them, and it played 326 Full Houses. The early head
+  (pin: Full House or higher) had one on offer at 17,284 decisions; the pin bound 5,190, and it
+  played 5,072. In every one of those evals, plays never exceeded the decisions the pin bound. That
+  is what a policy that never chooses Full House on its own would give. These counters are per eval, not per
+  decision, so they can't prove that no unforced Full House was ever played; the per-decision
+  replay (`analysis/`) is the exact test, at pins 0.
+- **The Full House expert is starved.** Games routed to it: 81 of the round-120 eval's handoffs, 87 at
+  round 160, 60 at 400, 35 at 600, 18 at 800, **5 of 408 (1.2%) at 900**. The router needs two Full
+  House plays in antes 1–3, and as the early pin fades the early head stops making them.
+- Its eval record across all 46 evals: 2,207 routed games, 34 wins, 34 near wins. Not comparable with
+  the other experts' records (each gets different games; I2's test is the paired comparison).
+
+### Against the completion criterion, projected (not scored)
+1. Early head plays it at ≥75% when it's the best hand: on course to fail (no unforced plays seen).
+2. Experts play it at ≥50%: not measured (needs the per-decision replay), likely to fail.
+3. Full House expert routed in ≥5% of eval handoffs: 1.2% at round 900 and falling; on course to fail.
+
+### Not yet known
+Whether, with the pins at 0, the reward alone leads any head to Full House. The first pin-free eval
+(PR #95: `pins0.pt`, eval at the first round with every pin at 0) and the checkpoint at 100,200
+games are the measurement points.
+
+### An idea for later (chud, 2026-11-05)
+Train each expert only on the games that expert won. Not designed or registered.
