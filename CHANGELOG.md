@@ -6,7 +6,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ### Documented
 - **The training machine, recorded** (chud): `docs/REPRODUCE.md` has a new section listing the laptop every model was trained on, with versions as of 2026-11-04: hardware, BIOS, Windows build, WSL and kernel, NVIDIA driver, CUDA and cuDNN, Python packages, toolchain and game hash. It also logs dated changes to the machine that bear on runs: the ASUS driver update tied to moe2's two HYPERVISOR_ERROR crashes, its rollback, and heat. The raw record is in `docs/machines/2026-11-04-training-laptop.txt`. README's Versions table adds numpy, the NVIDIA driver, WSL and the machine. "What you need" said 16 GB+ and "RTX 40-series" for the machine used; it now gives the exact parts. A new known gap: training hasn't been checked for bit-for-bit reproducibility (routes are exact).
-- `tools/sysinfo.ps1` (0.15.2) is how the record was made, and how to record another machine.
+- `tools/sysinfo.ps1`: records a machine the same way (no host or user names, no serials). The record above was made with it.
 
 ## [0.16.1] - 2026-11-04
 
