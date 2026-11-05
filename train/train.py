@@ -899,6 +899,15 @@ def main():
                     help="prior losses per arm, Beta(1, prior): how many games before an arm's record dominates")
     ap.add_argument("--retry-max", type=int, default=30, help="attempts per seed before it is dropped")
     ap.add_argument("--retry-pool", type=int, default=500, help="most seeds waiting per ante")
+    # known-winnable seeds (chud 2026-11-04: "train experts on winnable seeds"): a fixed share of each
+    # round replays seeds already proven beatable, so the late game (the experts) sees runs a win exists for.
+    ap.add_argument("--known-seeds", nargs="*", default=[],
+                    help="routes.jsonl / wins.jsonl files of beaten seeds to train on (this deck and stake only; "
+                         "eval seeds are always left out)")
+    ap.add_argument("--known-share", type=float, default=0.0,
+                    help="share of each round's training games on known-winnable seeds (0 = off)")
+    ap.add_argument("--known-grow", type=int, default=1,
+                    help="1 = seeds this run wins in training join the known pool; 0 = the files only")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -1012,7 +1021,7 @@ def main():
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe)},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
-              "beaten_seeds": sorted(beaten)}
+              "beaten_seeds": sorted(beaten), "known_seeds": known}
         d = out
         if tag.startswith("ckpt_") and spilling():
             d = os.path.join(args.spill_dir, "runs", args.run)
@@ -1122,6 +1131,36 @@ def main():
         arms.setdefault(a, {"games": 0, "wins": 0})
     beaten = set(resumed.get("beaten_seeds", [])) if resumed else set()
     arm_rng = random.Random(f"arms-{args.seed}-{start_it}")
+    # known-winnable pool: seed -> {"attempts", "wins"}; never an eval seed, so the eval stays clean
+    eval_set = set(esd)
+    known = {sd: dict(v) for sd, v in (resumed.get("known_seeds", {}) if resumed else {}).items() if sd not in eval_set}
+    arms.setdefault("known", {"games": 0, "wins": 0})
+    if args.known_share > 0:
+        added, skipped = 0, 0
+        for path in args.known_seeds:
+            if not os.path.exists(path):
+                alert(f"known-seed file {path} not found; skipped")
+                continue
+            for line in open(path):
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                # a wins.jsonl line must have replayed and pass the game's own win test (win_check 2:
+                # lines before 2026-11-03 can be ante-8 boss losses, CHANGELOG 0.13.2); routes.jsonl
+                # lines (with "source") were replayed when published
+                proven = "source" in r or (r.get("verified") and r.get("win_check", 0) >= 2)
+                if not proven or not r.get("progress", {}).get("won") or not same_config(r, args) \
+                        or r["seed"] in eval_set or r.get("mode") == "eval":
+                    skipped += 1
+                    continue
+                if r["seed"] not in known:
+                    known[r["seed"]] = {"attempts": 0, "wins": 0}
+                    added += 1
+        alert(f"known-winnable seeds: {len(known)} in the pool ({added} added from files, {skipped} lines "
+              f"skipped: eval seed, other deck/stake, or not a win); {args.known_share:.0%} of each round")
+        for a in ARMS[1:]:                # a proven seed is trained on in the known arm, not retried
+            for sd in [sd for sd in pools[a] if sd in known]:
+                del pools[a][sd]
 
     def train_seeds():
         """Splits this round's games across the arms. Fresh keeps at least --fresh-min; every other
@@ -1131,10 +1170,11 @@ def main():
         if not args.retry:
             return [[None] * args.games_per_worker for _ in range(args.workers)], {}
         floor = int(math.ceil(n * args.fresh_min))
+        n_known = min(int(round(n * args.known_share)), len(known), n - floor) if args.known_share > 0 else 0
         left = {a: len(pools[a]) for a in ARMS[1:]}
         alloc = {a: 0 for a in ARMS}
         alloc["fresh"] = floor
-        for _ in range(n - floor):
+        for _ in range(n - floor - n_known):
             best, bv = "fresh", -1.0
             for a in ARMS:
                 if a != "fresh" and alloc[a] >= left[a]:
@@ -1151,7 +1191,15 @@ def main():
             for sd, _ in order[:alloc[a]]:
                 flat.append(sd)
                 source[sd] = a
+        if n_known:
+            # fewest attempts first, ties broken at random so the pool is covered evenly
+            order = sorted(known, key=lambda sd: (known[sd]["attempts"], arm_rng.random()))
+            for sd in order[:n_known]:
+                flat.append(sd)
+                source[sd] = "known"
         flat += [None] * (n - len(flat))
+        if n_known:
+            arm_rng.shuffle(flat)    # known seeds spread over the workers, not all on the last ones
         return [flat[w::args.workers] for w in range(args.workers)], source
 
     def update_retries(it, eps, source):
@@ -1161,6 +1209,12 @@ def main():
             e["arm"] = arm
             arms[arm]["games"] += 1
             arms[arm]["wins"] += int(p["won"])
+            if arm == "known":
+                known[sd]["attempts"] += 1
+                known[sd]["wins"] += int(p["won"])
+                continue                 # already proven: never a retry, never a new beaten seed
+            if p["won"] and args.known_grow and args.known_share > 0 and sd not in eval_set:
+                known.setdefault(sd, {"attempts": 0, "wins": 0})
             if arm != "fresh":
                 pools[arm].pop(sd, None)
             if p["won"]:
@@ -1389,7 +1443,7 @@ def main():
             t0 = time.time()
             if pending is None:
                 seeds, source = train_seeds()
-                prev_entries = {sd: dict(pools[a][sd]) for sd, a in source.items()}
+                prev_entries = {sd: dict(pools[a][sd]) for sd, a in source.items() if a != "known"}
                 eps = run_round(seeds, "train", it)
             else:
                 # sent last round, before the update: played with weights one update old
@@ -1407,7 +1461,8 @@ def main():
                     eps = run_round(seeds, "train", it)
             t1 = time.time()
             for e in eps:
-                e["retry"] = e["seed"] in source
+                e["retry"] = source.get(e["seed"], "fresh") not in ("fresh", "known")
+                e["known"] = source.get(e["seed"]) == "known"
                 e["_prev_entry"] = prev_entries.get(e["seed"])
             update_retries(it, eps, source)
             record(it, "train", eps)
@@ -1433,7 +1488,7 @@ def main():
             if args.overlap and not stop_requested:
                 # Send the next round now, so the workers play while the learner updates.
                 nseeds, nsource = train_seeds()
-                nprev = {sd: dict(pools[a][sd]) for sd, a in nsource.items()}
+                nprev = {sd: dict(pools[a][sd]) for sd, a in nsource.items() if a != "known"}
                 pending = (pool.send(weights(), nseeds, "train", it + 1), nseeds, nsource, nprev)
 
             # Update guard: keep a copy, reject the update if it is non-finite or moves too far.
@@ -1477,10 +1532,11 @@ def main():
             t2 = time.time()
 
             games_total += len(eps)
-            fresh = [e for e in eps if not e["retry"]]
+            fresh = [e for e in eps if not e["retry"] and not e["known"]]
             s = summarize(fresh or eps)       # the learning curve stays on fresh seeds only
-            sr = summarize([e for e in eps if e["retry"]]) if source else None
-            round_alloc = {a: sum(1 for e in eps if e["arm"] == a) for a in ARMS}
+            sr = summarize([e for e in eps if e["retry"]]) if any(e["retry"] for e in eps) else None
+            sk = summarize([e for e in eps if e["known"]]) if any(e["known"] for e in eps) else None
+            round_alloc = {a: sum(1 for e in eps if e["arm"] == a) for a in ARMS + ["known"]}
             wins_total += sum(e["progress"]["won"] for e in eps)
             train_hist.append(s["blinds_mean"])
             roll = float(np.mean(train_hist[-10:]))
@@ -1516,7 +1572,7 @@ def main():
                    "update_seconds": round(t2 - t1, 1), "gpu_memory": gpu, "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
                    "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved), "ms_model": round(ms_model, 2), "ms_sim": round(ms_sim, 2),
-                   "retry": sr, "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},
+                   "retry": sr, "known": sk, "known_pool": len(known), "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},
                    "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
@@ -1527,7 +1583,8 @@ def main():
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
                   + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
-                  + " | alloc " + " ".join(f"{a[0] if a == 'fresh' else a}:{round_alloc[a]}" for a in ARMS if round_alloc[a])
+                  + (f" | known {sk['games']} games blinds {sk['blinds_mean']:.2f} wins {sk['wins']} (pool {len(known)})" if sk else "")
+                  + " | alloc " + " ".join(f"{a[0] if a in ('fresh', 'known') else a}:{round_alloc[a]}" for a in ARMS + ["known"] if round_alloc[a])
                   + f" | waiting {sum(len(v) for v in pools.values())} beaten seeds {len(beaten)}"
                   + f" | saved {saved['games']:,} games, {saved['wins_verified']}/{saved['wins']} wins verified", flush=True)
             save(it, "latest")
