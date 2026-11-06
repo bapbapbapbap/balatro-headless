@@ -1465,7 +1465,7 @@ against a hand-computed game, the shaping term's telescoping checked on real gam
 replaying exactly, and the pre-flight in `run_v2.sh`.
 
 
-## Added 2026-11-05 ~23:05 CST: model v4, registered before any of its code (section J)
+## Added 2026-11-05 ~23:01 CST: model v4, registered before any of its code (section J)
 
 chud (22:58): "it'd be wasteful not to do the best approach when we finally looked." v4 is the
 strongest bot buildable from what this project and others have learned. It replaces v3 as the

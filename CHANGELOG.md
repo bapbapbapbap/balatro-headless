@@ -5,7 +5,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ## [0.20.0] - 2026-11-05
 
 ### Registered
-- **Model v4** (`docs/hypotheses.md`, 2026-11-05 ~23:05 CST), before any of its code, as the new target (chud): a build-strength potential, separate shop and table networks, a backward curriculum from ante 4-6, a shop entropy schedule; predictions W1-W3 on `v4-test`. Records what other Balatro projects found (scoring the shop directly beats single-policy PPO by ~10x), aim 1's precondition (a late-game bot), and the search track for aims 2-3.
+- **Model v4** (`docs/hypotheses.md`, 2026-11-05 ~23:01 CST), before any of its code, as the new target (chud): a build-strength potential, separate shop and table networks, a backward curriculum from ante 4-6, a shop entropy schedule; predictions W1-W3 on `v4-test`. Records what other Balatro projects found (scoring the shop directly beats single-policy PPO by ~10x), aim 1's precondition (a late-game bot), and the search track for aims 2-3.
 
 ### Added: model v3 (registered in `docs/hypotheses.md` 2026-11-05 ~21:19 CST, before this code)
 - **Game-time discount** (`--gamma-blind`, `--lam-blind`; `rewards.step_discount`): the discount and GAE's lambda apply once per blind passed (beaten or skipped) and every other step is undiscounted, instead of once per action. The shaping term takes the step's own discount, so it still telescopes. `gae` and `discounted` take per-step discounts; training games carry them (`ep["disc"]`), as do replayed games for self-imitation and cloning. Unset, every step is (`--gamma`, `--lam`) as before: existing runs are unchanged.
