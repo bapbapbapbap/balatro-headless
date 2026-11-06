@@ -1463,3 +1463,87 @@ it is the only way to tell "the clock is wrong" from "starting from scratch cost
 The new discount needs the same checks as every trainer change: per-step discounts unit-tested
 against a hand-computed game, the shaping term's telescoping checked on real games, saved games
 replaying exactly, and the pre-flight in `run_v2.sh`.
+
+
+## Added 2026-11-05 ~23:05 CST: model v4, registered before any of its code (section J)
+
+chud (22:58): "it'd be wasteful not to do the best approach when we finally looked." v4 is the
+strongest bot buildable from what this project and others have learned. It replaces v3 as the
+target; v3 (registered above) may still run as a baseline, and its A/B result, if it exists, decides
+v4's discount clock. Nothing below is built yet.
+
+### What others found (looked up 2026-11-05 ~22:50 CST; Red Deck, White Stake unless noted)
+| Approach | Win rate | Source |
+|---|---|---|
+| Pure PPO, one policy (ours) | ~2% | this repo |
+| Pure PPO, one policy (taggarttufte/balatro-rl V7) | 2.35% peak, "plateaus at Green+Space lock-in" | github.com/taggarttufte/balatro-rl |
+| Two-policy PPO, simplified sim (arXiv 2610.39049) | no wins; mean max ante ~3 | arxiv.org/abs/2610.39049 |
+| Hand-written heuristics | ~5% | balatro-gym "strategist" (100 seeds); Optilatro `heuristic_v10` (300 seeds) |
+| Planner: each shop decision scored by cloning the state and measuring the board's hand-scoring power | 20% (47/240) | github.com/roshantaneja/balatro-gym |
+| Separate shop and blind agents, multi-agent PPO with routed credit (GIEWEV; Reddit claim, partial game) | ~30% sim, ~25% real game | cited as [3] in arXiv 2610.39049 |
+| Skilled humans | "95–99%" (forum opinion, not a measurement) | Steam discussions |
+
+The other projects run on reimplementations, some partial; ours runs on the real game. Read
+together: **every approach that scores the shop directly beats every single-policy PPO run by about
+10x.** That independently supports v3's diagnosis (the build decides the run; a single long-horizon
+policy can't credit it) and says v3's fix, the clock, is the weakest of the known fixes.
+
+### What changes (v4)
+1. **Build-strength potential.** A second potential-based shaping term, phi_build(s), how strong the
+   current build is against the blinds ahead, computed from game state with the game's own scoring
+   code (reference hands scored with the current jokers, hand levels and deck; the exact definition
+   is fixed and recorded here before training). Requirements: a function of the state only (so
+   Ng et al. 1999 holds and the optimal policy under `blinds` is unchanged: the ought stays
+   `blinds`), bounded, using the step's own discount, and computed only from what a player can see.
+   It gives the shop a direct signal for what each purchase did to the build. It encodes no rule:
+   the bot still decides what to buy.
+2. **Separate shop and table networks, each with its own critic.** Decisions in a blind (play,
+   discard, use while selecting a hand) go to one network; shop, packs, blind select and cash-out go to
+   the other. Built on the MoE machinery, routed by phase instead of by hand. Reason: one critic can't
+   judge both "is this hand good" and "is this build good".
+3. **Backward curriculum.** A share of training games (30%) start mid-run: a saved game's moves are
+   replayed to the start of ante 4, 5 or 6 (uniform), then the bot plays on. Sources: this run's own
+   games and the published routes. These games train but are never counted in training stats or
+   evals. Reason: the late game gets practice while the bot still dies early (and aim 1 needs a
+   late-game bot; see below).
+4. **Shop entropy schedule:** the shop network's entropy bonus starts at 0.02 and decays to 0.01
+   (arXiv 2610.39049 reports it prevents shop collapse into "reroll forever" or "leave at once").
+5. **Discount clock:** the v3 A/B winner if it has been run; the blind clock otherwise.
+
+Held: 1.0's size per network, encoding 2, ordered-capped actions, reward `blinds`, seed retries,
+lr 1e-4, from random weights, no behavior cloning, Red Deck, White Stake.
+
+### Build order (each part checked on the real game before the next)
+Backward curriculum (the replayed start must equal the saved game's state at that step), then the
+phase split (every decision routed to the right network; saved games replay exactly), then the
+potential (it must telescope to 0 over every published win, never read hidden information, and
+take the same value on identical states).
+
+### The test
+2,000 seeds from tag `v4-test` (disjoint from the eval 600, `paired-v1`, `v3-ab`, `v3-test`);
+v4's `best.pt` vs `pins0.pt`, and vs v3's kept arm if it exists, each playing each seed once,
+sampled, per-seed RNG. Win = the ante-8 boss beaten.
+
+### Predictions (Claude)
+- **W1. v4 wins ≥ 4% of `v4-test`, more than `pins0.pt` (one-sided exact McNemar, p < 0.05). (70%)**
+- **W2. v4 wins ≥ 10%. (35%)** Others' 20–25% came on easier or partial simulators; 10% on the real
+  game would be a large step.
+- **W3. Mechanism: v4 reaches ante 7 in more games than `pins0.pt` and dies less in antes 4–6
+  (paired, p < 0.05). (70%)**
+No attribution to single changes is claimed; four change at once.
+
+### Aim 1 needs a late-game bot (recorded for the Hume run)
+`blinds`, `antes` and `win` reward nearly the same things until the late game. A bot that dies by
+ante 5 gets almost the same signal under all three, so its arms would barely differ, and "no
+difference" would mean the bot was too weak to face the tradeoffs, not that the facts fixed the ought.
+**Precondition for running aim 1's experiment:** the starting weights reach ante 7 in at least 25% of
+eval games (pins0.pt: 22 of 600 reached the final boss, so far below). The threshold is a proposal;
+chud confirms it with the Hume run's statistics.
+
+### Aims 2 and 3 are existence proofs: a separate search track (direction only; nothing predicted)
+A naneinf seed and a 100% save are proved by routes that replay on the untouched game. Seeds are
+chosen and the game is deterministic, so routes can be found by search with lookahead (branches
+replayed before committing), with the policy as a prior, on CPU, independent of training. A
+searched 100% save would prove that one exists, and show it, not that a player without foresight
+could do it; every write-up says so (as `docs/proof.md` does). First milestone: one Gold Stake Red
+Deck win found by search.
