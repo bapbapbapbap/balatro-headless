@@ -1371,3 +1371,71 @@ game, compared per seed. moe2 shows that play converges under one ought. If diff
 converge to measurably different play from identical facts, the facts didn't fix the play: the ought
 did. That is the is-ought gap shown in behavior. Its statistics are still *(chud to confirm)*, and
 nothing is registered.
+
+
+## Added 2026-11-05 ~21:30 CST: model v3, registered before any of its code exists (section J)
+
+Target set by chud (21:16): **4% of fresh seeds won.** Registered before the code for v3 is written
+and before anything is trained.
+
+### Diagnosis (the bet)
+**The run is mostly decided by the build, and the trainer can't credit the build.**
+- From the same ante-4 position, the six experts land within 0.24 blinds of each other, and picking
+  the best expert per seed after the fact would win only 86 of 1,368 positions (6.3%). How a run ends
+  is mostly fixed before the handoff, by what was bought in antes 1–4.
+- The bot builds badly: one hand (Two Pair ~65%) whatever it holds, money held far past the interest
+  cap ($122 median at ante 8), no Full House, ~20% of plays under some bosses score nothing, and 352
+  of 600 eval deaths in antes 4–6, where blind targets outgrow a build that didn't scale.
+- **Why the trainer can't credit it.** `gamma` = 0.995 is applied per *action*. A won game is ~700
+  actions, so the win reaches an ante-2 shop decision discounted to ~5%. Free moves (joker drags,
+  card toggles) use up that horizon while nothing happens in the game. `lam` = 0.95 per action gives
+  GAE an effective horizon of 1/(1 − 0.995·0.95) ≈ 18 actions, so any credit to a shop decision has to
+  come from the critic, and a critic that has never seen a good build can't value one.
+
+### What changes (v3)
+Only the operationalization of the same ought. Nothing encodes strategy.
+1. **Discount on game time, not actions.** The discount applies once per blind passed (beaten or
+   skipped), `--gamma-blind 0.95`; every other step is undiscounted. Shops and packs sit between
+   blinds and are undiscounted too. The shaping term uses the same per-step discount, so it stays
+   potential-based (Ng et al. 1999 holds with a per-step discount) and still leaves the optimal policy
+   unchanged.
+2. **λ on the same clock.** λ = 1 inside a blind, `--lam-blind 0.95` at each blind passed.
+3. **Eval temperature** (`--eval-temp`), so sampling can be measured. Training is unchanged by it.
+
+Held from 1.0 so the result is attributable to 1–2: a single network at 1.0's size (`--d 192
+--layers 4 --heads 6`, 1.6M parameters), `--enc 2`, `--actions ordered-capped`, reward **`blinds`**
+(the ought is unchanged, and the ante-8 boss is the 24th blind), shaping on, `--explore-hands 0.05`,
+seed retries on, Red Deck, White Stake. **From random weights; no behavior cloning.** lr 1e-4 with KL
+early stopping (as v1/v2). `best.pt` is chosen by eval blinds on the 600 eval seeds, as before.
+
+### The test
+- **Seeds:** 2,000 drawn from tag `v3-test`, excluding the eval 600 and the `paired-v1` 2,000. None are
+  seen in training or checkpoint selection.
+- **Players:** v3's `best.pt` vs `pins0.pt` (moe2, the strongest weights measured; MoE as trained,
+  handoff at ante 4). Each plays each seed once, sampled at temperature 1 with the eval's per-seed
+  RNG, the same convention for both. Win = the ante-8 boss beaten (the corrected test).
+- **Power:** paired, 2,000 seeds detects 2% vs 4% (see the paired run's power table above).
+
+### Predictions (Claude)
+- **V1. v3 wins at least 4.0% of the 2,000 seeds, and more than `pins0.pt` (one-sided exact
+  McNemar on the seeds where exactly one wins, p < 0.05). (60%)** chud's target. *Falsified* if under
+  4.0% or not significant.
+- **V2. v3 beats more blinds per game than `pins0.pt` (paired, p < 0.05). (75%)**
+- **V3. The mechanism: the gain comes from the build.** v3's share of games ending in antes 4–6 is
+  lower than `pins0.pt`'s, and its median money held at the start of ante 6 is lower (it spends).
+  **(60%)** If V1 passes and V3 fails, the diagnosis was wrong even though the target was met.
+- Reported, not predicted: the same comparison at `--eval-temp 0.5` for both models, and 1.0 on the
+  same seeds.
+
+### What this can and can't attribute
+v3 differs from `pins0.pt` in more than 1–2: it starts from random weights, not 0.2's, and it's a
+single network, not a MoE. A pass shows v3 is stronger. It shows *the clock and λ* caused it only if a
+control arm is also run: the same v3 settings with per-action `--gamma 0.995 --lam 0.95`, from the
+same random seed, for the same number of games. chud decides whether the control is run (it halves
+the throughput of each arm if run at the same time). Without it, the claim is limited to "v3 is
+stronger".
+
+### Before training
+The new discount needs the same checks as every trainer change: per-step discounts unit-tested
+against a hand-computed game, the shaping term's telescoping checked on real games, saved games
+replaying exactly, and the pre-flight in `run_v2.sh`.
