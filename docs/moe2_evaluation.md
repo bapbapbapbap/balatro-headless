@@ -193,10 +193,13 @@ of a near win.
   by expert, the Full House expert went unused, and from the same positions the experts play the
   same hands and don't differ in win rate (the paired comparison below).
 
-**For aim 1 (the is-ought gap):** the pins were an "ought" put in through the action mask, not the
-reward. They didn't stick. The Full House pin left no Full House play behind it: 1 play in 1,005 chances.
-When the pins were removed the bot lost ground, then rebuilt from the reward alone and passed its
-starting point on blinds per game. What it rebuilt is not what the pins asked for.
+**For aim 1 (the is-ought gap):** the ought never changed. It was `blinds` from start to finish. The
+pins were a constraint on the action mask, not an ought: they told the bot what it may play, never
+what it wants. When they were lifted they left nothing behind. The Full House pin left 1 Full House
+play in 1,005 chances, and in the paired comparison all six experts play the same hand mix as each other
+and as the early head, which was never pinned. Under one reward, a constraint that isn't the reward
+doesn't persist. That is the negative control for the real experiment (rewards varied, the facts held
+fixed; `docs/hypotheses.md`, 2026-11-05 ~21:15 CST).
 
 **Not shown:** whether the MoE beats a single network. I1 (MoE vs model 1.0, paired held-out seeds)
 is still unregistered. moe2's evals use 600 seeds and the earlier models' used 200, under a win test

@@ -7,6 +7,9 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 ### Results
 - **The paired comparison of moe2's experts** (2,000 seeds, `pins0.pt`, handoff antes 3, 4, 5; 0 errors, 0 prefix mismatches). Scored in `docs/hypotheses.md` (2026-11-05 ~21:10 CST) and summarized in `docs/moe2_evaluation.md`. C1 (experts not redundant) **falsified**: from the same positions, all six experts and the early head play the same hand mix within about a point. C2–C5 pass: the handoff adds +1.08 blinds per game, experts are within 0.24 of each other, the router adds nothing over a random expert, Full House is 5th by blinds. No expert wins detectably more (Cochran's Q p = 0.24 at ante 4). **Earlier handoff is better** as a policy over all seeds: ante 3 12.65, ante 4 12.49, ante 5 12.11 blinds per seed, never 11.75. I2 stays unscored.
 
+### Documented
+- **The pins were never an ought** (chud): the reward of record was `blinds` throughout moe2; the pins constrained the action mask. `docs/moe2_evaluation.md` corrected; `docs/hypotheses.md` records chud's reading, its limits (hand mix is coarser than strategy; the experts share a start), and the experiment it points to (section C, rewards varied).
+
 ### Added
 - `analysis/score_paired.py`: scores a `paired_experts.py` output against C1–C5 (all seeds and the registered first 200) and answers the three questions, with the handoff ante compared as a policy over every seed. Needs only numpy.
 

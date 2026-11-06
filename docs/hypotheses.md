@@ -1330,3 +1330,44 @@ The experts are not separate strategies, and the handoff's gain is that any expe
 better than the early head, which was never trained past ante 4. Candidates: a single network
 (`--moe-cut 0` without the expert split), or a paired run with `--handoff-antes 1,2` to see whether an
 expert should play the whole game.
+
+
+## Added 2026-11-05 ~21:15 CST: what moe2 says about aim 1 (chud's reading, with limits)
+
+### The ought was never modified
+chud (21:08): "we haven't modified the ought even once. ought to favor a hand didn't affect play
+patterns once the favor ran out. that is good data. the one ought was always blinds."
+
+The reward of record was `blinds` for every head and every round of moe2. The hand pins went through
+the action mask: they restricted what the bot could play, never what it was rewarded for. Earlier
+write-ups (including Claude's, and `docs/moe2_evaluation.md` before this date) called the pins an
+"ought". That was a mislabel, now corrected there.
+
+### What it shows
+**A constraint that isn't the ought leaves no trace once it's lifted.** With the pins at 0, the
+early head played a Full House once in 1,005 chances, and in the paired comparison (above) all
+six experts play the same hand mix as each other and as the early head, which was never pinned. This
+is a negative control for aim 1: changing what the bot may do, with the ought held fixed, didn't move
+where play settled.
+
+### chud's claim, and what this data supports of it
+chud: "there is one optimal strategy towards single rewards."
+
+What the data supports is narrower: **under `blinds`, which hand to play is fixed by the reward and the
+build.** It doesn't show a unique optimal strategy, for two reasons:
+1. **Same hand mix is not same strategy.** The early head and the experts play the same mix, yet
+   from the same positions the experts score 1.08 more blinds per game. Something else differs
+   (shop, discards, which Two Pair is played). The hand mix is too coarse to see it.
+2. **The experts aren't independent samples.** All six started from model 0.2's weights. The early
+   head, trained from random weights, is the independent check, and it agrees on the mix.
+
+Whether an optimal policy is unique is beside the point for aim 1, and games like this usually have
+ties. The question aim 1 needs answered is whether the ought selects the strategy.
+
+### The experiment this points to
+Section C's first prediction, **"Different oughts, different behavior"** (2026-11-01; not the C1 of the
+paired run): bots trained on `blinds`, `antes` and `win`, from the same starting weights, on the same
+game, compared per seed. moe2 shows that play converges under one ought. If different oughts
+converge to measurably different play from identical facts, the facts didn't fix the play: the ought
+did. That is the is-ought gap shown in behavior. Its statistics are still *(chud to confirm)*, and
+nothing is registered.
