@@ -11,7 +11,7 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 - **The pins were never an ought** (chud): the reward of record was `blinds` throughout moe2; the pins constrained the action mask. `docs/moe2_evaluation.md` corrected; `docs/hypotheses.md` records chud's reading, its limits (hand mix is coarser than strategy; the experts share a start), and the experiment it points to (section C, rewards varied).
 
 ### Registered
-- **Model v3** (`docs/hypotheses.md`, 2026-11-05 ~21:30 CST), before any of its code: target 4% of fresh seeds (chud). The bet is that the run is decided by the build and the per-action discount can't credit it; v3 discounts per blind passed (`--gamma-blind`, `--lam-blind`), adds `--eval-temp`, and holds everything else at 1.0's settings, from random weights. Predictions V1–V3, 2,000 held-out seeds (`v3-test`) vs `pins0.pt`, and an optional control arm.
+- **Model v3** (`docs/hypotheses.md`, 2026-11-05 ~21:19 CST), before any of its code: target 4% of fresh seeds (chud). The bet is that the run is decided by the build and the per-action discount can't credit it; v3 discounts per blind passed (`--gamma-blind`, `--lam-blind`), adds `--eval-temp`, and holds everything else at 1.0's settings, from random weights. Predictions V1–V3, 2,000 held-out seeds (`v3-test`) vs `pins0.pt`, and an optional control arm.
 
 ### Added
 - `analysis/score_paired.py`: scores a `paired_experts.py` output against C1–C5 (all seeds and the registered first 200) and answers the three questions, with the handoff ante compared as a policy over every seed. Needs only numpy.

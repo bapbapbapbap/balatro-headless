@@ -1373,7 +1373,7 @@ did. That is the is-ought gap shown in behavior. Its statistics are still *(chud
 nothing is registered.
 
 
-## Added 2026-11-05 ~21:30 CST: model v3, registered before any of its code exists (section J)
+## Added 2026-11-05 ~21:19 CST: model v3, registered before any of its code exists (section J)
 
 Target set by chud (21:16): **4% of fresh seeds won.** Registered before the code for v3 is written
 and before anything is trained.
