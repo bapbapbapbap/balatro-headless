@@ -1431,9 +1431,30 @@ early stopping (as v1/v2). `best.pt` is chosen by eval blinds on the 600 eval se
 v3 differs from `pins0.pt` in more than 1–2: it starts from random weights, not 0.2's, and it's a
 single network, not a MoE. A pass shows v3 is stronger. It shows *the clock and λ* caused it only if a
 control arm is also run: the same v3 settings with per-action `--gamma 0.995 --lam 0.95`, from the
-same random seed, for the same number of games. chud decides whether the control is run (it halves
-the throughput of each arm if run at the same time). Without it, the claim is limited to "v3 is
-stronger".
+same random seed, for the same number of games. Without it, the claim is limited to "v3 is stronger".
+
+### Amended 2026-11-05 ~21:26 CST (before any code): the control arm, as a stopping rule (chud agreed)
+The control is run only until the two arms separate, then stopped, and the winner gets the machine.
+Reason (the goal is the strongest bot): if v3 passes, the control changes no decision; if v3 fails,
+it is the only way to tell "the clock is wrong" from "starting from scratch cost us".
+- **Arms:** `v3` (`--gamma-blind 0.95 --lam-blind 0.95`) and `control` (`--gamma 0.995 --lam 0.95`
+  per action), everything else identical, same training seed, side by side.
+- **Measurement at each check:** both arms' latest `best.pt` play the same 2,000 seeds from tag
+  `v3-ab` (outside the eval 600, `paired-v1` and `v3-test`), sampled, per-seed RNG; paired difference
+  in blinds per game. Sizing: one policy's blinds per seed have SD 5.9 (`paired_moe2.jsonl`); two
+  networks trained from scratch share only the seed, correlation 0–0.3, so the paired SD is
+  7.0–8.3. To detect 0.5 blinds per game with power 0.8 takes (2.8σ/0.5)² = 1,550–2,150 seeds:
+  2,000. (The eval 600 resolve only ~0.8–0.95.) A gap under 0.5 counts as a tie.
+- **When:** the first check once both arms average ≥ 9 blinds per game on their eval (ante 4 reached on
+  average: the build wall is where the clock should matter); then every 10,000 training games per
+  arm; at most 3 checks.
+- **Rule:** O'Brien-Fleming boundaries for 3 looks (overall two-sided α 0.05): stop at the first
+  check where |z| > 3.47, 2.45, 2.00 (checks 1, 2, 3) and keep the arm ahead. If no boundary is crossed
+  by check 3, it's a tie and **v3 is kept** (as registered).
+- **What it can't say:** one training run per arm compares these two networks, not the two methods;
+  run-to-run luck is unmeasured (that would need ≥ 2 runs per arm). The write-up won't claim more.
+- V1–V3 are scored on whichever arm is kept, against `pins0.pt`, on `v3-test`. If the control is kept,
+  V1 is still scored, and V3's mechanism claim is scored as not supported.
 
 ### Before training
 The new discount needs the same checks as every trainer change: per-step discounts unit-tested
