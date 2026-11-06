@@ -37,6 +37,12 @@ be a trainer checkpoint (it carries the run's settings).
 python3 paired_experts.py /mnt/c/Users/<you>/balatro-work/runs/moe2/pins0.pt --src ~/balatro/local/source \
     --seeds 200 --handoff-antes 3,4,5 --workers 4 --out paired_moe2.jsonl     # rerun to resume
 python3 paired_experts.py --summary paired_moe2.jsonl
+python3 score_paired.py paired_moe2.jsonl      # C1-C5, the three questions, handoff ante over all seeds
 ```
+`score_paired.py` scores the output against the registered predictions and compares handoff antes as
+a policy over every seed (a seed that never reaches the handoff keeps the early head's game). The
+summary's per-ante rows are on different seeds and can't be compared with each other; restricting to
+the seeds common to all antes is also biased (see the script's docstring). First run: 2,000 seeds on
+moe2's `pins0.pt`, results in `docs/moe2_evaluation.md`.
 Cost: per seed and handoff ante, 7 games per rollout (6 experts + the control). Run it when training
 isn't using the CPU, or with few workers.

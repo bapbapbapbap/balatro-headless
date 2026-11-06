@@ -1262,3 +1262,71 @@ measure), and shows whether any expert wins about twice as often as another. Sma
 differences, which I2's ranking may need, would take ~6,000 seeds. The run can be extended to that
 later without changing anything, because the file resumes and the seed list is fixed. If the win
 rate after the handoff is nearer 1% than 2%, as the pilot hints, every win-rate row needs more seeds.
+
+
+## Added 2026-11-05 ~21:10 CST: the first paired run, scored (section J)
+
+`balatro-work/paired_moe2.jsonl`: `pins0.pt`, seed tag `paired-v1`, **2,000 of 2,000 seeds, 0 errors**,
+handoff antes 3, 4, 5, one rollout, finished ~19:49 CST. 0 prefix mismatches at every ante; the pins
+read 0. Scored with `analysis/score_paired.py` (reproduces every number below from the file).
+
+### C1–C5 (handoff at ante 4; all 2,000 seeds, 1,368 reached it; first 200, 129 reached it)
+| | All 2,000 | First 200 (registered) | Verdict |
+|---|---|---|---|
+| **C1** experts not redundant (≥3 of 6) | 2 of 6 | 1 of 6 | **Falsified** |
+| **C2** handoff − no handoff ≥ 0.5 blinds | +1.08 (95% CI 0.94–1.23) | +1.40 (±0.46) | **Pass** |
+| **C3** best − worst expert < 1.0 | 0.24 (Straight 16.21 − Pair 15.97; ±0.17) | 0.65 (±0.53) | **Pass** |
+| **C4** router − expert mean < 0.3 | +0.02 (±0.11) | −0.06 (±0.40) | **Pass** |
+| **C5** Full House not top 2 by blinds | 5th of 6 | 6th of 6 | **Pass** |
+
+- **C1.** On all 2,000, the named expert leads its own hand only for Pair (5.75% vs 5.38%) and Three of
+  a Kind (6.938% vs 6.936%, a tie at this precision). The three expected to lead, Two Pair, Straight
+  and Flush, all failed. Full House is 0.0% for every player. Claude's 70% was wrong.
+- C2–C5 held. C2's and C3's reasons were stated at registration; C3's held more tightly than the
+  1.0 margin needed.
+
+### chud's three questions
+1. **Does one strategy win the most?** No. Wins at ante 4 (of 1,368): Straight 38, Three of a Kind 34,
+   Flush 30, Pair 28, Two Pair 27, Full House 25. Cochran's Q p = 0.24 (ante 3: 0.50; ante 5: 0.83).
+   Straight vs Full House, 24:11 discordant, p = 0.041 uncorrected, is the most-vs-fewest pair picked
+   after the fact: not evidence. Blinds: no pair of experts differs past Bonferroni at ante 4 or 5; at
+   ante 3, Flush is ahead of Two Pair (+0.29) and Straight (+0.39).
+2. **Does the handoff change play?** It changes the outcome (C2: +1.08 blinds per game; wins 11 →
+   25–38 of 1,368) but not the hand mix. All seven players, the early head playing on included, play
+   the same mix within about a point: Two Pair ~65%, Straight ~14%, Flush ~7%, Three of a Kind ~7%,
+   Pair ~5%, Full House 0.0%. At pins zero the six experts behave as one policy on this measure. Open:
+   whether the mix is set by the build the early head hands over (jokers, planets, deck), or whether the
+   experts converged; this run can't separate the two.
+3. **Is the handoff at the right ante?** **Earlier is better** among the antes tested. The tool's
+   per-ante rows can't answer this (different seeds), and neither can the 1,003 seeds common to all
+   three antes: those are the seeds on which the early head itself reached ante 5, which is the
+   no-handoff game, so early handoffs are compared only where the early head is known to survive
+   (that comparison favors ante 5, wrongly). Scored instead as a policy over all 2,000 seeds, where a
+   seed that never reaches the handoff keeps the early head's game:
+
+   | Handoff | Blinds per seed, expert mean | Router's choice | Wins per 2,000 (expert mean / router) |
+   |---|---|---|---|
+   | never | 11.75 | – | 11 |
+   | ante 3 | **12.65** | 12.60 | 34.7 / 29 |
+   | ante 4 | 12.49 | 12.51 | 30.3 / 31 |
+   | ante 5 | 12.11 | 12.14 | 29.3 / 33 |
+
+   Expert mean: ante 4 − ante 3 = −0.16 ± 0.12; ante 5 − ante 4 = −0.38 ± 0.09. Win rates (~1.5–1.7%
+   per seed) don't separate. Antes 1–2 were not tested, so this doesn't show that ante 3 is best, only
+   that later is worse; the trend says an expert beats the early head from wherever it takes over.
+
+### I2 (Full House among the strongest experts): still unscored
+Its test design was never confirmed and its size never set, so this run doesn't score it. For the
+record: Full House's wins rank 6th of 6 at ante 4 (25), tied 5th at ante 3 (31), 2nd at ante 5 (31),
+and no win-rate difference between experts is detectable at any ante. The router sent it no seeds at
+any ante.
+
+### Reach rate
+68.4% of seeds reached the ante-4 handoff, against 74% (442/600) in the pins-zero eval. The eval
+seeds chose the checkpoint, so some of the gap is expected.
+
+### What it means for the next run (section J; nothing registered)
+The experts are not separate strategies, and the handoff's gain is that any expert plays past ante 3
+better than the early head, which was never trained past ante 4. Candidates: a single network
+(`--moe-cut 0` without the expert split), or a paired run with `--handoff-antes 1,2` to see whether an
+expert should play the whole game.
