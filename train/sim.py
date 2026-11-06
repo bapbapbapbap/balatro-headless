@@ -96,9 +96,10 @@ class Sim:
         self.env.reset(seed, back, stake, challenge)
         self.steps = 0
         self._prog = {"blinds_beaten": 0, "bosses_beaten": 0, "won": False, "ante": 1, "phi": 0.0,
-                      "final_boss": False, "near_win": False}
+                      "final_boss": False, "near_win": False, "blinds_passed": 0}
         self.H.game_won = False
         self._marks = dict(zip(("Small", "Big", "Boss"), self.H.blind_marks()))
+        self._marks_prev = dict(self._marks)
         self._legacy = {"blinds_beaten": 0, "bosses_beaten": 0, "won": False}
         self._last_state = self.H.state_name()
         self.route, self.desc = [], []      # every action taken, as encoded index and as text
@@ -121,6 +122,10 @@ class Sim:
         newly = [k for k, v in marks.items() if v == "Defeated" and self._marks.get(k) != "Defeated"]
         self._marks = marks
         p["blinds_beaten"] += len(newly)
+        # Blinds passed, beaten or skipped: the game-time clock for --gamma-blind (rewards.step_discount).
+        p["blinds_passed"] += sum(1 for k, v in marks.items() if v in ("Defeated", "Skipped")
+                                  and self._marks_prev.get(k) not in ("Defeated", "Skipped"))
+        self._marks_prev = marks
         p["bosses_beaten"] += 1 if "Boss" in newly else 0
         won = bool(game_won)
         if won:

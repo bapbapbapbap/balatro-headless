@@ -33,7 +33,7 @@ import torch.multiprocessing as mp
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from model import ACT_WIDTH, EXPERT_HANDS, F, ZERO_FIELDS, MoE, Net, param_count  # noqa: E402
-from rewards import REWARDS, shaping  # noqa: E402
+from rewards import REWARDS, shaping, step_discount  # noqa: E402
 
 SEED_CHARS = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
@@ -149,7 +149,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             o = sim.reset(seed, back, stake, challenge)
             if pst is not None:
                 apply_pin(o, pin_id, pin_rate, prng, pst)
-            steps, done, tail, reached = [], False, [], False
+            steps, done, tail, reached, disc = [], False, [], False, []
             t_model = t_sim = 0.0
             while not done and sim.steps < args.max_steps:
                 tm = time.time()
@@ -158,7 +158,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
                 t_model += time.time() - tm
-                p = torch.softmax(logits[0], -1).numpy().astype(np.float64)
+                temp = getattr(args, "eval_temp", 1.0) if mode == "eval" else 1.0
+                p = torch.softmax(logits[0] / temp if temp != 1.0 else logits[0], -1).numpy().astype(np.float64)
                 if not np.isfinite(p).all():
                     raise FloatingPointError("non-finite action probabilities")
                 if greedy:
@@ -178,8 +179,10 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 if args.stop_ante and not done and cur["ante"] >= args.stop_ante \
                         and cur["bosses_beaten"] >= args.stop_ante - 1:
                     done, reached = True, True        # early-game model: its run ends here (see --stop-ante)
-                r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)
+                g_t, l_t = step_discount(prev, cur, args)
+                r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
+                disc.append((g_t, l_t))
                 if pst is not None:
                     count_pin_move(o, a, pin_id, pst)
                 if args.moe and handoff_at is not None and o["act"][a][0] == PLAY:
@@ -225,6 +228,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 t_sim += time.time() - ts
             ep = {"seed": seed, "back": back, "stake": stake, "challenge": challenge,
                   "steps": steps if mode == "train" else None, "n": sim.steps,
+                  "disc": disc if mode == "train" else None,
                   "progress": sim.progress, "capped": not done, "tail": tail if not done else None,
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
@@ -445,38 +449,51 @@ def replay_games(sim, reward_fn, args, routes):
     out = []
     for r in routes:
         o = sim.reset(r["seed"], *game_config(r["seed"], args))
-        steps, done, bad = [], False, None
+        steps, done, bad, gam = [], False, None, []
         for k, a in enumerate(r["acts"]):
             if done or a >= len(o["act"]) or sim.H.action_desc(a + 1) != r["desc"][k]:
                 bad = f"step {k} differs from the saved game"
                 break
             prev, cur, done = sim.step(a)
-            steps.append((o, a, reward_fn(prev, cur) + args.shaping * shaping(prev, cur, args.gamma)))
+            g_t = step_discount(prev, cur, args)[0]
+            steps.append((o, a, reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t)))
+            gam.append(g_t)
             if not done:
                 o = sim.observe()
         if bad is None and sim.final_hash() != r["final"]:
             bad = "final state differs from the saved game"
-        out.append({"key": r["key"], "steps": None if bad else steps, "problem": bad})
+        out.append({"key": r["key"], "steps": None if bad else steps, "gammas": None if bad else gam, "problem": bad})
     return out
 
 
 # ---------------- PPO ----------------
 
+def per_step(x, n):
+    """A discount given as one number or one per step, as a list of n numbers."""
+    return [x] * n if np.isscalar(x) else list(x)
+
+
 def gae(rewards, values, gamma, lam):
-    adv = np.zeros(len(rewards), np.float32)
+    """gamma and lam: one number, or one per step (step t's discount applies to the move from t to
+    t + 1; see rewards.step_discount)."""
+    n = len(rewards)
+    gamma, lam = per_step(gamma, n), per_step(lam, n)
+    adv = np.zeros(n, np.float32)
     last = 0.0
-    for t in reversed(range(len(rewards))):
+    for t in reversed(range(n)):
         nv = values[t + 1] if t + 1 < len(values) else 0.0   # terminal or capped: no bootstrap
-        delta = rewards[t] + gamma * nv - values[t]
-        last = delta + gamma * lam * last
+        delta = rewards[t] + gamma[t] * nv - values[t]
+        last = delta + gamma[t] * lam[t] * last
         adv[t] = last
     return adv
 
 
 def discounted(rewards, gamma):
-    out, g = np.zeros(len(rewards), np.float32), 0.0
-    for t in reversed(range(len(rewards))):
-        g = rewards[t] + gamma * g
+    n = len(rewards)
+    gamma = per_step(gamma, n)
+    out, g = np.zeros(n, np.float32), 0.0
+    for t in reversed(range(n)):
+        g = rewards[t] + gamma[t] * g
         out[t] = g
     return out
 
@@ -506,13 +523,17 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
     for ep in episodes:
         r = [s[4] for s in ep["steps"]]
         v = [s[3] for s in ep["steps"]]
+        d = ep.get("disc")
+        G = [x[0] for x in d] if d else args.gamma
+        L = [x[1] for x in d] if d else args.lam
         k = (ep.get("moe") or {}).get("handoff_step") if getattr(args, "moe_cut", 0) else None
         if k:
             # The early head's run ends at the handoff: its returns count only up to ante 4 (chud's
             # spec), and the expert's start there.
-            a = np.concatenate([gae(r[:k], v[:k], args.gamma, args.lam), gae(r[k:], v[k:], args.gamma, args.lam)])
+            Gs, Ls = per_step(G, len(r)), per_step(L, len(r))
+            a = np.concatenate([gae(r[:k], v[:k], Gs[:k], Ls[:k]), gae(r[k:], v[k:], Gs[k:], Ls[k:])])
         else:
-            a = gae(r, v, args.gamma, args.lam)
+            a = gae(r, v, G, L)
         for s, ai, vi in zip(ep["steps"], a, v):
             if getattr(args, "moe", False) and not args.moe_train_early and s[0].get("member") == 0:
                 continue          # the early-game model is frozen in joint training (--moe-train-early 0)
@@ -849,6 +870,13 @@ def main():
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--gamma", type=float, default=0.995)
     ap.add_argument("--lam", type=float, default=0.95)
+    ap.add_argument("--gamma-blind", type=float, default=None,
+                    help="model v3: discount once per blind passed (beaten or skipped), every other step "
+                         "undiscounted; replaces --gamma/--lam (see rewards.step_discount). Unset = per action")
+    ap.add_argument("--lam-blind", type=float, default=0.95,
+                    help="with --gamma-blind: GAE lambda applied once per blind passed (1 inside a blind)")
+    ap.add_argument("--eval-temp", type=float, default=1.0,
+                    help="sampling temperature for eval games only (1 = the policy as trained)")
     ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--minibatch", type=int, default=64)
@@ -1311,7 +1339,7 @@ def main():
                 bad.add(g["key"])
                 alert(f"saved game {g['key']} no longer replays ({g['problem']}); dropped from the buffer")
                 continue
-            for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], args.gamma)):
+            for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], g.get("gammas") or args.gamma)):
                 obs.append(o); act.append(a); ret.append(R)
         if bad:
             sil_buffer[:] = [r for r in sil_buffer if r["key"] not in bad]
@@ -1368,7 +1396,7 @@ def main():
                 if g["problem"]:
                     alert(f"behavior cloning: game {g['key']} didn't replay ({g['problem']}); skipped")
                     continue
-                for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], args.gamma)):
+                for (o, a, _), R in zip(g["steps"], discounted([x[2] for x in g["steps"]], g.get("gammas") or args.gamma)):
                     obs.append(o); act.append(a); ret.append(R)
             idx = np.argsort([len(o["act"]) for o in obs])
             batches = [idx[i:i + args.minibatch] for i in range(0, len(idx), args.minibatch)]
