@@ -1386,8 +1386,11 @@ and before anything is trained.
 - The bot builds badly: one hand (Two Pair ~65%) whatever it holds, money held far past the interest
   cap ($122 median at ante 8), no Full House, ~20% of plays under some bosses score nothing, and 352
   of 600 eval deaths in antes 4–6, where blind targets outgrow a build that didn't scale.
-- **Why the trainer can't credit it.** `gamma` = 0.995 is applied per *action*. A won game is ~700
-  actions, so the win reaches an ante-2 shop decision discounted to ~5%. Free moves (joker drags,
+- **Why the trainer can't credit it.** `gamma` = 0.995 is applied per *action*. *(Corrected 22:15 CST,
+  before any code ran a game: the first version said a won game is ~700 actions and the win reaches
+  an ante-2 shop at ~5%. 700 was v1's first win. moe2's published wins take 196–327 actions, so the
+  win reaches an ante-2 shop at ~0.995^200 ≈ 37%. The discount alone is a weaker cause than first
+  stated; the λ horizon below is the main one.)* Free moves (joker drags,
   card toggles) use up that horizon while nothing happens in the game. `lam` = 0.95 per action gives
   GAE an effective horizon of 1/(1 − 0.995·0.95) ≈ 18 actions, so any credit to a shop decision has to
   come from the critic, and a critic that has never seen a good build can't value one.
@@ -1433,7 +1436,7 @@ single network, not a MoE. A pass shows v3 is stronger. It shows *the clock and 
 control arm is also run: the same v3 settings with per-action `--gamma 0.995 --lam 0.95`, from the
 same random seed, for the same number of games. Without it, the claim is limited to "v3 is stronger".
 
-### Amended 2026-11-05 ~21:26 CST (before any code): the control arm, as a stopping rule (chud agreed)
+### Amended 2026-11-05 ~21:24 CST (before any code): the control arm, as a stopping rule (chud agreed)
 The control is run only until the two arms separate, then stopped, and the winner gets the machine.
 Reason (the goal is the strongest bot): if v3 passes, the control changes no decision; if v3 fails,
 it is the only way to tell "the clock is wrong" from "starting from scratch cost us".

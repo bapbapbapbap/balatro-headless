@@ -52,6 +52,9 @@ if (@("v1", "v2", "v2b") -contains $Run) {
     $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_expert.sh $wslWork '$($Slugs[$Matches[1]])' $(Hours-For 12) $Workers"
 } elseif ($base -match '^early-s(\d+)$') {
     $launch = "cd ~/balatro/balatro-headless && $env_ bash train/run_early.sh $wslWork $($Matches[1]) $(Hours-For 8) $Workers"
+} elseif ($Run -eq "v3" -or $Run -eq "v3-control") {
+    $arm = if ($Run -eq "v3") { "v3" } else { "control" }
+    $launch = "cd ~/balatro/balatro-headless && ARMS=$arm bash train/run_v3.sh $wslWork $(Hours-For 168) $Workers"
 } elseif ($base -match '^(moe\d*)(-s(\d+))?$') {
     $ms = "export MOE_RUN=$($Matches[1]);" + $(if ($Matches[3]) { " export MOE_SEED=$($Matches[3]);" } else { "" })
     $launch = "cd ~/balatro/balatro-headless && $env_ $ms bash train/run_moe.sh $wslWork $(Hours-For 24) $Workers"

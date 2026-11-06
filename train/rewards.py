@@ -25,8 +25,23 @@ def shaping(prev, cur, gamma):
     It adds a learning signal for progress inside a blind and takes it back in full when the
     blind ends, so over a game it sums to ~0 and provably leaves the optimal policy for the chosen
     reward unchanged. It is not part of the ought: it changes how fast the bot can learn, not what
-    it is trying to do. Applied on top of any reward; turn off with --shaping 0."""
+    it is trying to do. Applied on top of any reward; turn off with --shaping 0. gamma is the step's own discount
+    (step_discount), which keeps the term potential-based when the discount varies by step."""
     return gamma * cur["phi"] - prev["phi"]
+
+
+def step_discount(prev, cur, args):
+    """(gamma, lambda) for the step from prev to cur. Per action (--gamma, --lam) by default, as every
+    run before v3. With --gamma-blind set (model v3, docs/hypotheses.md 2026-11-05 ~21:19 CST), the
+    clock is game time: the step discounts by --gamma-blind (and lambda by --lam-blind) once per blind
+    passed, beaten or skipped, and every other step (plays, discards, shops, packs, joker drags) is
+    undiscounted. Not part of the ought: it changes how credit reaches earlier decisions, not what the
+    bot is rewarded for."""
+    gb = getattr(args, "gamma_blind", None)
+    if gb is None:
+        return args.gamma, args.lam
+    n = cur.get("blinds_passed", 0) - prev.get("blinds_passed", 0)
+    return gb ** n, getattr(args, "lam_blind", 0.95) ** n
 
 
 REWARDS = {"blinds": blinds, "antes": antes, "win": win}
