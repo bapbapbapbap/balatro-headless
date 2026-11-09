@@ -27,7 +27,11 @@ HOURS="${2:-168}"
 WORKERS="${3:-12}"
 W="${BALATRO_HOME:-$HOME/balatro}"
 R="$W/balatro-headless"
-git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
+if [ -z "${RUN_V4_UPDATED:-}" ]; then
+  # pull, then run the script as pulled (bash had already read this one before the pull)
+  git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
+  RUN_V4_UPDATED=1 exec bash "$R/train/run_v4.sh" "$@"
+fi
 . "$W/venv/bin/activate"
 RUN=v4
 [ -n "${SMOKE:-}" ] && RUN=v4-smoke
