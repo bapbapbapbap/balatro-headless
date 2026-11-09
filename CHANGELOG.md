@@ -2,6 +2,28 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [Unreleased] - model v4 (branch `v4`)
+
+### Added (registered in `docs/hypotheses.md` 2026-11-05 ~23:01 and amended 2026-11-09 ~12:00 CST, before this code)
+- **Routed credit** (`train/credit.py`): each network's advantages over its own decisions, with everything earned in between and the blind clock's discounts; identical to `train.gae` with one network. `tests/v4_credit_check.py` (numpy only).
+- **Phase split** (`--phase-split`; `model.PhaseNet`): two whole networks, table (decisions while a hand is selected, state `SELECTING_HAND`) and shop (blind select, cash-out, shop, packs), each with its own encoder and critic; the game state routes every decision (`model.phase_member`). PPO uses routed credit, normalizes advantages per network, and gives each network its own entropy coefficient: the table's `--ent`, the shop's on `--shop-ent` (start value, then values reached at training-game counts, linear in between). Training games record which network made each move (`members`); metrics log entropy and decisions per network. `model.make_model` builds the right network from any run's config; `play.py` (prints the network per move) and `compare_models.py` load v4 checkpoints.
+- **W4a measurement** in `compare_models.py`: each game's play seconds, and wins per sim-hour A/B with a one-sided 95% lower bound from a 10,000-resample paired bootstrap, scored against chud's two tiers. Seed tag `v4-test` (disjoint from every other tag and the eval 600; adding it changes no existing list).
+- **`tests/v4_phase_check.py`** (torch and the real game): routing re-read from fresh replays (plays and discards only ever reach the table network), saved games replay exactly, each decision is its own network's output whatever the batch, a decision's loss moves only its own network, PPO with routed credit and the entropy schedule, checkpoint rebuild.
+
+- **Build potential phi_build** (`harness/build_phi.lua`; `--build-shaping W`; `rewards.build_shaping`): the mean, over 16 deals of hand-size cards from the deck sorted by card (fixed generator), of the best score any hand in the deal makes (each hand the game's evaluator finds, played; the rest held), scored by the game's own functions as `evaluate_play` calls them, minus the blind's effects, the `before` context, destruction and chance; scaling jokers projected 6 rounds ahead (the balatro-gym planner's table on the real game's fields, plus decays for Ice Cream, Popcorn, Ramen; Burnt/Space Joker level the most-played hand). phi_build = (clamp(log2(hands per round x B / ante-8 boss target), -10, 2) + 10) / 4, in [0, 3]; 0 at the end. Cached by everything it reads. Computed only in training games (`play_games`), since evals read only the offer values.
+- **Offer values** (`--offer-values`; `Sim(offer_values=True)`; `model.Net(offer=True)`): every buy/pick of a joker or planet and every voucher redeem carries phi_build after taking it (price paid) minus now, as one more number on its action row (width 19; `num` reads 3 numbers). Stencil and Swashbuckler are refreshed as `Card:update` does; a planet grows Constellation.
+- **Curriculum by replay** (`--curriculum 0.3`, `--curriculum-published 300`, `--curriculum-keep 600`; `Sim.fast_forward`): a share of training games start at the first shop of ante 4, 5 or 6 of a saved game, reached by replaying its moves from the seed (published wins, never on a held-out seed; this run's own games, recorded as they pass each ante). Curriculum games train but are in no stat, arm, retry pool or tally; their wins go to `curriculum_wins.jsonl`. Metrics log their count and replay time as a share of play.
+- **`tests/v4_phi_check.py`** (no torch) and **`tests/v4_curriculum_check.py`** (torch).
+
+### Checked (cloud, unmodded 1.0.1o, torch 2.15.0 CPU, 2026-11-09)
+- `tests/v4_phi_check.py --routes 8`: ALL PASS. At every move of 8 published wins (2,155 moves): the complete game state and observation identical to a run without phi_build; cached = fresh; same value in another runtime and with the deck reversed; in [0, 3]; 0 at the end; shaping sums to -phi(start). Every offer taken (91) moved phi_build by exactly its value. Sim cost per move 17.6 ms without; 26.6 ms with offer values only (+51%, evals); 30.0 ms with both (+70%, training).
+- `tests/v4_curriculum_check.py --routes 4`: ALL PASS. 300 published starts, none on the 8,600 held-out seeds; starts stop at the first shop of ante 4/5/6 (as an independent replay finds) and the win's remaining moves replay to the same win; through `play_games` the game is marked, trained from the start, and an own start built from it reaches the identical state (fresh runtimes; card ids count on across games in one runtime). Replay per start: ante 4 1.4 s, ante 5 2.1 s, ante 6 3.0 s.
+- A 3-round training run with every v4 flag: curriculum games 2 of 6 per round, replay 52-64% of play time with random weights (their own games last ~10 moves).
+
+- Torch now runs in the cloud: `pip install torch` with its dependencies (the `--no-deps` install failed to import).
+- `tests/v4_phase_check.py`: ALL PASS (6 games by random weights and 4 published wins: 1,121 decisions; table 325 all in `SELECTING_HAND`; shop 796 across blind select, cash-out, shop and every pack).
+- A 4-round training run with `--phase-split` (small network, 3 workers), resumed from `latest.pt`; `compare_models.py` on `v4-test`; `export_weights.py` then `play.py` and `verify_games.py` on its game (PASS). The W4a bootstrap on synthetic data.
+
 ## [0.20.0] - 2026-11-05
 
 ### Registered

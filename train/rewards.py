@@ -30,6 +30,14 @@ def shaping(prev, cur, gamma):
     return gamma * cur["phi"] - prev["phi"]
 
 
+def build_shaping(prev, cur, gamma):
+    """Model v4's second potential-based term: gamma*phi_build(s') - phi_build(s), phi_build = how strong the
+    build is (harness/build_phi.lua; docs/hypotheses.md, v4's definitions). A function of the visible state
+    only, 0 at the end of a game, so like shaping() it leaves the optimal policy for the chosen reward
+    unchanged (Ng et al. 1999). 0 when the sim doesn't compute it."""
+    return gamma * cur.get("phi_build", 0.0) - prev.get("phi_build", 0.0)
+
+
 def step_discount(prev, cur, args):
     """(gamma, lambda) for the step from prev to cur. Per action (--gamma, --lam) by default, as every
     run before v3. With --gamma-blind set (model v3, docs/hypotheses.md 2026-11-05 ~21:19 CST), the

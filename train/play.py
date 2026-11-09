@@ -43,7 +43,7 @@ def main():
 
     w = torch.load(a.weights, map_location="cpu", weights_only=True)
     arch = w["arch"]
-    if arch.get("moe"):
+    if arch.get("moe") or arch.get("phase_split"):
         return play_moe(w, a)
     sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"])
     if sim.vocab != w["vocab"]:
@@ -82,9 +82,10 @@ def main():
 
 
 def play_moe(w, a):
-    """A mixture of experts plays one seed exactly as in its training evals (see the docstring)."""
+    """A mixture of experts, or v4's two networks (arch "phase_split"), plays one seed exactly as in its
+    training evals (see the docstring)."""
     from argparse import Namespace
-    from model import MoE
+    from model import PHASE_NAMES, make_model
     import train as T
     torch.set_num_threads(1)      # as the trainer's workers: same arithmetic, so the same sampled moves
     cfg = dict(w["trained"]["provenance"]["config"])
@@ -92,12 +93,15 @@ def play_moe(w, a):
                max_steps=a.max_steps, verify_wins=False, save_games="none")
     args = Namespace(**cfg)
     arch = w["arch"]
-    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"])
+    from sim import sim_kwargs
+    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"], **sim_kwargs(args))
     if list(sim.vocab) != list(w["vocab"]):
         raise SystemExit("these weights were trained on a different game version (vocabulary differs)")
-    model = MoE(len(w["vocab"]), d=arch["d"], layers=arch["layers"], heads=arch["heads"], enc=arch["enc"])
+    model = make_model(args, len(w["vocab"]))
     model.load_state_dict(w["state_dict"])
     model.eval()
+    if arch.get("phase_split"):
+        return play_phase(w, a, args, sim, model, T, PHASE_NAMES)
     pins = [float(x) for x in model.pin_scale] + [float(model.early_pin_scale[0])]
     print(f"model {w['model_version']} (mixture of experts, {sum(p.numel() for p in model.parameters()):,} params, "
           f"pins {'all 0' if not any(pins) else pins}), seed {a.seed}, {a.back}, stake {a.stake}", flush=True)
@@ -120,6 +124,29 @@ def play_moe(w, a):
                "actions": arch["actions"], "enc": arch["enc"], "acts": ep["acts"], "desc": ep["desc"],
                "final": ep["final"], "n": ep["n"], "progress": prog, "mode": "play",
                "model_version": w["model_version"], "moe": m}
+        with open(a.save, "a") as f:
+            f.write(json.dumps(rec) + "\n")
+        print(f"route saved to {a.save}")
+
+
+def play_phase(w, a, args, sim, model, T, names):
+    """v4: the table and shop networks, as in its evals; each move is printed with the network that made it."""
+    print(f"model {w['model_version']} (v4: table and shop networks, {sum(p.numel() for p in model.parameters()):,} params), "
+          f"seed {a.seed}, {a.back}, stake {a.stake}", flush=True)
+    ep = T.play_games(sim, model, T.REWARDS[args.reward], random.Random(0), args, 0,
+                      (model.state_dict(), [a.seed], "eval", w["trained"].get("iteration") or 0, 0), set())[0]
+    if not a.quiet:
+        for i, (desc, m) in enumerate(zip(ep["desc"], ep["members"]), 1):
+            if not desc.startswith("move_joker"):
+                print(f"{i:4d}  {names[m]:<6} {desc}")
+    prog = ep["progress"]
+    print(f"result: {'WON' if prog['won'] else 'lost'} at ante {prog['ante']}, {prog['blinds_beaten']} blinds beaten, "
+          f"{ep['n']} moves" + (" (move cap reached)" if ep["capped"] else ""))
+    if a.save:
+        rec = {"seed": a.seed, "back": ep["back"], "stake": ep["stake"], "challenge": ep["challenge"],
+               "actions": w["arch"]["actions"], "enc": w["arch"]["enc"], "acts": ep["acts"], "desc": ep["desc"],
+               "final": ep["final"], "n": ep["n"], "progress": prog, "mode": "play",
+               "model_version": w["model_version"], "members": ep["members"]}
         with open(a.save, "a") as f:
             f.write(json.dumps(rec) + "\n")
         print(f"route saved to {a.save}")

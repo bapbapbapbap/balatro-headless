@@ -13,12 +13,14 @@ ACT = 9            # v1 row: type, a, b, c1..c5, hand_type
 ACT_WIDTH = {1: 9, 2: 18, 3: 18}
 # Fields that are embedding ids or numbers (padded with 0); every other field is a token index (-1 = none).
 ZERO_FIELDS = {1: (0, 8), 2: (0, 8, 16, 17), 3: (0, 8, 16, 17)}
+# by action row width: v4's offer values add column 18 (a number) to encoding 2's 18
+ZERO_BY_WIDTH = {9: (0, 8), 18: (0, 8, 16, 17), 19: (0, 8, 16, 17, 18)}
 
 
 class Net(nn.Module):
-    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False):
         super().__init__()
-        self.d, self.enc = d, enc
+        self.d, self.enc, self.offer = d, enc, offer
         self.feat = nn.Linear(F, d)
         self.kind_emb = nn.Embedding(N_KINDS, d)
         self.vocab_emb = nn.Embedding(n_vocab, d)
@@ -35,7 +37,8 @@ class Net(nn.Module):
             self.proj_s = nn.Linear(d, d)      # scoring cards
             self.proj_l = nn.Linear(d, d)      # lead card / card Death copies
             self.proj_h = nn.Linear(d, d)      # the hand type's token (level, chips, mult, increments)
-            self.num = nn.Linear(2, d)         # HUD chips x mult, scoring cards' chips (slog)
+            # HUD chips x mult, scoring cards' chips (slog); v4 (offer): + the offer's phi_build change
+            self.num = nn.Linear(3 if offer else 2, d)
 
     @staticmethod
     def _gather(h, idx):
@@ -77,7 +80,7 @@ class Net(nn.Module):
             ns = (ss >= 0).sum(-1, keepdim=True).clamp(min=1).float()
             a = a + self.proj_s(sg.sum(2) / ns)
             a = a + self.proj_l(self._gather(h, act[..., 14])) + self.proj_h(self._gather(h, act[..., 15]))
-            a = a + self.num(act[..., 16:18].float() / 10000.0)
+            a = a + self.num(act[..., 16:19 if self.offer else 18].float() / 10000.0)
         return a, pooled
 
 
@@ -141,3 +144,47 @@ class MoE(Net):
         head = {k: v for k, v in sd.items() if k.startswith(("policy.", "value."))}
         return trunk, head
 
+
+
+# ---------------- model v4: the phase split (docs/hypotheses.md, v4 and its 2026-11-09 amendment) ----------------
+# Member 0 (table) makes every decision while a hand is being selected (state SELECTING_HAND: plays,
+# discards, consumables used mid-blind, joker drags); member 1 (shop) makes every other decision (blind
+# select, cash-out, shop, packs). Routed by the game's own state, never by a learned rule.
+PHASE_TABLE, PHASE_SHOP = 0, 1
+PHASE_NAMES = ("table", "shop")
+
+
+def phase_member(state_name):
+    """Which v4 network decides in this game state."""
+    return PHASE_TABLE if state_name == "SELECTING_HAND" else PHASE_SHOP
+
+
+class PhaseNet(nn.Module):
+    """Two whole Nets (each its own encoder, action features, policy and critic), one per phase. Each
+    decision names its member (collate's 7th tensor, `member`), as with MoE; no weights are shared, so a
+    decision trains only its own network."""
+
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False):
+        super().__init__()
+        self.nets = nn.ModuleList([Net(n_vocab, d, layers, heads, enc, offer) for _ in PHASE_NAMES])
+
+    def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
+        B, A = act.shape[0], act.shape[1]
+        logits = torch.full((B, A), float("-inf"), device=act.device)
+        value = torch.zeros(B, device=act.device)
+        for m in torch.unique(member).tolist():
+            i = (member == m).nonzero(as_tuple=True)[0]
+            lg, v = self.nets[m](kind[i], vocab[i], feat[i], tok_mask[i], act[i], act_mask[i])
+            logits = logits.index_put((i,), lg)
+            value = value.index_put((i,), v)
+        return logits, value
+
+
+def make_model(cfg, n_vocab):
+    """The network a run's settings (train.py args or a checkpoint's config) call for."""
+    if getattr(cfg, "phase_split", False):
+        return PhaseNet(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc,
+                        offer=bool(getattr(cfg, "offer_values", False)))
+    assert not getattr(cfg, "offer_values", False), "offer values are model v4's (with --phase-split)"
+    cls = MoE if getattr(cfg, "moe", False) else Net
+    return cls(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc)

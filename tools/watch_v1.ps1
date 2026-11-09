@@ -55,6 +55,9 @@ if (@("v1", "v2", "v2b") -contains $Run) {
 } elseif ($Run -eq "v3" -or $Run -eq "v3-control") {
     $arm = if ($Run -eq "v3") { "v3" } else { "control" }
     $launch = "cd ~/balatro/balatro-headless && ARMS=$arm bash train/run_v3.sh $wslWork $(Hours-For 168) $Workers"
+} elseif ($Run -eq "v4") {
+    # model v4: a restart runs run_v4.sh's pre-flight (the four v4 checks, a few minutes) before resuming
+    $launch = "cd ~/balatro/balatro-headless && bash train/run_v4.sh $wslWork $(Hours-For 168) $Workers"
 } elseif ($base -match '^(moe\d*)(-s(\d+))?$') {
     $ms = "export MOE_RUN=$($Matches[1]);" + $(if ($Matches[3]) { " export MOE_SEED=$($Matches[3]);" } else { "" })
     $launch = "cd ~/balatro/balatro-headless && $env_ $ms bash train/run_moe.sh $wslWork $(Hours-For 24) $Workers"
@@ -69,7 +72,7 @@ $restarts = 0
 function Training-Running {
     # train.py for this run, or any launcher still in its pre-flight checks (they can take minutes
     # before train.py starts; a launcher of another run also counts, which errs toward not restarting)
-    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run|train/run_(v1|v2|v2b|moe|expert|early)s?\.sh|tests/(moe|pin)_check\.py|diff_check\.py" *> $null
+    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run|train/run_(v1|v2|v2b|v3|v4|moe|expert|early)s?\.sh|tests/(moe|pin|v4_\w+)_check\.py|diff_check\.py" *> $null
     return ($LASTEXITCODE -eq 0)
 }
 
