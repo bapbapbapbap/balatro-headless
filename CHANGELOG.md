@@ -2,6 +2,40 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.20.0] - 2026-11-05
+
+### Registered
+- **Model v4** (`docs/hypotheses.md`, 2026-11-05 ~23:01 CST), before any of its code, as the new target (chud): a build-strength potential, separate shop and table networks, a backward curriculum from ante 4-6, a shop entropy schedule; predictions W1-W3 on `v4-test`. Records what other Balatro projects found (scoring the shop directly beats single-policy PPO by ~10x), aim 1's precondition (a late-game bot), and the search track for aims 2-3.
+
+### Added: model v3 (registered in `docs/hypotheses.md` 2026-11-05 ~21:19 CST, before this code)
+- **Game-time discount** (`--gamma-blind`, `--lam-blind`; `rewards.step_discount`): the discount and GAE's lambda apply once per blind passed (beaten or skipped) and every other step is undiscounted, instead of once per action. The shaping term takes the step's own discount, so it still telescopes. `gae` and `discounted` take per-step discounts; training games carry them (`ep["disc"]`), as do replayed games for self-imitation and cloning. Unset, every step is (`--gamma`, `--lam`) as before: existing runs are unchanged.
+- `sim.progress` counts `blinds_passed` (marks turning Defeated or Skipped).
+- **`--eval-temp`**: sampling temperature for eval games only.
+- **`train/run_v3.sh`**: the two registered arms side by side from the same random weights (`v3` with the blind clock, `v3-control` per action), 1.0's settings otherwise, eval on the 600 fixed seeds every 20 rounds. `ARMS=v3` runs one. The watcher can restart either (`-Run v3`, `-Run v3-control`).
+- **`analysis/compare_models.py`**: two checkpoints paired on the same seeds from a registered tag (`v3-ab`, `v3-test`; kept disjoint from each other, `paired-v1` and the eval 600): blinds and wins, exact McNemar, losses by ante, and the O'Brien-Fleming verdict for A/B check 1-3. Saves every game's moves.
+- **`tests/v3_check.py`** (no torch; run by `run_v3.sh` before training): replays published wins and checks at every step that `blinds_passed` follows the game's marks, the per-action discount is unchanged, the blind clock discounts exactly at blinds passed, shaping sums to 0 over each game, two skips tick the clock twice, and the per-step `gae`/`discounted` match the scalar versions and a hand computation.
+
+### Checked (cloud, unmodded 1.0.1o, no torch)
+- `tests/v3_check.py`: ALL PASS on 12 published moe2 wins (196-327 actions each; 24-27 blinds passed; shaping sums within 1e-16 of 0) and the skip test. `compare_models.py`'s summary and stopping rule on synthetic data.
+- Not run here: the trainer with the new flags (torch isn't installable in this environment). `run_v2.sh`'s pre-flight and the first rounds on chud's machine are the smoke test.
+
+### Corrected
+- The v3 registration's diagnosis said a won game is ~700 actions (v1's first win). moe2's wins take 196-327, so the per-action discount reaches an ante-2 shop at ~37%, not ~5%; the lambda horizon (~18 actions) is the main cause. Recorded in place, dated, before any training.
+
+## [0.19.2] - 2026-11-05
+
+### Results
+- **The paired comparison of moe2's experts** (2,000 seeds, `pins0.pt`, handoff antes 3, 4, 5; 0 errors, 0 prefix mismatches). Scored in `docs/hypotheses.md` (2026-11-05 ~21:10 CST) and summarized in `docs/moe2_evaluation.md`. C1 (experts not redundant) **falsified**: from the same positions, all six experts and the early head play the same hand mix within about a point. C2–C5 pass: the handoff adds +1.08 blinds per game, experts are within 0.24 of each other, the router adds nothing over a random expert, Full House is 5th by blinds. No expert wins detectably more (Cochran's Q p = 0.24 at ante 4). **Earlier handoff is better** as a policy over all seeds: ante 3 12.65, ante 4 12.49, ante 5 12.11 blinds per seed, never 11.75. I2 stays unscored.
+
+### Documented
+- **The pins were never an ought** (chud): the reward of record was `blinds` throughout moe2; the pins constrained the action mask. `docs/moe2_evaluation.md` corrected; `docs/hypotheses.md` records chud's reading, its limits (hand mix is coarser than strategy; the experts share a start), and the experiment it points to (section C, rewards varied).
+
+### Registered
+- **Model v3** (`docs/hypotheses.md`, 2026-11-05 ~21:19 CST), before any of its code: target 4% of fresh seeds (chud). The bet is that the run is decided by the build and the per-action discount can't credit it; v3 discounts per blind passed (`--gamma-blind`, `--lam-blind`), adds `--eval-temp`, and holds everything else at 1.0's settings, from random weights. Predictions V1–V3, 2,000 held-out seeds (`v3-test`) vs `pins0.pt`, and an optional control arm.
+
+### Added
+- `analysis/score_paired.py`: scores a `paired_experts.py` output against C1–C5 (all seeds and the registered first 200) and answers the three questions, with the handoff ante compared as a policy over every seed. Needs only numpy.
+
 ## [0.19.1] - 2026-11-05
 
 ### Fixed

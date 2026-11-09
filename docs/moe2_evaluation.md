@@ -150,7 +150,8 @@ discarded at 410 of its 1,064.
   Without a baseline (what the other heads play from the same positions), this can't be read as
   specialization the pins taught. The paired tool's no-handoff control is that baseline.
 - **Blinds/game by expert is not a comparison of experts.** The router gives each one different
-  games. Only `analysis/paired_experts.py` compares them from the same positions (not run yet).
+  games. `analysis/paired_experts.py` compares them from the same positions: see "The paired
+  comparison" below.
 
 ### Full House in the early game
 The early pin's counters at pins zero: a Full House or higher hand was on offer at 1,005 of the early head's
@@ -189,23 +190,58 @@ of a near win.
 - **Untested ideas:** extending the early head's return through the handoff (`--moe-cut 0`, section
   J), aimed at the antes 4–6 losses; and whatever the KL rise turns out to be.
 - **What not to spend on:** more work on the expert structure. Final-boss conversion barely differs
-  by expert, the Full House expert went unused, and whether the experts differ at all is unmeasured.
+  by expert, the Full House expert went unused, and from the same positions the experts play the
+  same hands and don't differ in win rate (the paired comparison below).
 
-**For aim 1 (the is-ought gap):** the pins were an "ought" put in through the action mask, not the
-reward. They didn't stick. The Full House pin left no Full House play behind it: 1 play in 1,005 chances.
-When the pins were removed the bot lost ground, then rebuilt from the reward alone and passed its
-starting point on blinds per game. What it rebuilt is not what the pins asked for.
+**For aim 1 (the is-ought gap):** the ought never changed. It was `blinds` from start to finish. The
+pins were a constraint on the action mask, not an ought: they told the bot what it may play, never
+what it wants. When they were lifted they left nothing behind. The Full House pin left 1 Full House
+play in 1,005 chances, and in the paired comparison all six experts play the same hand mix as each other
+and as the early head, which was never pinned. Under one reward, a constraint that isn't the reward
+doesn't persist. That is the negative control for the real experiment (rewards varied, the facts held
+fixed; `docs/hypotheses.md`, 2026-11-05 ~21:15 CST).
 
 **Not shown:** whether the MoE beats a single network. I1 (MoE vs model 1.0, paired held-out seeds)
 is still unregistered. moe2's evals use 600 seeds and the earlier models' used 200, under a win test
 since corrected, so the numbers don't compare directly.
 
+## The paired comparison (2,000 seeds, 2026-11-05)
+`analysis/paired_experts.py` on `pins0.pt`: 2,000 seeds outside the eval 600 (tag `paired-v1`), the
+handoff at antes 3, 4 and 5, every expert and a no-handoff control from the same state. 0 prefix
+mismatches. Scored with `analysis/score_paired.py`; predictions C1–C5 and chud's three questions are
+scored in `docs/hypotheses.md` (2026-11-05 ~21:10 CST).
+
+**Handoff at ante 4** (1,368 seeds reached it):
+
+| Player after the handoff | Wins | Blinds/game | Pair | Two Pair | Three | Straight | Flush | Full House |
+|---|---|---|---|---|---|---|---|---|
+| no handoff (early head) | 11 | 15.02 | 4.9% | 65.0% | 6.9% | 14.3% | 7.0% | 0.0% |
+| Pair | 28 | 15.97 | 5.7% | 64.4% | 6.9% | 13.7% | 6.9% | 0.0% |
+| Two Pair | 27 | 16.14 | 5.4% | 64.7% | 6.7% | 14.1% | 7.1% | 0.0% |
+| Three of a Kind | 34 | 16.11 | 5.2% | 64.8% | 6.9% | 13.6% | 7.1% | 0.0% |
+| Straight | 38 | 16.21 | 5.0% | 64.8% | 6.9% | 14.2% | 7.1% | 0.0% |
+| Flush | 30 | 16.08 | 5.3% | 64.4% | 6.9% | 13.9% | 7.2% | 0.0% |
+| Full House | 25 | 16.08 | 5.0% | 65.6% | 6.8% | 13.0% | 7.5% | 0.0% |
+| router's own choice | 31 | 16.12 | | | | | | |
+
+The hand columns are each player's share of its plays after the handoff.
+
+- **The experts play the same hands.** From the same positions, every expert and the early head play
+  the same mix within about a point. On this measure, at pins zero the six experts are one policy.
+- **They don't differ in win rate** (Cochran's Q p = 0.24 at ante 4) and barely in blinds (0.24
+  between best and worst, no pair past Bonferroni).
+- **Any expert beats the early head after the handoff**: +1.08 blinds per game, about 2.7× the wins.
+  The early head was never trained past ante 4.
+- **Earlier handoff is better.** As a policy over all 2,000 seeds: ante 3 12.65 blinds per seed,
+  ante 4 12.49, ante 5 12.11, never 11.75. Antes 1–2 untested.
+- **The router adds nothing** over a random expert (+0.02 blinds).
+
 ## Next
-1. `analysis/paired_experts.py` on `pins0.pt` (command in `llms.txt`): whether the experts differ from
-   the same positions, the no-handoff baseline, and the best handoff ante.
-2. Before the next run: split `ppo.kl` by explored and sampled moves; a low-temperature eval of
-   `pins0.pt` (how much of the ante-1 loss is sampling).
-3. Then a branch from `pins0.pt` with `--moe-cut 0`, as a MoE or a single network depending on 1.
+1. Decide the next run (section J) from the paired result: a single network (`--moe-cut 0` without
+   the expert split), and/or a paired run with `--handoff-antes 1,2` (should an expert play the
+   whole game?).
+2. Split `ppo.kl` by explored and sampled moves; a low-temperature eval of `pins0.pt` (how much of the
+   ante-1 loss is sampling).
 
 ## Data
 `C:\Users\Jacobi\balatro-work\runs\moe2\` on chud's machine: `train.log`, `metrics.jsonl`, `wins.jsonl`,

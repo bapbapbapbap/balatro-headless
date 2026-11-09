@@ -1262,3 +1262,288 @@ measure), and shows whether any expert wins about twice as often as another. Sma
 differences, which I2's ranking may need, would take ~6,000 seeds. The run can be extended to that
 later without changing anything, because the file resumes and the seed list is fixed. If the win
 rate after the handoff is nearer 1% than 2%, as the pilot hints, every win-rate row needs more seeds.
+
+
+## Added 2026-11-05 ~21:10 CST: the first paired run, scored (section J)
+
+`balatro-work/paired_moe2.jsonl`: `pins0.pt`, seed tag `paired-v1`, **2,000 of 2,000 seeds, 0 errors**,
+handoff antes 3, 4, 5, one rollout, finished ~19:49 CST. 0 prefix mismatches at every ante; the pins
+read 0. Scored with `analysis/score_paired.py` (reproduces every number below from the file).
+
+### C1–C5 (handoff at ante 4; all 2,000 seeds, 1,368 reached it; first 200, 129 reached it)
+| | All 2,000 | First 200 (registered) | Verdict |
+|---|---|---|---|
+| **C1** experts not redundant (≥3 of 6) | 2 of 6 | 1 of 6 | **Falsified** |
+| **C2** handoff − no handoff ≥ 0.5 blinds | +1.08 (95% CI 0.94–1.23) | +1.40 (±0.46) | **Pass** |
+| **C3** best − worst expert < 1.0 | 0.24 (Straight 16.21 − Pair 15.97; ±0.17) | 0.65 (±0.53) | **Pass** |
+| **C4** router − expert mean < 0.3 | +0.02 (±0.11) | −0.06 (±0.40) | **Pass** |
+| **C5** Full House not top 2 by blinds | 5th of 6 | 6th of 6 | **Pass** |
+
+- **C1.** On all 2,000, the named expert leads its own hand only for Pair (5.75% vs 5.38%) and Three of
+  a Kind (6.938% vs 6.936%, a tie at this precision). The three expected to lead, Two Pair, Straight
+  and Flush, all failed. Full House is 0.0% for every player. Claude's 70% was wrong.
+- C2–C5 held. C2's and C3's reasons were stated at registration; C3's held more tightly than the
+  1.0 margin needed.
+
+### chud's three questions
+1. **Does one strategy win the most?** No. Wins at ante 4 (of 1,368): Straight 38, Three of a Kind 34,
+   Flush 30, Pair 28, Two Pair 27, Full House 25. Cochran's Q p = 0.24 (ante 3: 0.50; ante 5: 0.83).
+   Straight vs Full House, 24:11 discordant, p = 0.041 uncorrected, is the most-vs-fewest pair picked
+   after the fact: not evidence. Blinds: no pair of experts differs past Bonferroni at ante 4 or 5; at
+   ante 3, Flush is ahead of Two Pair (+0.29) and Straight (+0.39).
+2. **Does the handoff change play?** It changes the outcome (C2: +1.08 blinds per game; wins 11 →
+   25–38 of 1,368) but not the hand mix. All seven players, the early head playing on included, play
+   the same mix within about a point: Two Pair ~65%, Straight ~14%, Flush ~7%, Three of a Kind ~7%,
+   Pair ~5%, Full House 0.0%. At pins zero the six experts behave as one policy on this measure. Open:
+   whether the mix is set by the build the early head hands over (jokers, planets, deck), or whether the
+   experts converged; this run can't separate the two.
+3. **Is the handoff at the right ante?** **Earlier is better** among the antes tested. The tool's
+   per-ante rows can't answer this (different seeds), and neither can the 1,003 seeds common to all
+   three antes: those are the seeds on which the early head itself reached ante 5, which is the
+   no-handoff game, so early handoffs are compared only where the early head is known to survive
+   (that comparison favors ante 5, wrongly). Scored instead as a policy over all 2,000 seeds, where a
+   seed that never reaches the handoff keeps the early head's game:
+
+   | Handoff | Blinds per seed, expert mean | Router's choice | Wins per 2,000 (expert mean / router) |
+   |---|---|---|---|
+   | never | 11.75 | – | 11 |
+   | ante 3 | **12.65** | 12.60 | 34.7 / 29 |
+   | ante 4 | 12.49 | 12.51 | 30.3 / 31 |
+   | ante 5 | 12.11 | 12.14 | 29.3 / 33 |
+
+   Expert mean: ante 4 − ante 3 = −0.16 ± 0.12; ante 5 − ante 4 = −0.38 ± 0.09. Win rates (~1.5–1.7%
+   per seed) don't separate. Antes 1–2 were not tested, so this doesn't show that ante 3 is best, only
+   that later is worse; the trend says an expert beats the early head from wherever it takes over.
+
+### I2 (Full House among the strongest experts): still unscored
+Its test design was never confirmed and its size never set, so this run doesn't score it. For the
+record: Full House's wins rank 6th of 6 at ante 4 (25), tied 5th at ante 3 (31), 2nd at ante 5 (31),
+and no win-rate difference between experts is detectable at any ante. The router sent it no seeds at
+any ante.
+
+### Reach rate
+68.4% of seeds reached the ante-4 handoff, against 74% (442/600) in the pins-zero eval. The eval
+seeds chose the checkpoint, so some of the gap is expected.
+
+### What it means for the next run (section J; nothing registered)
+The experts are not separate strategies, and the handoff's gain is that any expert plays past ante 3
+better than the early head, which was never trained past ante 4. Candidates: a single network
+(`--moe-cut 0` without the expert split), or a paired run with `--handoff-antes 1,2` to see whether an
+expert should play the whole game.
+
+
+## Added 2026-11-05 ~21:15 CST: what moe2 says about aim 1 (chud's reading, with limits)
+
+### The ought was never modified
+chud (21:08): "we haven't modified the ought even once. ought to favor a hand didn't affect play
+patterns once the favor ran out. that is good data. the one ought was always blinds."
+
+The reward of record was `blinds` for every head and every round of moe2. The hand pins went through
+the action mask: they restricted what the bot could play, never what it was rewarded for. Earlier
+write-ups (including Claude's, and `docs/moe2_evaluation.md` before this date) called the pins an
+"ought". That was a mislabel, now corrected there.
+
+### What it shows
+**A constraint that isn't the ought leaves no trace once it's lifted.** With the pins at 0, the
+early head played a Full House once in 1,005 chances, and in the paired comparison (above) all
+six experts play the same hand mix as each other and as the early head, which was never pinned. This
+is a negative control for aim 1: changing what the bot may do, with the ought held fixed, didn't move
+where play settled.
+
+### chud's claim, and what this data supports of it
+chud: "there is one optimal strategy towards single rewards."
+
+What the data supports is narrower: **under `blinds`, which hand to play is fixed by the reward and the
+build.** It doesn't show a unique optimal strategy, for two reasons:
+1. **Same hand mix is not same strategy.** The early head and the experts play the same mix, yet
+   from the same positions the experts score 1.08 more blinds per game. Something else differs
+   (shop, discards, which Two Pair is played). The hand mix is too coarse to see it.
+2. **The experts aren't independent samples.** All six started from model 0.2's weights. The early
+   head, trained from random weights, is the independent check, and it agrees on the mix.
+
+Whether an optimal policy is unique is beside the point for aim 1, and games like this usually have
+ties. The question aim 1 needs answered is whether the ought selects the strategy.
+
+### The experiment this points to
+Section C's first prediction, **"Different oughts, different behavior"** (2026-11-01; not the C1 of the
+paired run): bots trained on `blinds`, `antes` and `win`, from the same starting weights, on the same
+game, compared per seed. moe2 shows that play converges under one ought. If different oughts
+converge to measurably different play from identical facts, the facts didn't fix the play: the ought
+did. That is the is-ought gap shown in behavior. Its statistics are still *(chud to confirm)*, and
+nothing is registered.
+
+
+## Added 2026-11-05 ~21:19 CST: model v3, registered before any of its code exists (section J)
+
+Target set by chud (21:16): **4% of fresh seeds won.** Registered before the code for v3 is written
+and before anything is trained.
+
+### Diagnosis (the bet)
+**The run is mostly decided by the build, and the trainer can't credit the build.**
+- From the same ante-4 position, the six experts land within 0.24 blinds of each other, and picking
+  the best expert per seed after the fact would win only 86 of 1,368 positions (6.3%). How a run ends
+  is mostly fixed before the handoff, by what was bought in antes 1–4.
+- The bot builds badly: one hand (Two Pair ~65%) whatever it holds, money held far past the interest
+  cap ($122 median at ante 8), no Full House, ~20% of plays under some bosses score nothing, and 352
+  of 600 eval deaths in antes 4–6, where blind targets outgrow a build that didn't scale.
+- **Why the trainer can't credit it.** `gamma` = 0.995 is applied per *action*. *(Corrected 22:15 CST,
+  before any code ran a game: the first version said a won game is ~700 actions and the win reaches
+  an ante-2 shop at ~5%. 700 was v1's first win. moe2's published wins take 196–327 actions, so the
+  win reaches an ante-2 shop at ~0.995^200 ≈ 37%. The discount alone is a weaker cause than first
+  stated; the λ horizon below is the main one.)* Free moves (joker drags,
+  card toggles) use up that horizon while nothing happens in the game. `lam` = 0.95 per action gives
+  GAE an effective horizon of 1/(1 − 0.995·0.95) ≈ 18 actions, so any credit to a shop decision has to
+  come from the critic, and a critic that has never seen a good build can't value one.
+
+### What changes (v3)
+Only the operationalization of the same ought. Nothing encodes strategy.
+1. **Discount on game time, not actions.** The discount applies once per blind passed (beaten or
+   skipped), `--gamma-blind 0.95`; every other step is undiscounted. Shops and packs sit between
+   blinds and are undiscounted too. The shaping term uses the same per-step discount, so it stays
+   potential-based (Ng et al. 1999 holds with a per-step discount) and still leaves the optimal policy
+   unchanged.
+2. **λ on the same clock.** λ = 1 inside a blind, `--lam-blind 0.95` at each blind passed.
+3. **Eval temperature** (`--eval-temp`), so sampling can be measured. Training is unchanged by it.
+
+Held from 1.0 so the result is attributable to 1–2: a single network at 1.0's size (`--d 192
+--layers 4 --heads 6`, 1.6M parameters), `--enc 2`, `--actions ordered-capped`, reward **`blinds`**
+(the ought is unchanged, and the ante-8 boss is the 24th blind), shaping on, `--explore-hands 0.05`,
+seed retries on, Red Deck, White Stake. **From random weights; no behavior cloning.** lr 1e-4 with KL
+early stopping (as v1/v2). `best.pt` is chosen by eval blinds on the 600 eval seeds, as before.
+
+### The test
+- **Seeds:** 2,000 drawn from tag `v3-test`, excluding the eval 600 and the `paired-v1` 2,000. None are
+  seen in training or checkpoint selection.
+- **Players:** v3's `best.pt` vs `pins0.pt` (moe2, the strongest weights measured; MoE as trained,
+  handoff at ante 4). Each plays each seed once, sampled at temperature 1 with the eval's per-seed
+  RNG, the same convention for both. Win = the ante-8 boss beaten (the corrected test).
+- **Power:** paired, 2,000 seeds detects 2% vs 4% (see the paired run's power table above).
+
+### Predictions (Claude)
+- **V1. v3 wins at least 4.0% of the 2,000 seeds, and more than `pins0.pt` (one-sided exact
+  McNemar on the seeds where exactly one wins, p < 0.05). (60%)** chud's target. *Falsified* if under
+  4.0% or not significant.
+- **V2. v3 beats more blinds per game than `pins0.pt` (paired, p < 0.05). (75%)**
+- **V3. The mechanism: the gain comes from the build.** v3's share of games ending in antes 4–6 is
+  lower than `pins0.pt`'s, and its median money held at the start of ante 6 is lower (it spends).
+  **(60%)** If V1 passes and V3 fails, the diagnosis was wrong even though the target was met.
+- Reported, not predicted: the same comparison at `--eval-temp 0.5` for both models, and 1.0 on the
+  same seeds.
+
+### What this can and can't attribute
+v3 differs from `pins0.pt` in more than 1–2: it starts from random weights, not 0.2's, and it's a
+single network, not a MoE. A pass shows v3 is stronger. It shows *the clock and λ* caused it only if a
+control arm is also run: the same v3 settings with per-action `--gamma 0.995 --lam 0.95`, from the
+same random seed, for the same number of games. Without it, the claim is limited to "v3 is stronger".
+
+### Amended 2026-11-05 ~21:24 CST (before any code): the control arm, as a stopping rule (chud agreed)
+The control is run only until the two arms separate, then stopped, and the winner gets the machine.
+Reason (the goal is the strongest bot): if v3 passes, the control changes no decision; if v3 fails,
+it is the only way to tell "the clock is wrong" from "starting from scratch cost us".
+- **Arms:** `v3` (`--gamma-blind 0.95 --lam-blind 0.95`) and `control` (`--gamma 0.995 --lam 0.95`
+  per action), everything else identical, same training seed, side by side.
+- **Measurement at each check:** both arms' latest `best.pt` play the same 2,000 seeds from tag
+  `v3-ab` (outside the eval 600, `paired-v1` and `v3-test`), sampled, per-seed RNG; paired difference
+  in blinds per game. Sizing: one policy's blinds per seed have SD 5.9 (`paired_moe2.jsonl`); two
+  networks trained from scratch share only the seed, correlation 0–0.3, so the paired SD is
+  7.0–8.3. To detect 0.5 blinds per game with power 0.8 takes (2.8σ/0.5)² = 1,550–2,150 seeds:
+  2,000. (The eval 600 resolve only ~0.8–0.95.) A gap under 0.5 counts as a tie.
+- **When:** the first check once both arms average ≥ 9 blinds per game on their eval (ante 4 reached on
+  average: the build wall is where the clock should matter); then every 10,000 training games per
+  arm; at most 3 checks.
+- **Rule:** O'Brien-Fleming boundaries for 3 looks (overall two-sided α 0.05): stop at the first
+  check where |z| > 3.47, 2.45, 2.00 (checks 1, 2, 3) and keep the arm ahead. If no boundary is crossed
+  by check 3, it's a tie and **v3 is kept** (as registered).
+- **What it can't say:** one training run per arm compares these two networks, not the two methods;
+  run-to-run luck is unmeasured (that would need ≥ 2 runs per arm). The write-up won't claim more.
+- V1–V3 are scored on whichever arm is kept, against `pins0.pt`, on `v3-test`. If the control is kept,
+  V1 is still scored, and V3's mechanism claim is scored as not supported.
+
+### Before training
+The new discount needs the same checks as every trainer change: per-step discounts unit-tested
+against a hand-computed game, the shaping term's telescoping checked on real games, saved games
+replaying exactly, and the pre-flight in `run_v2.sh`.
+
+
+## Added 2026-11-05 ~23:01 CST: model v4, registered before any of its code (section J)
+
+chud (22:58): "it'd be wasteful not to do the best approach when we finally looked." v4 is the
+strongest bot buildable from what this project and others have learned. It replaces v3 as the
+target; v3 (registered above) may still run as a baseline, and its A/B result, if it exists, decides
+v4's discount clock. Nothing below is built yet.
+
+### What others found (looked up 2026-11-05 ~22:50 CST; Red Deck, White Stake unless noted)
+| Approach | Win rate | Source |
+|---|---|---|
+| Pure PPO, one policy (ours) | ~2% | this repo |
+| Pure PPO, one policy (taggarttufte/balatro-rl V7) | 2.35% peak, "plateaus at Green+Space lock-in" | github.com/taggarttufte/balatro-rl |
+| Two-policy PPO, simplified sim (arXiv 2610.39049) | no wins; mean max ante ~3 | arxiv.org/abs/2610.39049 |
+| Hand-written heuristics | ~5% | balatro-gym "strategist" (100 seeds); Optilatro `heuristic_v10` (300 seeds) |
+| Planner: each shop decision scored by cloning the state and measuring the board's hand-scoring power | 20% (47/240) | github.com/roshantaneja/balatro-gym |
+| Separate shop and blind agents, multi-agent PPO with routed credit (GIEWEV; Reddit claim, partial game) | ~30% sim, ~25% real game | cited as [3] in arXiv 2610.39049 |
+| Skilled humans | "95–99%" (forum opinion, not a measurement) | Steam discussions |
+
+The other projects run on reimplementations, some partial; ours runs on the real game. Read
+together: **every approach that scores the shop directly beats every single-policy PPO run by about
+10x.** That independently supports v3's diagnosis (the build decides the run; a single long-horizon
+policy can't credit it) and says v3's fix, the clock, is the weakest of the known fixes.
+
+### What changes (v4)
+1. **Build-strength potential.** A second potential-based shaping term, phi_build(s), how strong the
+   current build is against the blinds ahead, computed from game state with the game's own scoring
+   code (reference hands scored with the current jokers, hand levels and deck; the exact definition
+   is fixed and recorded here before training). Requirements: a function of the state only (so
+   Ng et al. 1999 holds and the optimal policy under `blinds` is unchanged: the ought stays
+   `blinds`), bounded, using the step's own discount, and computed only from what a player can see.
+   It gives the shop a direct signal for what each purchase did to the build. It encodes no rule:
+   the bot still decides what to buy.
+2. **Separate shop and table networks, each with its own critic.** Decisions in a blind (play,
+   discard, use while selecting a hand) go to one network; shop, packs, blind select and cash-out go to
+   the other. Built on the MoE machinery, routed by phase instead of by hand. Reason: one critic can't
+   judge both "is this hand good" and "is this build good".
+3. **Backward curriculum.** A share of training games (30%) start mid-run: a saved game's moves are
+   replayed to the start of ante 4, 5 or 6 (uniform), then the bot plays on. Sources: this run's own
+   games and the published routes. These games train but are never counted in training stats or
+   evals. Reason: the late game gets practice while the bot still dies early (and aim 1 needs a
+   late-game bot; see below).
+4. **Shop entropy schedule:** the shop network's entropy bonus starts at 0.02 and decays to 0.01
+   (arXiv 2610.39049 reports it prevents shop collapse into "reroll forever" or "leave at once").
+5. **Discount clock:** the v3 A/B winner if it has been run; the blind clock otherwise.
+
+Held: 1.0's size per network, encoding 2, ordered-capped actions, reward `blinds`, seed retries,
+lr 1e-4, from random weights, no behavior cloning, Red Deck, White Stake.
+
+### Build order (each part checked on the real game before the next)
+Backward curriculum (the replayed start must equal the saved game's state at that step), then the
+phase split (every decision routed to the right network; saved games replay exactly), then the
+potential (it must telescope to 0 over every published win, never read hidden information, and
+take the same value on identical states).
+
+### The test
+2,000 seeds from tag `v4-test` (disjoint from the eval 600, `paired-v1`, `v3-ab`, `v3-test`);
+v4's `best.pt` vs `pins0.pt`, and vs v3's kept arm if it exists, each playing each seed once,
+sampled, per-seed RNG. Win = the ante-8 boss beaten.
+
+### Predictions (Claude)
+- **W1. v4 wins ≥ 4% of `v4-test`, more than `pins0.pt` (one-sided exact McNemar, p < 0.05). (70%)**
+- **W2. v4 wins ≥ 10%. (35%)** Others' 20–25% came on easier or partial simulators; 10% on the real
+  game would be a large step.
+- **W3. Mechanism: v4 reaches ante 7 in more games than `pins0.pt` and dies less in antes 4–6
+  (paired, p < 0.05). (70%)**
+No attribution to single changes is claimed; four change at once.
+
+### Aim 1 needs a late-game bot (recorded for the Hume run)
+`blinds`, `antes` and `win` reward nearly the same things until the late game. A bot that dies by
+ante 5 gets almost the same signal under all three, so its arms would barely differ, and "no
+difference" would mean the bot was too weak to face the tradeoffs, not that the facts fixed the ought.
+**Precondition for running aim 1's experiment:** the starting weights reach ante 7 in at least 25% of
+eval games (pins0.pt: 22 of 600 reached the final boss, so far below). The threshold is a proposal;
+chud confirms it with the Hume run's statistics.
+
+### Aims 2 and 3 are existence proofs: a separate search track (direction only; nothing predicted)
+A naneinf seed and a 100% save are proved by routes that replay on the untouched game. Seeds are
+chosen and the game is deterministic, so routes can be found by search with lookahead (branches
+replayed before committing), with the policy as a prior, on CPU, independent of training. A
+searched 100% save would prove that one exists, and show it, not that a player without foresight
+could do it; every write-up says so (as `docs/proof.md` does). First milestone: one Gold Stake Red
+Deck win found by search.

@@ -79,9 +79,11 @@ routing rule. Which network moves depends on the game.
 
 ## Known limitations
 - **Not shown to beat a single network.** I1 (MoE vs model 1.0) is not registered or run.
-- **Whether the experts differ isn't measured.** The rates above describe the games each expert was
-  routed, not the expert. `analysis/paired_experts.py` measures them from the same positions; it
-  hasn't been run.
+- **The experts don't differ.** From the same positions (`analysis/paired_experts.py`, 2,000 seeds),
+  all six play the same hand mix as each other and as the early head, within about a point, and no
+  expert wins detectably more. The rates above describe the games each expert was routed, not the
+  expert. The handoff itself helps: any expert adds about 1 blind per game over the early head playing
+  on (`docs/moe2_evaluation.md`).
 - **Win rate has not clearly risen** past the run's early peak. Fresh-seed wins were 1.12% in rounds
   100–199 and 1.13% at the end. Blinds per game did rise.
 - **Early losses:** 56 of 600 eval games end by ante 1, which a competent player essentially never
