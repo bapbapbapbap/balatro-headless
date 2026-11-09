@@ -45,12 +45,12 @@ def load(path, src, temp):
     import torch
     from argparse import Namespace
     from model import make_model
-    from sim import Sim
+    from sim import Sim, sim_kwargs
     ck = torch.load(path, map_location="cpu", weights_only=False)
     cfg = dict(ck["provenance"]["config"])
     cfg.update(src=src, verify_wins=False, save_games="none", eval_temp=temp)
     a = Namespace(**cfg)
-    sim = Sim(a.src, a.mods, mode=a.actions, enc=a.enc)
+    sim = Sim(a.src, a.mods, mode=a.actions, enc=a.enc, **sim_kwargs(a))
     if list(sim.vocab) != list(ck["vocab"]):
         raise SystemExit(f"{path}: checkpoint vocabulary differs from this game's")
     model = make_model(a, len(sim.vocab))

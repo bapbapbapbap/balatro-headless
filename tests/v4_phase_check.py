@@ -43,6 +43,7 @@ def args_for(src):
     """A small v4 configuration: the routing doesn't depend on size."""
     ap_defaults = dict(src=src, mods=None, actions="ordered-capped", enc=2, d=32, layers=1, heads=2,
                        phase_split=True, moe=False, shop_ent="0.02,0.006@100,0.001@200", ent=0.01,
+                       offer_values=True, build_shaping=1.0,
                        reward="blinds", shaping=1.0, gamma=0.995, lam=0.95, gamma_blind=0.95, lam_blind=0.95,
                        back="b_red", stake=1, backs=[], stakes=[], challenges=[], challenge_share=0.25,
                        max_steps=1500, stop_ante=0, explore_hands=0.0, pin_hand=None, pin_rate=1.0,
@@ -67,7 +68,8 @@ def games_from_routes(sim, model, routes, args):
             prev, cur, done = sim.step(a)
             g_t, l_t = T.step_discount(prev, cur, args)
             rw = reward_fn(prev, cur)
-            steps.append((o, a, lp, float(v[0]), rw + args.shaping * T.shaping(prev, cur, g_t), rw))
+            r_all = rw + args.shaping * T.shaping(prev, cur, g_t) + args.build_shaping * T.build_shaping(prev, cur, g_t)
+            steps.append((o, a, lp, float(v[0]), r_all, rw))
             disc.append((g_t, l_t))
             if not done:
                 o = sim.observe()
@@ -136,6 +138,7 @@ def check_ppo(model, eps, args):
         G, L = [x[0] for x in ep["disc"]], [x[1] for x in ep["disc"]]
         a = routed_gae(r, v, G, L, ep["members"])
         assert np.isfinite(a).all()
+        assert all(o["act"].shape[1] == 19 for o in (s[0] for s in ep["steps"])), "v4 rows carry the offer value"
         if len(set(ep["members"])) == 1:
             assert np.allclose(a, T.gae(r, v, G, L), atol=1e-5)
     for games, want in ((0, 0.02), (50, 0.013), (100, 0.006), (150, 0.0035), (200, 0.001), (10**6, 0.001)):
@@ -173,7 +176,8 @@ def main():
     torch.manual_seed(0)
     torch.set_num_threads(1)
     args = args_for(a.src)
-    sim = Sim(a.src, mode=args.actions, enc=args.enc)
+    from sim import sim_kwargs
+    sim = Sim(a.src, mode=args.actions, enc=args.enc, **sim_kwargs(args))
     model = make_model(args, len(sim.vocab))
     model.eval()
     seeds = [f"V4PHASE{i}" for i in range(a.games)]

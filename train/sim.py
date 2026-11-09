@@ -72,11 +72,20 @@ def parse(buf, act_width=9):
             "feat": tok[:, 2:].astype(np.float16), "act": act.astype(np.int16)}
 
 
+def sim_kwargs(cfg):
+    """The Sim options a run's settings (train.py args or a checkpoint's config) call for (model v4)."""
+    return {"build_phi": bool(getattr(cfg, "build_shaping", 0)), "offer_values": bool(getattr(cfg, "offer_values", False))}
+
+
 class Sim:
-    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False, count_progress=False):
+    def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False, count_progress=False,
+                 build_phi=False, offer_values=False):
         """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll), or
         "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags).
-        enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards)."""
+        enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards).
+        build_phi: progress carries phi_build, model v4's build potential (harness/build_phi.lua).
+        offer_values: each action row gets one more number, phi_build after taking that offer minus now
+        (buying or picking a joker or planet, redeeming a voucher; 0 elsewhere), as int x 10000."""
         lua_mode = "ordered" if mode == "ordered-capped" else mode
         self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, save_mode=save_mode,
                               count_progress=count_progress)
@@ -90,6 +99,11 @@ class Sim:
         self.enc, self.mode, self.act_width = enc, mode, int(self.H.ACT_WIDTH)
         assert self.act_width == ACT_WIDTH[enc], (enc, self.act_width)
         self.vocab = self.H.vocab().split("\n")
+        # build_phi: computed into progress at every move (training's shaping; evals switch it off)
+        self.build_phi, self.offer_values = bool(build_phi), bool(offer_values)
+        self.phi_loaded = self.build_phi or self.offer_values
+        if self.phi_loaded:
+            lua.execute(open(os.path.join(HARNESS, "build_phi.lua")).read(), self.H)
         self.compare, self.mismatches = False, []     # tests/outcome_check.py: cross-check the old counters
 
     def reset(self, seed, back, stake, challenge=None):
@@ -97,6 +111,10 @@ class Sim:
         self.steps = 0
         self._prog = {"blinds_beaten": 0, "bosses_beaten": 0, "won": False, "ante": 1, "phi": 0.0,
                       "final_boss": False, "near_win": False, "blinds_passed": 0}
+        if self.phi_loaded:
+            self.H._phi_cache = None
+        if self.build_phi:
+            self._prog["phi_build"] = float(self.H.build_power()[0])
         self.H.game_won = False
         self._marks = dict(zip(("Small", "Big", "Boss"), self.H.blind_marks()))
         self._marks_prev = dict(self._marks)
@@ -105,8 +123,42 @@ class Sim:
         self.route, self.desc = [], []      # every action taken, as encoded index and as text
         return self.observe()
 
+    def fast_forward(self, acts, desc, ante=None):
+        """Model v4's curriculum start (docs/hypotheses.md, 2026-11-09 amendment, change 1): replays a saved
+        game's moves from the seed (reset first), each checked against its saved text, and stops before the
+        first move made in a SHOP at ante `ante` (None: after every move given). The game itself, replayed:
+        nothing is loaded. phi_build and offer values are skipped while replaying and computed again at the
+        start. Returns the observation there, or None if the moves ran out or differ before it."""
+        bp, ov = self.build_phi, self.offer_values
+        self.build_phi = self.offer_values = False
+        try:
+            for k, a in enumerate(acts):
+                if ante is not None and self.H.state_name() == "SHOP" and self._prog["ante"] == ante:
+                    break
+                o = parse(self.H.encode(), self.act_width)
+                if a >= len(o["act"]) or self.H.action_desc(a + 1) != desc[k]:
+                    return None
+                _, _, done = self.step(a)
+                if done:
+                    return None
+            else:
+                if ante is not None and not (self.H.state_name() == "SHOP" and self._prog["ante"] == ante):
+                    return None
+        finally:
+            self.build_phi, self.offer_values = bp, ov
+        if self.phi_loaded:
+            self.H._phi_cache = None
+        if self.build_phi:
+            self._prog["phi_build"] = float(self.H.build_power()[0])
+        return self.observe()
+
     def observe(self):
-        return parse(self.H.encode(), self.act_width)
+        o = parse(self.H.encode(), self.act_width)
+        if self.offer_values:
+            v = np.array(self.H.offer_values().split(), dtype=np.int16).reshape(-1, 1)
+            assert len(v) == len(o["act"]), (len(v), len(o["act"]))
+            o["act"] = np.concatenate([o["act"], v], 1)
+        return o
 
     def step(self, index):
         """index: 0-based into the last observed action list."""
@@ -154,6 +206,9 @@ class Sim:
         # Potential for shaping (see rewards.py): progress toward the blind being played, from what
         # the HUD shows (chips scored, blind target). Zero outside a blind and at the end.
         p["phi"] = min(chips / target, 1.0) if (state == "SELECTING_HAND" and target and target > 0 and not done) else 0.0
+        if self.build_phi:
+            # model v4's build potential: how strong the build is (harness/build_phi.lua); 0 at the end
+            p["phi_build"] = 0.0 if done else float(self.H.build_power()[0])
         self._last_state = state
         prev, self._prog = self._prog, p
         return prev, p, bool(done)

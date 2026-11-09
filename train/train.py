@@ -32,10 +32,10 @@ import torch.multiprocessing as mp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import (ACT_WIDTH, EXPERT_HANDS, F, PHASE_NAMES, ZERO_FIELDS, MoE, Net, make_model,  # noqa: E402
+from model import (EXPERT_HANDS, F, PHASE_NAMES, ZERO_BY_WIDTH, MoE, Net, make_model,  # noqa: E402
                    param_count, phase_member)
 from credit import routed_gae  # noqa: E402
-from rewards import REWARDS, shaping, step_discount  # noqa: E402
+from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402
 
 SEED_CHARS = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
@@ -56,13 +56,12 @@ def collate(obs, device="cpu"):
     T = max(len(o["kind"]) for o in obs)
     A = max(len(o["act"]) for o in obs)
     W = obs[0]["act"].shape[1]
-    enc = 2 if W == ACT_WIDTH[2] else 1
     kind = np.zeros((B, T), np.int64)
     vocab = np.zeros((B, T), np.int64)
     feat = np.zeros((B, T, F), np.float32)
     tmask = np.zeros((B, T), bool)
     act = np.full((B, A, W), -1, np.int64)
-    for f in ZERO_FIELDS[enc]:
+    for f in ZERO_BY_WIDTH[W]:
         act[..., f] = 0
     amask = np.zeros((B, A), bool)
     for i, o in enumerate(obs):
@@ -91,8 +90,8 @@ def worker_main(wid, args, in_q, out_q):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     torch.set_num_threads(1)
     try:
-        from sim import Sim
-        sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc)
+        from sim import Sim, sim_kwargs
+        sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc, **sim_kwargs(args))
     except Exception:
         out_q.put(("error", wid, traceback.format_exc()))
         return
@@ -121,6 +120,9 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
         if mode == "replay":
             return replay_games(sim, reward_fn, args, seeds)
         greedy = mode == "greedy"
+        if getattr(sim, "phi_loaded", False):
+            # v4: phi_build only feeds training's shaping; evals and tests read only the offer values
+            sim.build_phi = mode == "train" and bool(getattr(args, "build_shaping", 0))
         if it in crash_at and gen == 0 and wid == 0 and mode == "train":
             raise RuntimeError(f"injected worker crash at iteration {it}")
         model.load_state_dict(state)
@@ -136,7 +138,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             min_plays = np.array([moe_min_plays(h, args) for h in EXPERT_HANDS], dtype=np.float64)
         episodes = []
         for seed in seeds:
-            seed = seed or rand_seed(rng)
+            start = seed if isinstance(seed, dict) else None      # v4 curriculum start (see curriculum_entry)
+            seed = start["seed"] if start else (seed or rand_seed(rng))
             srng = random.Random(f"eval-{seed}") if mode == "eval" else trng
             # The pin's own coin, apart from the sampling RNG, so pinning doesn't shift eval sampling.
             prng = random.Random(f"pin-eval-{seed}" if mode == "eval" else f"pin-{args.seed}-{wid}-{it}-{seed}")
@@ -147,8 +150,20 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             early_pst = pst if args.moe else None
             member, routed, counts, handoff_at, rule_k = 0, None, np.zeros(len(EXPERT_HANDS)), None, None
             late, late_plays = np.zeros(len(EXPERT_HANDS)), 0     # plays after the handoff, by hand
-            back, stake, challenge = game_config(seed, args)
+            if start:
+                back, stake, challenge = start["back"], start["stake"], start.get("challenge")
+            else:
+                back, stake, challenge = game_config(seed, args)
             o = sim.reset(seed, back, stake, challenge)
+            t_replay, cur_info = 0.0, None
+            if start:
+                tr = time.time()
+                o = sim.fast_forward(start["acts"], start["desc"], start.get("until_ante"))
+                t_replay = time.time() - tr
+                if o is None:
+                    raise RuntimeError(f"curriculum start {start['from']} {seed} ante {start['ante']} did not replay")
+                cur_info = {"ante": start["ante"], "from": start["from"], "start_step": sim.steps}
+            shop_at = {}            # first shop of each curriculum ante: where this game could start others
             if pst is not None:
                 apply_pin(o, pin_id, pin_rate, prng, pst)
             steps, done, tail, reached, disc, members = [], False, [], False, [], []
@@ -158,8 +173,12 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 if args.moe:
                     o["member"] = member
                 elif getattr(args, "phase_split", False):
-                    o["member"] = phase_member(sim.H.state_name())     # v4: table or shop network
+                    st_now = sim.H.state_name()
+                    o["member"] = phase_member(st_now)     # v4: table or shop network
                     members.append(o["member"])
+                    a_now = sim.progress["ante"]
+                    if mode == "train" and st_now == "SHOP" and a_now in CURRICULUM_ANTES and a_now not in shop_at:
+                        shop_at[a_now] = sim.steps
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
                 t_model += time.time() - tm
@@ -185,7 +204,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                         and cur["bosses_beaten"] >= args.stop_ante - 1:
                     done, reached = True, True        # early-game model: its run ends here (see --stop-ante)
                 g_t, l_t = step_discount(prev, cur, args)
-                r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t)
+                r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t) \
+                    + getattr(args, "build_shaping", 0) * build_shaping(prev, cur, g_t)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
                 disc.append((g_t, l_t))
                 if pst is not None:
@@ -238,7 +258,8 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
-                  "t_model": t_model, "t_sim": t_sim, "members": members if getattr(args, "phase_split", False) else None, "pin": pst if pst is not early_pst else None, "reached": reached,
+                  "t_model": t_model, "t_sim": t_sim, "members": members if getattr(args, "phase_split", False) else None,
+                  "curriculum": cur_info, "t_replay": t_replay, "shop_at": shop_at, "pin": pst if pst is not early_pst else None, "reached": reached,
                   "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
                            "rule_choice": EXPERT_HANDS[rule_k] if rule_k is not None else None,
                            "late_counts": late.tolist(), "late_plays": late_plays,
@@ -250,6 +271,50 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                     ep["verified"] = verify_route(sim, args, ep)
             episodes.append(ep)
         return episodes
+
+
+# ---------------- curriculum (model v4; docs/hypotheses.md, 2026-11-09 amendment, change 1) ----------------
+# A share of training games start at the first shop of ante 4, 5 or 6 of a saved game, reached by
+# replaying that game's moves from its seed (Sim.fast_forward). Starts come from published wins (whole
+# routes, replayed until that shop) and from this run's own games (the exact moves up to it).
+
+CURRICULUM_ANTES = (4, 5, 6)
+
+
+def curriculum_entry(src, rec, ante, acts=None, desc=None):
+    """A start: a published win (src 'published', replayed until the shop) or one of this run's games
+    (src 'own', its moves up to that shop)."""
+    e = {"from": src, "seed": rec["seed"], "back": rec.get("back", "b_red"), "stake": rec.get("stake", 1),
+         "challenge": rec.get("challenge"), "ante": ante,
+         "acts": list(acts if acts is not None else rec["acts"]), "desc": list(desc if desc is not None else rec["desc"])}
+    if src == "published":
+        e["until_ante"] = ante
+    return e
+
+
+def published_starts(args, n, banned):
+    """n published wins (wins/routes.jsonl) on this run's action list, Red Deck White Stake, no challenge,
+    none on a held-out seed, chosen by a fixed RNG: one start per ante each."""
+    path = os.path.join(HERE, "..", "wins", "routes.jsonl")
+    rs = []
+    for line in open(path):
+        r = json.loads(line)
+        if (r.get("actions") == args.actions and r.get("back", "b_red") == "b_red" and r.get("stake", 1) == 1
+                and not r.get("challenge") and r["seed"] not in banned):
+            rs.append(r)
+    rs.sort(key=lambda r: r["seed"])
+    rs = random.Random("curriculum-published").sample(rs, min(n, len(rs)))
+    return {a: [curriculum_entry("published", r, a) for r in rs] for a in CURRICULUM_ANTES}
+
+
+def held_out_seeds():
+    """Seeds no curriculum start may come from: the eval 600 and every registered paired-test tag."""
+    sys.path.insert(0, os.path.join(HERE, "..", "analysis"))
+    from compare_models import TAGS, seed_list
+    banned = set(eval_seeds(600))
+    for t in TAGS:
+        banned |= set(seed_list(t, 2000, rand_seed, set(eval_seeds(600))))
+    return banned
 
 
 # ---------------- hand pin (strategy experts, docs/hypotheses.md section I) ----------------
@@ -461,7 +526,8 @@ def replay_games(sim, reward_fn, args, routes):
                 break
             prev, cur, done = sim.step(a)
             g_t = step_discount(prev, cur, args)[0]
-            steps.append((o, a, reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t)))
+            steps.append((o, a, reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t)
+                          + getattr(args, "build_shaping", 0) * build_shaping(prev, cur, g_t)))
             gam.append(g_t)
             if not done:
                 o = sim.observe()
@@ -995,6 +1061,16 @@ def main():
     ap.add_argument("--phase-split", action="store_true",
                     help="model v4: two networks, table (SELECTING_HAND) and shop (everything else), each with its "
                          "own critic, credit routed per network (train/credit.py)")
+    ap.add_argument("--build-shaping", type=float, default=0.0,
+                    help="v4: weight of the build potential's shaping term, gamma*phi_build' - phi_build "
+                         "(harness/build_phi.lua; 0 = off)")
+    ap.add_argument("--offer-values", action="store_true",
+                    help="v4: each shop offer's action row carries phi_build after taking it minus now")
+    ap.add_argument("--curriculum", type=float, default=0.0,
+                    help="v4: share of training games that start at the first shop of ante 4, 5 or 6 of a saved game, "
+                         "replayed from its seed (out of every stat)")
+    ap.add_argument("--curriculum-published", type=int, default=300, help="v4: published wins used as curriculum starts")
+    ap.add_argument("--curriculum-keep", type=int, default=600, help="v4: this run's own starts kept per ante")
     ap.add_argument("--shop-ent", default=None,
                     help="v4: the shop network's entropy coefficient by training games, e.g. '0.02,0.006@G1,0.001@G2' "
                          "(linear between; default: --ent)")
@@ -1098,6 +1174,8 @@ def main():
     if args.moe:
         assert not (args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--moe runs whole games with its own pins; --stop-ante, --bc, --sil-buffer, --pin-hand and --init-weights are off"
+    assert not (args.curriculum or args.offer_values or args.build_shaping) or args.phase_split, \
+        "--curriculum, --offer-values and --build-shaping are model v4's: they need --phase-split"
     if args.phase_split:
         assert not (args.moe or args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--phase-split (v4) trains two networks from random weights on whole games; --moe, --stop-ante, --bc, " \
@@ -1110,8 +1188,10 @@ def main():
         ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         arch = ck.get("arch", {})
-        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe)), ("phase_split", bool(args.phase_split))):
-            have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False, "phase_split": False}.get(k))
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe)), ("phase_split", bool(args.phase_split)),
+                     ("offer_values", bool(args.offer_values))):
+            have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False, "phase_split": False,
+                                "offer_values": False}.get(k))
             if k == "actions" and (have, v) == ("ordered", "ordered-capped"):
                 # Same model and moves; only long chains of joker drags stop being offered.
                 alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
@@ -1174,10 +1254,10 @@ def main():
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe),
-                       "phase_split": bool(args.phase_split)},
+                       "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values)},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
-              "beaten_seeds": sorted(beaten)}
+              "beaten_seeds": sorted(beaten), "curriculum_own": {str(a): v for a, v in cur_own.items()}}
         d = out
         if tag.startswith("ckpt_") and spilling():
             d = os.path.join(args.spill_dir, "runs", args.run)
@@ -1287,6 +1367,45 @@ def main():
         arms.setdefault(a, {"games": 0, "wins": 0})
     beaten = set(resumed.get("beaten_seeds", [])) if resumed else set()
     arm_rng = random.Random(f"arms-{args.seed}-{start_it}")
+    # v4 curriculum: published starts (fixed at launch) and this run's own (the most recent --curriculum-keep per ante)
+    cur_pub, cur_own = {a: [] for a in CURRICULUM_ANTES}, {a: [] for a in CURRICULUM_ANTES}
+    cur_rng = random.Random(f"curriculum-{args.seed}-{start_it}")
+    if args.curriculum > 0:
+        cur_pub = published_starts(args, args.curriculum_published, held_out_seeds())
+        for a, v in ((resumed or {}).get("curriculum_own") or {}).items():
+            cur_own[int(a)] = list(v)
+        print(f"curriculum: {args.curriculum:.0%} of training games start at the first shop of ante "
+              f"{'/'.join(map(str, CURRICULUM_ANTES))}, from {len(cur_pub[CURRICULUM_ANTES[0]])} published wins and "
+              f"this run's games ({sum(len(v) for v in cur_own.values())} kept so far)", flush=True)
+
+    def add_curriculum(seeds):
+        """Puts --curriculum of the round's games on curriculum starts, in fresh-game slots: an ante drawn
+        uniformly among antes with starts, then a start drawn uniformly from that ante's."""
+        if args.curriculum <= 0:
+            return seeds
+        n = sum(len(w) for w in seeds)
+        want = int(round(n * args.curriculum))
+        slots = [(w, i) for i in range(max(len(x) for x in seeds)) for w in range(len(seeds))
+                 if i < len(seeds[w]) and seeds[w][i] is None]
+        for w, i in slots[:want]:
+            antes = [a for a in CURRICULUM_ANTES if cur_pub[a] or cur_own[a]]
+            if not antes:
+                break
+            a = cur_rng.choice(antes)
+            pool = cur_pub[a] + cur_own[a]
+            seeds[w][i] = pool[cur_rng.randrange(len(pool))]
+        return seeds
+
+    def harvest_starts(eps):
+        """This run's games as curriculum starts: each game's moves up to the first shop of each ante."""
+        if args.curriculum <= 0:
+            return
+        for e in eps:
+            if e.get("curriculum"):
+                continue
+            for a, i in (e.get("shop_at") or {}).items():
+                cur_own[a].append(curriculum_entry("own", e, a, e["acts"][:i], e["desc"][:i]))
+                del cur_own[a][:-args.curriculum_keep]
 
     def train_seeds():
         """Splits this round's games across the arms. Fresh keeps at least --fresh-min; every other
@@ -1357,6 +1476,7 @@ def main():
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
                  "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 **({"curriculum": e["curriculum"]} if e.get("curriculum") else {}),
                  **({"moe": e.get("moe")} if args.moe else {}),
                  **({"stop_ante": args.stop_ante, "reached": e.get("reached", False)} if args.stop_ante else {}),
                  **({"pin_hand": args.pin_hand, "pin_rate": args.pin_rate, "pin": e.get("pin")} if args.pin_hand else {})}
@@ -1372,6 +1492,14 @@ def main():
             os.replace(tmp, path)
             saved["games"] += len(recs)
         for r in recs:
+            if r.get("curriculum"):
+                # a curriculum game began on another game's moves: never a win of this run's (v4 registration);
+                # its wins are kept apart, replayed from the seed like any other
+                if r["progress"]["won"]:
+                    with open(os.path.join(out, "curriculum_wins.jsonl"), "a") as f:
+                        f.write(json.dumps(r | {"commit": prov["commit"][:12], "win_check": 2}) + "\n")
+                    saved["curriculum_wins"] = saved.get("curriculum_wins", 0) + 1
+                continue
             if r["progress"]["won"]:
                 # win_check 2: won by the game's own test (G.GAME.won and not GAME_OVER, sim.py);
                 # wins saved before 2026-11-03 lack it and are replayed again before publishing.
@@ -1566,6 +1694,7 @@ def main():
             t0 = time.time()
             if pending is None:
                 seeds, source = train_seeds()
+                seeds = add_curriculum(seeds)
                 prev_entries = {sd: dict(pools[a][sd]) for sd, a in source.items()}
                 eps = run_round(seeds, "train", it)
             else:
@@ -1584,10 +1713,15 @@ def main():
                     eps = run_round(seeds, "train", it)
             t1 = time.time()
             for e in eps:
-                e["retry"] = e["seed"] in source
-                e["_prev_entry"] = prev_entries.get(e["seed"])
-            update_retries(it, eps, source)
+                e["retry"] = not e.get("curriculum") and e["seed"] in source
+                e["_prev_entry"] = None if e.get("curriculum") else prev_entries.get(e["seed"])
+                if e.get("curriculum"):
+                    e["arm"] = "curriculum"
+            cur_eps = [e for e in eps if e.get("curriculum")]
+            # curriculum games train but are in no stat, arm, retry pool or tally (v4 registration)
+            update_retries(it, [e for e in eps if not e.get("curriculum")], source)
             record(it, "train", eps)
+            harvest_starts(eps)
             if args.moe:
                 # Router base rate: the early model's plays of each expert's hand in antes 1-3, averaged
                 # over games that reached the handoff (moving average). Pins anneal by games played.
@@ -1610,6 +1744,7 @@ def main():
             if args.overlap and not stop_requested:
                 # Send the next round now, so the workers play while the learner updates.
                 nseeds, nsource = train_seeds()
+                nseeds = add_curriculum(nseeds)
                 nprev = {sd: dict(pools[a][sd]) for sd, a in nsource.items()}
                 pending = (pool.send(weights(), nseeds, "train", it + 1), nseeds, nsource, nprev)
 
@@ -1662,11 +1797,20 @@ def main():
             if not pins0_done and float(torch.cat([model.pin_scale, model.early_pin_scale]).max()) == 0:
                 pins0_done = force_eval = True          # the next round starts with the eval
             stop_pins0 = args.moe and args.stop_after_pins0 and pins0_evaled and not save_at
-            fresh = [e for e in eps if not e["retry"]]
-            s = summarize(fresh or eps)       # the learning curve stays on fresh seeds only
+            fresh = [e for e in eps if not e["retry"] and not e.get("curriculum")]
+            s = summarize(fresh or [e for e in eps if not e.get("curriculum")] or eps)   # the learning curve stays on fresh seeds only
             sr = summarize([e for e in eps if e["retry"]]) if source else None
             round_alloc = {a: sum(1 for e in eps if e["arm"] == a) for a in ARMS}
-            wins_total += sum(e["progress"]["won"] for e in eps)
+            wins_total += sum(e["progress"]["won"] for e in eps if not e.get("curriculum"))
+            cur_rec = None
+            if args.curriculum > 0:
+                # the curriculum's cost: replaying to each start, against all of this round's play time
+                t_all = sum(e.get("t_model", 0) + e.get("t_sim", 0) + e.get("t_replay", 0) for e in eps)
+                t_rep = sum(e.get("t_replay", 0) for e in eps)
+                cur_rec = {"games": len(cur_eps), "wins": sum(e["progress"]["won"] for e in cur_eps),
+                           "by_ante": {str(a): sum(e["curriculum"]["ante"] == a for e in cur_eps) for a in CURRICULUM_ANTES},
+                           "replay_seconds": round(t_rep, 2), "replay_share_of_play": round(t_rep / max(t_all, 1e-9), 4),
+                           "own_starts": {str(a): len(v) for a, v in cur_own.items()}}
             train_hist.append(s["blinds_mean"])
             roll = float(np.mean(train_hist[-10:]))
             if args.moe and float(torch.cat([model.pin_scale, model.early_pin_scale]).max()) > 0:
@@ -1702,7 +1846,8 @@ def main():
                    "decisions_per_second": round(rate, 1), "games_total": games_total,
                    "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved), "ms_model": round(ms_model, 2), "ms_sim": round(ms_sim, 2),
                    "retry": sr, "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},
-                   "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten)}
+                   "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten),
+                   **({"curriculum": cur_rec} if cur_rec else {})}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
             ent_txt = (f" (table {st['entropy_table']:.2f}, shop {st['entropy_shop']:.2f} at coef {st['ent_coef_shop']:.4f})"
@@ -1716,6 +1861,7 @@ def main():
                   + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
                   + " | alloc " + " ".join(f"{a[0] if a == 'fresh' else a}:{round_alloc[a]}" for a in ARMS if round_alloc[a])
                   + f" | waiting {sum(len(v) for v in pools.values())} beaten seeds {len(beaten)}"
+                  + (f" | curriculum {cur_rec['games']} games (replay {cur_rec['replay_share_of_play']:.0%} of play)" if cur_rec else "")
                   + f" | saved {saved['games']:,} games, {saved['wins_verified']}/{saved['wins']} wins verified", flush=True)
             save(it, "latest")
             write_health(iteration=it, hours=rec["hours"], games_total=games_total, wins_total=wins_total, last_train=s,

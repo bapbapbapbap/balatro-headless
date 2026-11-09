@@ -93,7 +93,8 @@ def play_moe(w, a):
                max_steps=a.max_steps, verify_wins=False, save_games="none")
     args = Namespace(**cfg)
     arch = w["arch"]
-    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"])
+    from sim import sim_kwargs
+    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"], **sim_kwargs(args))
     if list(sim.vocab) != list(w["vocab"]):
         raise SystemExit("these weights were trained on a different game version (vocabulary differs)")
     model = make_model(args, len(w["vocab"]))
