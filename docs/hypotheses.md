@@ -1547,3 +1547,78 @@ replayed before committing), with the policy as a prior, on CPU, independent of 
 searched 100% save would prove that one exists, and show it, not that a player without foresight
 could do it; every write-up says so (as `docs/proof.md` does). First milestone: one Gold Stake Red
 Deck win found by search.
+
+
+## Added 2026-11-09 ~12:00 CST: v4 amended before any of its code (section J)
+
+The 2026-11-06 build of v4 was lost before it was pushed (the cloud session ended). Nothing of it is on
+GitHub, and no v4 training game has been played. chud (11:03): rebuild with what the other projects did
+that v4 left out, several changes at once ("I trust the superior results of the papers"). This amends the
+v4 registration above. W1–W3 stand as registered; everything below is added before any v4 code.
+
+### Sources re-read 2026-11-09 (what each one actually did)
+- **balatro-gym planner** (github.com/roshantaneja/balatro-gym, `docs/strategy.md`, `env/planner.py`): a
+  search agent, not a learner. Its board "power" is the mean best-play score over hands dealt from the run's
+  own deck, on a board whose scaling jokers are projected 6 rounds ahead (a hand-set growth table). Each shop
+  offer is valued by the power after buying it (or replacing the weakest joker), per dollar. Measured: about
+  10% without endgame rollouts, 20% (47/240) with them; the growth-table correction was part of 10% → 17%;
+  from a $100 start the same agent wins 57%.
+- **arXiv 2610.39049**: blind and shop policies; the blind agent's blind-clear cash and round-won rewards are
+  credited to the shop agent; shop entropy 0.02 → 0.006 (1.5M steps) → 0.001 (4M); γ 0.99. It never won a
+  run (mean max ante about 3).
+- **GIEWEV** (r/reinforcementlearning post, 2025, read 2026-11-09 from a saved copy chud supplied): one
+  policy for blinds, one for the shop, RLlib PPO, a partial custom simulator; about 30% simulated and 25% in
+  the real game (with face-down cards visible on two bosses). **No reward or credit design is described.**
+  The v4 registration's "GIEWEV ... with routed credit" is corrected: routed credit is arXiv 2610.39049's.
+  His main lesson was an action design that treats a card selection as a set; ours already does
+  (`model.py` scores each legal play from its cards' pooled embeddings).
+- **taggarttufte/balatro-rl**: a play/shop split failed by shop starvation (shop under 0.1% of steps). Not a
+  risk here: in our 1,225 published wins, shop-side decisions (about 31k) outnumber plays and discards
+  (about 23k).
+
+### What changes (amending v4's list)
+1. **Curriculum by full replay, not by the game's save.** As first registered: a curriculum start replays a
+   saved game's moves from the seed to the start of ante 4, 5 or 6, then the bot plays on. (The lost build
+   loaded the game's own save instead; five state gaps turned up in it.) A replayed start is the game itself.
+2. **phi_build projects scaling jokers forward**, as the planner does: on a copy of the state, each scaling
+   joker's counter is advanced by a fixed per-round rate times a fixed number of rounds before the board is
+   scored. The rates are hand-set judgments (the first in phi); the table is fixed in the definitions entry
+   before training. phi stays a function of the visible state only, so the shaping stays policy-invariant
+   and the reward stays `blinds`.
+3. **The shop network sees each offer's value.** Each buyable joker, planet and voucher action carries
+   phi_build after buying it minus phi_build now (a full board: after replacing the joker whose removal costs
+   least), computed on a copy of the state. An input, not a rule: the network still chooses.
+4. **Credit routing, explicit.** Each network's advantages run over its own decisions only. The reward between
+   two of a network's decisions is everything earned in between, including the other network's blinds (so
+   blind-clear rewards reach the shop network, as arXiv 2610.39049 routes them), discounted by the blind
+   clock. Shaping per network is γ^Δ·phi(next own decision) − phi(this decision), Δ = blinds in between, so
+   it telescopes per network. The arXiv paper's other shop terms (interest-tier penalty, joker-count bonus)
+   are not used: they are not potential-based and would change the ought.
+5. **Shop entropy: the full schedule** 0.02 → 0.006 → 0.001, at the same fractions of training as
+   arXiv 2610.39049 (1.5M and 4M of its steps, scaled to our games by mean decisions per game).
+
+Held as registered: 1.0's size per network, encoding 2, ordered-capped actions, reward `blinds`, the blind
+clock, seed retries, lr 1e-4, from random weights, no behavior cloning, Red Deck, White Stake.
+
+### W4 (chud's hypothesis, 11:19): v4 at least doubles wins per compute
+chud: "we need to at the very least raise wins per compute more than the added weight of all this
+architecture ... lets at least double the rate of wins per compute." Two parts:
+- **W4a, play cost.** On the 2,000 `v4-test` seeds, each model playing each seed once on the same machine
+  and worker count, wins per sim-hour (wins / summed per-game play seconds): v4 at least 2× `pins0.pt`.
+- **W4b, training cost.** Compute = summed `play_seconds` + `update_seconds` from `metrics.jsonl`, on chud's
+  laptop. pins0's compute is its whole lineage (model 0.2's training plus moe2's); if part of the lineage's
+  logs is missing, moe2's alone is used (which only makes the test harder for v4). v4's 600-seed eval win
+  rate at the first eval where its own compute reaches pins0's must be at least 2× pins0's pins-zero eval
+  (9/600).
+- **Passing** (chud, 11:51: both stipulations kept, as two tiers): **W4 met** if the measured ratio is ≥ 2 and
+  its one-sided 95% lower bound (paired bootstrap over seeds, 10,000 resamples; for W4b, a binomial
+  bound on v4's eval wins against pins0's 9/600) is above 1; **W4 met strongly** if that lower bound is ≥ 2.
+  With about 30 pins0 wins on `v4-test`, the strong tier needs v4 to measure about 2.85×.
+- chud's precedence (proposed by Claude, 11:19, not objected to): if a design reaches aim 1's precondition
+  but fails W4, aim 1 rules. W4 doesn't apply to the search track for aims 2–3 (existence proofs).
+
+### Odds (Claude's, 2026-11-09; W1–W3's registered odds stand as registered)
+- W1 (≥4%, beats pins0): 75%. W2 (≥10%): 40%. W3: 70%. ≥20% (10×): 15%.
+- W4a met 50%, met strongly 35%. W4b met 35%, met strongly 25%.
+- Why not higher: no learning-only method is known to reach 20% on the full game; the one inspectable 20%
+  (the planner) doubled from 10% only with endgame rollouts, a search v4 doesn't do.
