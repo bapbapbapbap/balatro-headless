@@ -1100,6 +1100,9 @@ def main():
     ap.add_argument("--min-mem-gb", type=float, default=1.0, help="stop cleanly below this much free memory")
     ap.add_argument("--worker-mem-gb", type=float, default=0.45, help="memory budget per worker, for sizing")
     ap.add_argument("--min-disk-gb", type=float, default=2.0)
+    ap.add_argument("--stall-evals", type=int, default=0,
+                    help="stop after this many evals in a row without a new best eval (0 = off); when set, "
+                         "it replaces --stall-hours (which watches the noisier training average)")
     ap.add_argument("--stall-hours", type=float, default=3.0,
                     help="stop if the 10-round average training score hasn't improved in this long")
     ap.add_argument("--inject", help="test the safety checks: nan:<it>,crash:<it>")
@@ -1258,7 +1261,7 @@ def main():
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe),
                        "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values)},
-              "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
+              "best_eval": best_eval, "evals_since_best": evals_since_best, "games_total": games_total, "wins_total": wins_total,
               "decisions_total": decisions_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten), "curriculum_own": {str(a): v for a, v in cur_own.items()}}
@@ -1319,10 +1322,12 @@ def main():
     t_start = time.time()
     games_total, wins_total, strikes, it = 0, 0, 0, start_it
     decisions_total = 0         # training decisions (both networks): v4's shop entropy schedule
+    evals_since_best = 0        # --stall-evals
     best_eval, best_time = -1.0, time.time()
     train_hist, best_roll = [], -1.0
     if resumed:
         best_eval = resumed.get("best_eval", -1.0)
+        evals_since_best = resumed.get("evals_since_best", 0)
         games_total = resumed.get("games_total", 0)
         decisions_total = resumed.get("decisions_total", 0)
         wins_total = resumed.get("wins_total", 0)
@@ -1689,7 +1694,12 @@ def main():
                          ev["blinds_mean"])
                 if score > best_eval:
                     best_eval = score
+                    evals_since_best = 0
                     save(it, "best")
+                else:
+                    evals_since_best += 1
+                if args.stall_evals and evals_since_best >= args.stall_evals:
+                    raise Stop(f"no new best eval in {evals_since_best} evals (best {best_eval:.3f}; --stall-evals {args.stall_evals})")
                 capped = [e for e in eval_eps if e["capped"]][:20]
                 if capped:
                     with open(os.path.join(out, "eval_capped.jsonl"), "a") as f:
@@ -1826,7 +1836,7 @@ def main():
                 best_time = time.time()     # the stall clock starts once every MoE pin has faded to 0
             if len(train_hist) >= 10 and roll > best_roll + 0.05:
                 best_roll, best_time = roll, time.time()
-            elif len(train_hist) >= 10 and (time.time() - best_time) / 3600 > args.stall_hours:
+            elif not args.stall_evals and len(train_hist) >= 10 and (time.time() - best_time) / 3600 > args.stall_hours:
                 raise Stop(f"training score flat for {args.stall_hours} h (best 10-round average "
                            f"{best_roll:.2f} blinds/game)")
             decisions = sum(e["n"] for e in eps)
