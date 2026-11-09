@@ -1622,3 +1622,92 @@ architecture ... lets at least double the rate of wins per compute." Two parts:
 - W4a met 50%, met strongly 35%. W4b met 35%, met strongly 25%.
 - Why not higher: no learning-only method is known to reach 20% on the full game; the one inspectable 20%
   (the planner) doubled from 10% only with endgame rollouts, a search v4 doesn't do.
+
+
+## Added 2026-11-09 ~15:25 CST: model v4's definitions, fixed before any v4 training (section J)
+
+Written with the code (branch `v4`; `train/run_v4.sh`), before any v4 training game. W1–W4 and the odds
+above stand as registered; this fixes what the amendment left to be defined, and records measured costs.
+
+### Phase split (`--phase-split`; `model.PhaseNet`)
+Two networks of 1.0's size (d 192, 4 layers, 6 heads; 3,219,844 parameters in all), each with its own
+encoder, policy and critic; no weights shared. Table = every decision made in state `SELECTING_HAND`
+(plays, discards, consumables used and jokers moved mid-blind); shop = every other decision (blind select,
+cash-out, shop, every pack). Advantages: `train/credit.py` (routed per network, blind clock), normalized per
+network. Entropy bonus: table 0.01; shop on its schedule (below).
+
+### phi_build (`harness/build_phi.lua`; `--build-shaping 1`)
+- **B, the board's power:** the mean, over 16 deals, of the best score the deal can make. A deal is hand-size
+  cards (the hand size a round starts with; The Manacle's −1 is the blind's, not the build's) drawn from the
+  whole deck (`G.playing_cards`) sorted by card (suit, rank, enhancement, edition, seal, ability), with a fixed
+  generator, so draw order is never read and the same deck gives the same deals. For each poker hand the
+  game's own `evaluate_poker_hand` finds in the deal, those cards are played and the rest held; the best
+  score counts.
+- **Scoring:** the steps of `G.FUNCS.evaluate_play`, calling the game's functions with the same contexts:
+  hand level; each scoring card's seal and joker repetitions, its own effects and every joker's individual
+  effect; held cards (Steel, Baron, Raised Fist, Shoot the Moon, Mime, red seals); every joker's and
+  consumable's edition, main and joker-on-joker effects; the deck's final step. Left out: the current
+  blind's debuffs and modifiers (playing cards are scored undebuffed; an expired perishable joker stays
+  debuffed), the `before` context, destruction, dollars, and chance (`pseudorandom` returns its midpoint, so
+  1-in-2 and rarer effects never trigger). Hands and discards left at the round's full allowance; no hand
+  played this round.
+- **Projection:** scaling jokers advanced 6 rounds at fixed per-round rates. From the balatro-gym planner's
+  table (`env/planner.py` GROWTH, "rough community-consensus rates"), on the real game's fields: Green Joker
+  and Ride the Bus +2 mult; Castle +9 and Wee Joker +12, Runner +4, Square Joker +12 chips; Spare Trousers +0.5
+  mult; Constellation +0.04, Hologram +0.05, Vampire +0.04, Lucky Cat +0.05, Glass Joker +0.05, Campfire +0.1,
+  Obelisk +0.05, Yorick +0.15 x-mult; Flash Card +1, Red Card +0.5 mult. Ours: the decays, Ice Cream −20 chips
+  (floor 0), Popcorn −4 mult (floor 0), Ramen −0.1 x-mult (floor 1). The planner's: Burnt Joker and Space Joker
+  each level the most-played hand once per round (most plays; ties to the weaker hand); that hand's play
+  count +3 per round (Supernova).
+- **phi_build = (clamp(log2(hands per round × B / T8), −10, 2) + 10) / 4**, in [0, 3]; T8 = the ante-8 boss's
+  target (`get_blind_amount(8)` × 2 × ante scaling). One doubling = +0.25; hands × B = T8 gives 2.5. The window
+  is set from published wins: projected, they reach x ≈ 0 only in antes 7–8 (median x at ante 1 −5.7, ante 4
+  −2.1, ante 7 −0.15, ante 8 +0.14; never above 4), so a ceiling at 0 would flatten the late game. 0 at the
+  end of a game. Hands per round (not a fixed 4) so Grabber, Troubadour and Hieroglyph change it.
+- **Shaping:** reward + 1 × (γ_t·phi(s') − phi(s)) + 1 × (γ_t·phi_build(s') − phi_build(s)); routed per network
+  it telescopes per network (`credit.py`). The reward stays `blinds`.
+- **Accuracy of 16 deals** (69 shop states of 3 wins, against 256 deals): median |log2 B ratio| 0.02, 90th
+  percentile 0.24 (about 0.06 of phi); offer values correlate 0.997.
+
+### Offer values (`--offer-values`)
+Every legal buy or pick of a joker or planet and every voucher redeem carries phi_build after taking it
+minus phi_build now, as one more number on its action row (×10,000, nearest integer; 0 on every other row).
+Computed on the live state and restored (nothing in the game changes). The offer is paid for at its price
+(Bull, Bootstraps read money). A joker joins the end of the board with what joining does to the build (hand
+size, discards, hands, Oops! All 6s, a negative's slot), and Joker Stencil and Swashbuckler are refreshed as
+`Card:update` refreshes them. A planet is valued as used: its hand leveled, and Constellation grown, also when
+bought into a slot to use later. A voucher changes what phi_build reads: hand size (Paint Brush, Palette),
+hands (Grabber, Nacho Tong, Hieroglyph), discards (Wasteful, Recyclomancy, Petroglyph), joker slots
+(Antimatter), Observatory's flag; every other voucher is valued 0. Buying is offered only with room
+(`env.lua` uses the game's own space check), so the amendment's full-board case never reaches a row.
+
+### Curriculum (`--curriculum 0.3`)
+A start = the first move made in a SHOP at ante 4, 5 or 6 (the shop after the previous boss), reached by
+replaying a saved game's moves from its seed, each checked against its saved text (`Sim.fast_forward`). 300
+published wins (ordered-capped, Red/White, no challenge, none on the eval 600 or any registered tag's seeds;
+chosen by `random.Random("curriculum-published")`), each a start at each ante; plus this run's own training
+games as they reach each ante (the 600 most recent per ante). Each round, 30% of the games (in fresh-game
+slots) start from a start: ante uniform among antes with starts, then a start uniform among that ante's.
+Curriculum games train (both networks) but are in no training stat, arm, retry pool, beaten-seed list or
+tally; their wins are replayed from the seed and written to `curriculum_wins.jsonl`, never `wins.jsonl`.
+
+### Shop entropy schedule
+0.02 → 0.006 at 1.5M training decisions → 0.001 at 4M, linear between, constant after; decisions of both
+networks, curriculum games included. The amendment asked for arXiv 2610.39049's step counts in our units;
+counting decisions directly is that, without a conversion through decisions per game. Reading the paper's
+schedule as piecewise-linear by environment steps is ours: the paper could not be opened in this session to
+check it.
+
+### Measured cost (cloud CPU, 8 published wins, 2,155 moves; `tests/v4_phi_check.py`)
+Sim time per move: 17.6 ms without; 26.6 ms with offer values only (+51%: evals and the W4 tests read only
+these); 30.0 ms with phi_build too (+70%: training). The model's time per decision doesn't change (one
+network runs per decision). Replaying to a curriculum start: 1.4 s (ante 4), 2.1 s (ante 5), 3.0 s (ante 6);
+with random weights that is 50–64% of play time, since their own games last about 10 moves. For W4a this
+means v4 needs roughly 2.5–3× pins0's wins per game to show 2× wins per sim-hour; W4 stands as registered.
+
+### Checked before training (all on the real game, unmodded 1.0.1o)
+`tests/v4_credit_check.py`, `tests/v4_phase_check.py`, `tests/v4_phi_check.py` (8 wins: game state and
+observation identical with and without phi_build at every move; cache = fresh; same value in another runtime
+and with the deck reversed; bounded; telescopes; every offer taken, 91, moved phi_build by exactly its value),
+`tests/v4_curriculum_check.py`, and a 3-round training run of `run_v4.sh` (SMOKE=1). `run_v4.sh` runs the four
+checks before every launch.

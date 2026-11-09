@@ -767,13 +767,15 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
 
 
 def parse_schedule(spec):
-    """--shop-ent "0.02,0.006@G1,0.001@G2": a start value, then values reached at training-game counts,
-    linear in between (a repeated count gives a step), constant after the last. -> [(games, value), ...]"""
+    """--shop-ent "0.02,0.006@1.5M,0.001@4M": a start value, then values reached at counts of training
+    decisions (k/M suffixes allowed), linear in between (a repeated count gives a step), constant after the
+    last. -> [(decisions, value), ...]"""
     parts = [x.strip() for x in str(spec).split(",") if x.strip()]
     knots = [(0, float(parts[0]))]
     for x in parts[1:]:
         v, g = x.split("@")
-        knots.append((int(float(g)), float(v)))
+        mul = {"k": 1e3, "M": 1e6}.get(g[-1], 1)
+        knots.append((int(float(g.rstrip("kM")) * mul), float(v)))
     assert all(knots[i][0] <= knots[i + 1][0] for i in range(len(knots) - 1)), f"--shop-ent counts must not decrease: {spec}"
     return knots
 
@@ -786,8 +788,9 @@ def schedule_at(knots, games):
 
 
 def phase_ent(args):
-    """Entropy coefficients (table, shop) for this update (v4). args.games_done is set by the learner."""
-    shop = schedule_at(parse_schedule(args.shop_ent), getattr(args, "games_done", 0)) if getattr(args, "shop_ent", None) else args.ent
+    """Entropy coefficients (table, shop) for this update (v4). args.decisions_done (training decisions so far,
+    both networks) is set by the learner."""
+    shop = schedule_at(parse_schedule(args.shop_ent), getattr(args, "decisions_done", 0)) if getattr(args, "shop_ent", None) else args.ent
     return [args.ent, shop]
 
 
@@ -1072,8 +1075,8 @@ def main():
     ap.add_argument("--curriculum-published", type=int, default=300, help="v4: published wins used as curriculum starts")
     ap.add_argument("--curriculum-keep", type=int, default=600, help="v4: this run's own starts kept per ante")
     ap.add_argument("--shop-ent", default=None,
-                    help="v4: the shop network's entropy coefficient by training games, e.g. '0.02,0.006@G1,0.001@G2' "
-                         "(linear between; default: --ent)")
+                    help="v4: the shop network's entropy coefficient by training decisions (both networks), e.g. "
+                         "'0.02,0.006@1.5M,0.001@4M' (linear between; default: --ent)")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)
@@ -1256,6 +1259,7 @@ def main():
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe),
                        "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values)},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
+              "decisions_total": decisions_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten), "curriculum_own": {str(a): v for a, v in cur_own.items()}}
         d = out
@@ -1314,11 +1318,13 @@ def main():
 
     t_start = time.time()
     games_total, wins_total, strikes, it = 0, 0, 0, start_it
+    decisions_total = 0         # training decisions (both networks): v4's shop entropy schedule
     best_eval, best_time = -1.0, time.time()
     train_hist, best_roll = [], -1.0
     if resumed:
         best_eval = resumed.get("best_eval", -1.0)
         games_total = resumed.get("games_total", 0)
+        decisions_total = resumed.get("decisions_total", 0)
         wins_total = resumed.get("wins_total", 0)
         alert(f"resumed from {args.resume} at round {start_it} (best eval {best_eval:.2f} blinds/game, "
               f"{games_total:,} games and {wins_total:,} wins so far)")
@@ -1751,8 +1757,9 @@ def main():
             # Update guard: keep a copy, reject the update if it is non-finite or moves too far.
             snap_m = {k: v.detach().clone() for k, v in model.state_dict().items()}
             snap_o = copy.deepcopy(opt.state_dict())
-            args.games_done = games_total          # the shop's entropy schedule (v4) counts training games
+            args.decisions_done = decisions_total     # the shop's entropy schedule (v4) counts training decisions
             st = ppo_update(model, opt, eps, args, device, sil)
+            decisions_total += sum(len(e["steps"]) for e in eps)
             if it in nan_at:
                 with torch.no_grad():
                     next(model.parameters()).fill_(float("nan"))
@@ -1843,7 +1850,7 @@ def main():
                       "moe_expert_games": dict(zip(EXPERT_HANDS, [int(x) for x in model.expert_games]))} if args.moe else {}),
                    "iteration": it, "train": s, "ppo": st, "wins_total": wins_total, "play_seconds": round(t1 - t0, 1),
                    "update_seconds": round(t2 - t1, 1), "gpu_memory": gpu, "games_per_hour": round(len(eps) / (t2 - t0) * 3600),
-                   "decisions_per_second": round(rate, 1), "games_total": games_total,
+                   "decisions_per_second": round(rate, 1), "games_total": games_total, "decisions_total": decisions_total,
                    "hours": round((time.time() - t_start) / 3600, 3), "sil": sil_info, "saved": dict(saved), "ms_model": round(ms_model, 2), "ms_sim": round(ms_sim, 2),
                    "retry": sr, "alloc": round_alloc, "arms": {a: dict(v) for a, v in arms.items()},
                    "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten),

@@ -10,7 +10,7 @@ Needs torch and the real game. Plays games with random v4 weights through the tr
      whatever else is in the batch; a loss on table decisions moves no shop weight (and the reverse).
   4. PPO with routed credit runs on these games: advantages are train/credit.py's, normalized per
      network; per-network entropy and decision counts are reported; the shop's entropy coefficient
-     follows --shop-ent.
+     follows --shop-ent (by training decisions).
   5. A checkpoint's config rebuilds the same network (model.make_model), as play.py and
      compare_models.py load it.
 
@@ -42,7 +42,7 @@ PLAY, DISCARD = 1, 2
 def args_for(src):
     """A small v4 configuration: the routing doesn't depend on size."""
     ap_defaults = dict(src=src, mods=None, actions="ordered-capped", enc=2, d=32, layers=1, heads=2,
-                       phase_split=True, moe=False, shop_ent="0.02,0.006@100,0.001@200", ent=0.01,
+                       phase_split=True, moe=False, shop_ent="0.02,0.006@0.1k,0.001@0.2k", ent=0.01,
                        offer_values=True, build_shaping=1.0,
                        reward="blinds", shaping=1.0, gamma=0.995, lam=0.95, gamma_blind=0.95, lam_blind=0.95,
                        back="b_red", stake=1, backs=[], stakes=[], challenges=[], challenge_share=0.25,
@@ -142,11 +142,11 @@ def check_ppo(model, eps, args):
         if len(set(ep["members"])) == 1:
             assert np.allclose(a, T.gae(r, v, G, L), atol=1e-5)
     for games, want in ((0, 0.02), (50, 0.013), (100, 0.006), (150, 0.0035), (200, 0.001), (10**6, 0.001)):
-        args.games_done = games
+        args.decisions_done = games
         got = T.phase_ent(args)
         assert got[0] == args.ent and abs(got[1] - want) < 1e-9, (games, got, want)
     assert T.schedule_at(T.parse_schedule("0.02,0.006@100,0.001@100"), 100) == 0.001    # a repeated count is a step
-    args.games_done = 50
+    args.decisions_done = 50
     opt = torch.optim.Adam(model.parameters(), lr=1e-4)
     before = [p.detach().clone() for p in model.parameters()]
     st = T.ppo_update(model, opt, eps, args, "cpu")
