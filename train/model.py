@@ -141,3 +141,43 @@ class MoE(Net):
         head = {k: v for k, v in sd.items() if k.startswith(("policy.", "value."))}
         return trunk, head
 
+
+
+# ---------------- model v4: the phase split (docs/hypotheses.md, v4 and its 2026-11-09 amendment) ----------------
+# Member 0 (table) makes every decision while a hand is being selected (state SELECTING_HAND: plays,
+# discards, consumables used mid-blind, joker drags); member 1 (shop) makes every other decision (blind
+# select, cash-out, shop, packs). Routed by the game's own state, never by a learned rule.
+PHASE_TABLE, PHASE_SHOP = 0, 1
+PHASE_NAMES = ("table", "shop")
+
+
+def phase_member(state_name):
+    """Which v4 network decides in this game state."""
+    return PHASE_TABLE if state_name == "SELECTING_HAND" else PHASE_SHOP
+
+
+class PhaseNet(nn.Module):
+    """Two whole Nets (each its own encoder, action features, policy and critic), one per phase. Each
+    decision names its member (collate's 7th tensor, `member`), as with MoE; no weights are shared, so a
+    decision trains only its own network."""
+
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1):
+        super().__init__()
+        self.nets = nn.ModuleList([Net(n_vocab, d, layers, heads, enc) for _ in PHASE_NAMES])
+
+    def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
+        B, A = act.shape[0], act.shape[1]
+        logits = torch.full((B, A), float("-inf"), device=act.device)
+        value = torch.zeros(B, device=act.device)
+        for m in torch.unique(member).tolist():
+            i = (member == m).nonzero(as_tuple=True)[0]
+            lg, v = self.nets[m](kind[i], vocab[i], feat[i], tok_mask[i], act[i], act_mask[i])
+            logits = logits.index_put((i,), lg)
+            value = value.index_put((i,), v)
+        return logits, value
+
+
+def make_model(cfg, n_vocab):
+    """The network a run's settings (train.py args or a checkpoint's config) call for."""
+    cls = PhaseNet if getattr(cfg, "phase_split", False) else (MoE if getattr(cfg, "moe", False) else Net)
+    return cls(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc)

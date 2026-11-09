@@ -2,6 +2,19 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [Unreleased] - model v4 (branch `v4`)
+
+### Added (registered in `docs/hypotheses.md` 2026-11-05 ~23:01 and amended 2026-11-09 ~12:00 CST, before this code)
+- **Routed credit** (`train/credit.py`): each network's advantages over its own decisions, with everything earned in between and the blind clock's discounts; identical to `train.gae` with one network. `tests/v4_credit_check.py` (numpy only).
+- **Phase split** (`--phase-split`; `model.PhaseNet`): two whole networks, table (decisions while a hand is selected, state `SELECTING_HAND`) and shop (blind select, cash-out, shop, packs), each with its own encoder and critic; the game state routes every decision (`model.phase_member`). PPO uses routed credit, normalizes advantages per network, and gives each network its own entropy coefficient: the table's `--ent`, the shop's on `--shop-ent` (start value, then values reached at training-game counts, linear in between). Training games record which network made each move (`members`); metrics log entropy and decisions per network. `model.make_model` builds the right network from any run's config; `play.py` (prints the network per move) and `compare_models.py` load v4 checkpoints.
+- **W4a measurement** in `compare_models.py`: each game's play seconds, and wins per sim-hour A/B with a one-sided 95% lower bound from a 10,000-resample paired bootstrap, scored against chud's two tiers. Seed tag `v4-test` (disjoint from every other tag and the eval 600; adding it changes no existing list).
+- **`tests/v4_phase_check.py`** (torch and the real game): routing re-read from fresh replays (plays and discards only ever reach the table network), saved games replay exactly, each decision is its own network's output whatever the batch, a decision's loss moves only its own network, PPO with routed credit and the entropy schedule, checkpoint rebuild.
+
+### Checked (cloud, unmodded 1.0.1o, torch 2.15.0 CPU, 2026-11-09)
+- Torch now runs in the cloud: `pip install torch` with its dependencies (the `--no-deps` install failed to import).
+- `tests/v4_phase_check.py`: ALL PASS (6 games by random weights and 4 published wins: 1,121 decisions; table 325 all in `SELECTING_HAND`; shop 796 across blind select, cash-out, shop and every pack).
+- A 4-round training run with `--phase-split` (small network, 3 workers), resumed from `latest.pt`; `compare_models.py` on `v4-test`; `export_weights.py` then `play.py` and `verify_games.py` on its game (PASS). The W4a bootstrap on synthetic data.
+
 ## [0.20.0] - 2026-11-05
 
 ### Registered

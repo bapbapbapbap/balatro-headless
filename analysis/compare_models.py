@@ -27,7 +27,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "train"))
-TAGS = ("paired-v1", "v3-ab", "v3-test")        # registered seed lists, kept disjoint
+TAGS = ("paired-v1", "v3-ab", "v3-test", "v4-test")        # registered seed lists, kept disjoint
 OBF = {1: 3.471, 2: 2.454, 3: 2.004}             # O'Brien-Fleming, 3 equally spaced looks, two-sided 0.05
 G = {}
 
@@ -44,7 +44,7 @@ def seed_list(tag, n, rand_seed, banned):
 def load(path, src, temp):
     import torch
     from argparse import Namespace
-    from model import MoE, Net
+    from model import make_model
     from sim import Sim
     ck = torch.load(path, map_location="cpu", weights_only=False)
     cfg = dict(ck["provenance"]["config"])
@@ -53,7 +53,7 @@ def load(path, src, temp):
     sim = Sim(a.src, a.mods, mode=a.actions, enc=a.enc)
     if list(sim.vocab) != list(ck["vocab"]):
         raise SystemExit(f"{path}: checkpoint vocabulary differs from this game's")
-    model = (MoE if a.moe else Net)(len(sim.vocab), d=a.d, layers=a.layers, heads=a.heads, enc=a.enc)
+    model = make_model(a, len(sim.vocab))
     model.load_state_dict(ck["model"])
     model.eval()
     return {"args": a, "sim": sim, "model": model, "state": model.state_dict(), "it": ck.get("iteration", 0)}
@@ -72,11 +72,14 @@ def one_seed(seed):
     try:
         T, out = G["T"], {"seed": seed}
         for name, m in zip("AB", G["m"]):
+            t0 = time.time()
             ep = T.play_games(m["sim"], m["model"], G["R"][m["args"].reward], random.Random(0), m["args"], 0,
                               (m["state"], [seed], "eval", m["it"], 0), set())[0]
             p = ep["progress"]
             out[name] = {"won": bool(p["won"]), "near_win": bool(p.get("near_win")), "blinds": p["blinds_beaten"],
-                         "ante": p["ante"], "capped": ep["capped"], "acts": ep["acts"]}
+                         "ante": p["ante"], "capped": ep["capped"], "acts": ep["acts"],
+                         # W4a (docs/hypotheses.md 2026-11-09): this game's play time, model + sim, in one process
+                         "seconds": round(time.time() - t0, 3)}
         return out
     except Exception:
         return {"seed": seed, "error": traceback.format_exc()[-3000:]}
@@ -116,12 +119,40 @@ def summarize(recs, look=None, names=("A", "B")):
         mid = sum(v for a, v in ends.items() if 4 <= a <= 6)
         print(f"  {name} losses by ante: " + ", ".join(f"{a}:{ends[a]}" for a in sorted(ends))
               + f"  (antes 4-6: {mid}, {mid / n:.1%} of games)")
+    if all("seconds" in r["A"] and "seconds" in r["B"] for r in recs):
+        w4a(recs, names)
     if look:
         bound = OBF[look]
         verdict = (f"STOP: |z| {abs(z):.2f} > {bound:.2f}, keep {'A' if z > 0 else 'B'}" if abs(z) > bound else
                    (f"no boundary crossed at the last check: a tie, keep v3" if look == 3 else
                     f"continue: |z| {abs(z):.2f} <= {bound:.2f}"))
         print(f"  check {look} of 3 (O'Brien-Fleming): {verdict}")
+
+
+def w4a(recs, names=("A", "B"), resamples=10000):
+    """W4a (docs/hypotheses.md, 2026-11-09): wins per sim-hour, A over B, with the one-sided 95% lower bound
+    from a paired bootstrap over seeds (10,000 resamples, fixed RNG so the bound is reproducible)."""
+    wA = np.array([r["A"]["won"] for r in recs], float)
+    wB = np.array([r["B"]["won"] for r in recs], float)
+    sA = np.array([r["A"]["seconds"] for r in recs], float)
+    sB = np.array([r["B"]["seconds"] for r in recs], float)
+    rate = lambda w, s: w.sum() / max(s.sum() / 3600, 1e-12)
+    rA, rB = rate(wA, sA), rate(wB, sB)
+    print(f"  W4a wins per sim-hour: {names[0]} {rA:.3f} ({sA.sum() / 3600:.2f} h, {sA.mean():.2f} s/game), "
+          f"{names[1]} {rB:.3f} ({sB.sum() / 3600:.2f} h, {sB.mean():.2f} s/game)")
+    if wB.sum() == 0:
+        print("  W4a ratio: undefined (B won no game)")
+        return
+    rng = np.random.default_rng(20261109)
+    n, ratios = len(recs), []
+    for _ in range(resamples):
+        i = rng.integers(0, n, n)
+        b = rate(wB[i], sB[i])
+        ratios.append(rate(wA[i], sA[i]) / b if b > 0 else np.inf)
+    lo = float(np.percentile(ratios, 5))
+    ratio = rA / rB
+    tier = ("met strongly" if lo >= 2 else "met" if ratio >= 2 and lo > 1 else "not met")
+    print(f"  W4a ratio {names[0]}/{names[1]} = {ratio:.2f}, one-sided 95% lower bound {lo:.2f} -> W4a {tier}")
 
 
 def main():

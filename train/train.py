@@ -32,7 +32,9 @@ import torch.multiprocessing as mp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import ACT_WIDTH, EXPERT_HANDS, F, ZERO_FIELDS, MoE, Net, param_count  # noqa: E402
+from model import (ACT_WIDTH, EXPERT_HANDS, F, PHASE_NAMES, ZERO_FIELDS, MoE, Net, make_model,  # noqa: E402
+                   param_count, phase_member)
+from credit import routed_gae  # noqa: E402
 from rewards import REWARDS, shaping, step_discount  # noqa: E402
 
 SEED_CHARS = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
@@ -94,7 +96,7 @@ def worker_main(wid, args, in_q, out_q):
     except Exception:
         out_q.put(("error", wid, traceback.format_exc()))
         return
-    model = (MoE if args.moe else Net)(len(sim.vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc)
+    model = make_model(args, len(sim.vocab))
     model.eval()
     reward_fn = REWARDS[args.reward]
     rng = random.Random(f"{args.seed}-{wid}")
@@ -149,12 +151,15 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
             o = sim.reset(seed, back, stake, challenge)
             if pst is not None:
                 apply_pin(o, pin_id, pin_rate, prng, pst)
-            steps, done, tail, reached, disc = [], False, [], False, []
+            steps, done, tail, reached, disc, members = [], False, [], False, [], []
             t_model = t_sim = 0.0
             while not done and sim.steps < args.max_steps:
                 tm = time.time()
                 if args.moe:
                     o["member"] = member
+                elif getattr(args, "phase_split", False):
+                    o["member"] = phase_member(sim.H.state_name())     # v4: table or shop network
+                    members.append(o["member"])
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
                 t_model += time.time() - tm
@@ -233,7 +238,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                   "return": sum(s[5] for s in steps),
                   # the exact game: seed + every action (index into the legal list, and as text)
                   "acts": list(sim.route), "desc": list(sim.desc), "final": sim.final_hash(), "verified": None,
-                  "t_model": t_model, "t_sim": t_sim, "pin": pst if pst is not early_pst else None, "reached": reached,
+                  "t_model": t_model, "t_sim": t_sim, "members": members if getattr(args, "phase_split", False) else None, "pin": pst if pst is not early_pst else None, "reached": reached,
                   "moe": ({"expert": EXPERT_HANDS[member - 1] if member else None, "routed": routed,
                            "rule_choice": EXPERT_HANDS[rule_k] if rule_k is not None else None,
                            "late_counts": late.tolist(), "late_plays": late_plays,
@@ -527,7 +532,11 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
         G = [x[0] for x in d] if d else args.gamma
         L = [x[1] for x in d] if d else args.lam
         k = (ep.get("moe") or {}).get("handoff_step") if getattr(args, "moe_cut", 0) else None
-        if k:
+        if getattr(args, "phase_split", False):
+            # v4: each network's advantages over its own decisions, with everything earned in between
+            # (train/credit.py; docs/hypotheses.md 2026-11-09, change 4)
+            a = routed_gae(r, v, G, L, [s[0]["member"] for s in ep["steps"]])
+        elif k:
             # The early head's run ends at the handoff: its returns count only up to ante 4 (chud's
             # spec), and the expert's start there.
             Gs, Ls = per_step(G, len(r)), per_step(L, len(r))
@@ -543,10 +552,22 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
                 "kl_end": 0.0, "kl_update": 0.0, "decisions": 0, "minibatches": 0}
     adv = np.array(adv, np.float32)
     adv_n = (adv - adv.mean()) / (adv.std() + 1e-8)
+    split = getattr(args, "phase_split", False)
+    if split:
+        # v4: each network's advantages normalized on their own (two critics, two scales)
+        mem = np.array([o["member"] for o in obs])
+        for m in range(len(PHASE_NAMES)):
+            sel = mem == m
+            if sel.any():
+                adv_n[sel] = (adv[sel] - adv[sel].mean()) / (adv[sel].std() + 1e-8)
+        ent_coef = torch.tensor(phase_ent(args), dtype=torch.float32, device=device)
     ret = np.array(ret, np.float32)
     n = len(obs)
     order_by_size = np.argsort([len(o["act"]) for o in obs])   # batch similar sizes: less padding
     stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0}
+    if split:
+        stats.update({f"entropy_{nm}": 0.0 for nm in PHASE_NAMES})
+        ent_n = {nm: 0 for nm in PHASE_NAMES}
     adv_scale = float(adv.std() + 1e-8)        # SIL advantages on the same scale as PPO's
     if sil is not None:
         stats.update(sil_pi=0.0, sil_v=0.0, sil_pos=0.0, sil_adv=0.0)
@@ -602,8 +623,19 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
                 pi_loss = -torch.min(ratio * A, ratio.clamp(1 - args.clip, 1 + args.clip) * A).mean()
                 v_loss = 0.5 * (value - R).pow(2).mean()
                 p_all = torch.softmax(logits, -1)
-                ent = -(p_all * logp_all.masked_fill(~amask, 0)).sum(-1).mean()
-                loss = pi_loss + args.vf * v_loss - args.ent * ent
+                ent_each = -(p_all * logp_all.masked_fill(~amask, 0)).sum(-1)
+                ent = ent_each.mean()
+                if split:
+                    # per-network entropy bonus (v4: the shop's on its schedule, --shop-ent)
+                    loss = pi_loss + args.vf * v_loss - (ent_coef[batch[6]] * ent_each).mean()
+                    with torch.no_grad():
+                        for m, nm in enumerate(PHASE_NAMES):
+                            sel = batch[6] == m
+                            if sel.any():
+                                stats[f"entropy_{nm}"] += ent_each[sel].mean().item()
+                                ent_n[nm] += 1
+                else:
+                    loss = pi_loss + args.vf * v_loss - args.ent * ent
                 if sil is not None and nb % sil_every == 0:
                     sobs, sact, sret = sil
                     sidx = np.random.randint(0, len(sobs), size=min(args.minibatch, len(sobs)))
@@ -659,7 +691,38 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
         kl_update = tot / len(sample)
     stats["kl_update"] = kl_update
     once = {"early_stop", "kl_end", "kl_update", "oom_splits", "oom_skipped"}
+    if split:
+        for m, nm in enumerate(PHASE_NAMES):
+            stats[f"entropy_{nm}"] = stats[f"entropy_{nm}"] / max(ent_n[nm], 1)
+            stats[f"decisions_{nm}"] = float((mem == m).sum())
+            stats[f"ent_coef_{nm}"] = float(ent_coef[m])
+            once |= {f"entropy_{nm}", f"decisions_{nm}", f"ent_coef_{nm}"}
     return {k: (v if k in once else v / max(nb, 1)) for k, v in stats.items()} | {"decisions": n, "minibatches": nb}
+
+
+def parse_schedule(spec):
+    """--shop-ent "0.02,0.006@G1,0.001@G2": a start value, then values reached at training-game counts,
+    linear in between (a repeated count gives a step), constant after the last. -> [(games, value), ...]"""
+    parts = [x.strip() for x in str(spec).split(",") if x.strip()]
+    knots = [(0, float(parts[0]))]
+    for x in parts[1:]:
+        v, g = x.split("@")
+        knots.append((int(float(g)), float(v)))
+    assert all(knots[i][0] <= knots[i + 1][0] for i in range(len(knots) - 1)), f"--shop-ent counts must not decrease: {spec}"
+    return knots
+
+
+def schedule_at(knots, games):
+    for (g0, v0), (g1, v1) in zip(knots, knots[1:]):
+        if games < g1:
+            return v0 + (v1 - v0) * (games - g0) / (g1 - g0) if g1 > g0 else v1
+    return knots[-1][1]
+
+
+def phase_ent(args):
+    """Entropy coefficients (table, shop) for this update (v4). args.games_done is set by the learner."""
+    shop = schedule_at(parse_schedule(args.shop_ent), getattr(args, "games_done", 0)) if getattr(args, "shop_ent", None) else args.ent
+    return [args.ent, shop]
 
 
 # ---------------- bookkeeping ----------------
@@ -929,6 +992,12 @@ def main():
     ap.add_argument("--moe-cut", type=int, default=1,
                     help="MoE: 1 = the early head's returns end at the handoff (it is judged on reaching ante 4); "
                          "0 = it learns from the whole run's return")
+    ap.add_argument("--phase-split", action="store_true",
+                    help="model v4: two networks, table (SELECTING_HAND) and shop (everything else), each with its "
+                         "own critic, credit routed per network (train/credit.py)")
+    ap.add_argument("--shop-ent", default=None,
+                    help="v4: the shop network's entropy coefficient by training games, e.g. '0.02,0.006@G1,0.001@G2' "
+                         "(linear between; default: --ent)")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)
@@ -1029,15 +1098,20 @@ def main():
     if args.moe:
         assert not (args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--moe runs whole games with its own pins; --stop-ante, --bc, --sil-buffer, --pin-hand and --init-weights are off"
-    model = (MoE if args.moe else Net)(len(vocab), d=args.d, layers=args.layers, heads=args.heads, enc=args.enc).to(device)
+    if args.phase_split:
+        assert not (args.moe or args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
+            "--phase-split (v4) trains two networks from random weights on whole games; --moe, --stop-ante, --bc, " \
+            "--sil-buffer, --pin-hand and --init-weights are off"
+        parse_schedule(args.shop_ent or args.ent)
+    model = make_model(args, len(vocab)).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     start_it, resumed = 0, None
     if args.resume:
         ck = torch.load(args.resume, map_location=device, weights_only=False)
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         arch = ck.get("arch", {})
-        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe))):
-            have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False}.get(k))
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe)), ("phase_split", bool(args.phase_split))):
+            have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False, "phase_split": False}.get(k))
             if k == "actions" and (have, v) == ("ordered", "ordered-capped"):
                 # Same model and moves; only long chains of joker drags stop being offered.
                 alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
@@ -1099,7 +1173,8 @@ def main():
 
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
-              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe)},
+              "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe),
+                       "phase_split": bool(args.phase_split)},
               "best_eval": best_eval, "games_total": games_total, "wins_total": wins_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
               "beaten_seeds": sorted(beaten)}
@@ -1541,6 +1616,7 @@ def main():
             # Update guard: keep a copy, reject the update if it is non-finite or moves too far.
             snap_m = {k: v.detach().clone() for k, v in model.state_dict().items()}
             snap_o = copy.deepcopy(opt.state_dict())
+            args.games_done = games_total          # the shop's entropy schedule (v4) counts training games
             st = ppo_update(model, opt, eps, args, device, sil)
             if it in nan_at:
                 with torch.no_grad():
@@ -1629,9 +1705,11 @@ def main():
                    "pools": {a: len(v) for a, v in pools.items()}, "beaten_seeds": len(beaten)}
             metrics.write(json.dumps(rec) + "\n")
             metrics.flush()
+            ent_txt = (f" (table {st['entropy_table']:.2f}, shop {st['entropy_shop']:.2f} at coef {st['ent_coef_shop']:.4f})"
+                       if "entropy_shop" in st else "")
             print(f"[it {it}] blinds {s['blinds_mean']:.2f} wins {s['wins']}/{s['games']} (total {wins_total:,}) "
                   f"near wins {s['near_wins']} (reached the final boss {s['final_boss']}) ante {s['final_ante']} "
-                  f"ent {st['entropy']:.2f} kl {st['kl']:.4f} moved {st.get('kl_update', 0):.4f}{' (stopped early at ' + str(st['minibatches']) + ' minibatches)' if st.get('early_stop') else ''} | {rec['games_per_hour']} games/h "
+                  f"ent {st['entropy']:.2f}{ent_txt} kl {st['kl']:.4f} moved {st.get('kl_update', 0):.4f}{' (stopped early at ' + str(st['minibatches']) + ' minibatches)' if st.get('early_stop') else ''} | {rec['games_per_hour']} games/h "
                   f"{rate:.0f} dec/s (play {rec['play_seconds']}s, update {rec['update_seconds']}s; per decision: model {ms_model:.1f} ms, sim {ms_sim:.1f} ms)"
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
