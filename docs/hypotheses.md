@@ -1713,7 +1713,7 @@ and with the deck reversed; bounded; telescopes; every offer taken, 91, moved ph
 checks before every launch.
 
 
-## Added 2026-11-09 ~15:55 CST: W4b's compute target fixed, and Claude's odds after the measured costs (section J)
+## Added 2026-11-09 ~15:48 CST: W4b's compute target fixed, and Claude's odds after the measured costs (section J)
 
 Before any v4 training game (chud asked whether anything was left to hypothesize before the run).
 
