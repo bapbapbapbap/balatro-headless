@@ -1711,3 +1711,26 @@ observation identical with and without phi_build at every move; cache = fresh; s
 and with the deck reversed; bounded; telescopes; every offer taken, 91, moved phi_build by exactly its value),
 `tests/v4_curriculum_check.py`, and a 3-round training run of `run_v4.sh` (SMOKE=1). `run_v4.sh` runs the four
 checks before every launch.
+
+
+## Added 2026-11-09 ~15:55 CST: W4b's compute target fixed, and Claude's odds after the measured costs (section J)
+
+Before any v4 training game (chud asked whether anything was left to hypothesize before the run).
+
+### W4b's target, from the logs (`balatro-work/runs/*/metrics.jsonl`, read 2026-11-09)
+Model 0.2's run (v2) logs 7.11 h of play + update seconds to round 500, but its behavior-cloning phase (from
+v1's games) logs no times. Part of the lineage's logs is missing, so by W4b's rule **moe2's alone is used:
+16.71 h** (play + update seconds summed over its 1,044 rounds, a re-run round counted once; 100,224 games).
+The test point is v4's first 600-seed eval at which its own summed play + update seconds reach 16.71 h, on
+the same laptop. Met: v4 wins ≥ 18 of 600 (2 × pins0's 9) and the one-sided 95% binomial lower bound of its
+rate over 9/600 is above 1; met strongly: that bound ≥ 2.
+
+### Claude's odds, revised after the costs measured today (the 12:00 odds above stand as registered)
+- **W4a met 35%, met strongly 20%** (were 50%, 35%). Sim time per move in evals is +51%, and a stronger bot also
+  plays longer games, so seconds per game may rise ~1.5–1.8×; v4 then needs ~3–3.6× pins0's wins per game.
+- **W4b met 15%, met strongly 7%** (were 35%, 25%). 16.71 h is about a tenth of a 168-hour run, and v4 starts
+  from random weights with dearer games (+70% sim per move, curriculum replay); pins0 reached 9/600 in the same
+  compute starting from 0.2.
+- W1 75%, W2 40%, W3 70% unchanged: they compare wins, not cost.
+- **New: aim 1's precondition** (v4's best 600-seed eval reaches ante 7 in ≥ 25% of games, within the 168-hour
+  run): **25%**.
