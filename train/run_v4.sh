@@ -9,6 +9,7 @@
 #                    saved game, replayed from its seed (300 published wins + this run's own games)
 #   shop entropy     0.02 -> 0.006 at 1.5M training decisions -> 0.001 at 4M (arXiv 2610.39049); table 0.01
 #   clock            the blind clock: --gamma-blind 0.95 --lam-blind 0.95
+#   stall stop       12 h (not 3): a week-long run from random weights has flat stretches
 # Held from 1.0: d 192, 4 layers, 6 heads (per network), encoding 2, ordered-capped actions, reward blinds,
 # hand-type exploration 0.05, seed retries, lr 1e-4, from random weights, no behavior cloning, Red Deck,
 # White Stake, eval on the 600 fixed seeds every 20 rounds (best.pt by eval blinds).
@@ -53,7 +54,7 @@ fi
 export ENC=2 ACTIONS=ordered-capped LR="${LR:-1e-4}" FROM_SCRATCH=1 RUN_V2_UPDATED=1 RUN
 V4="--seed 3 --explore-hands 0.05 --eval-games 600 --eval-every 20 --gamma-blind 0.95 --lam-blind 0.95
     --phase-split --build-shaping 1 --offer-values --curriculum 0.3 --curriculum-published 300
-    --curriculum-keep 600 --shop-ent 0.02,0.006@1.5M,0.001@4M"
+    --curriculum-keep 600 --shop-ent 0.02,0.006@1.5M,0.001@4M --stall-hours 12"
 if [ -n "${SMOKE:-}" ]; then
   # 3 rounds with v4's settings, a small eval, from scratch each time (no resume)
   rm -f "$SHARED/runs/$RUN/latest.pt"

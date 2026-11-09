@@ -1293,12 +1293,12 @@ def main():
                   if ok else f"spill drive {args.spill_dir} not writable, staying on the main drive"))
         return ok
 
-    def mirror_win(line):
+    def mirror_win(line, name="wins.jsonl"):
         if not args.mirror_dir:
             return
         try:
             os.makedirs(args.mirror_dir, exist_ok=True)
-            with open(os.path.join(args.mirror_dir, "wins.jsonl"), "a") as f:
+            with open(os.path.join(args.mirror_dir, name), "a") as f:
                 f.write(line)
             if drive_note.get("mirror") is False:
                 alert(f"mirror {args.mirror_dir} writable again")
@@ -1502,8 +1502,10 @@ def main():
                 # a curriculum game began on another game's moves: never a win of this run's (v4 registration);
                 # its wins are kept apart, replayed from the seed like any other
                 if r["progress"]["won"]:
+                    line = json.dumps(r | {"commit": prov["commit"][:12], "win_check": 2}) + "\n"
                     with open(os.path.join(out, "curriculum_wins.jsonl"), "a") as f:
-                        f.write(json.dumps(r | {"commit": prov["commit"][:12], "win_check": 2}) + "\n")
+                        f.write(line)
+                    mirror_win(line, "curriculum_wins.jsonl")
                     saved["curriculum_wins"] = saved.get("curriculum_wins", 0) + 1
                 continue
             if r["progress"]["won"]:
