@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.20.1] - 2026-11-09
+
+### Documented (PRs #107–#113; no code changed)
+- **Decisions (chud):** the Full House venture closed; 25% eval wins on Red/White as the bar for going up the decks and stakes; no re-scoring of F1, H1 and R (they stay void as scored); hypotheses of a model no longer trained are closed unanswered.
+- **`docs/hypotheses.md` split by run:** its 36 sections moved verbatim into `docs/hypotheses-{general,v1,v2,v2b,moe,moe2,v3,v4}.md`; `hypotheses.md` is the index, with the whole pre-split file linked at commit e3778d0.
+- **`docs/closed_hypotheses.md`:** where every hypothesis ended, and what is still open.
+- **`docs/runs/`:** one page per training run, v1 to v4.
+- **`llms.txt`** leads with v4 and a model lineage table, commands split into current run, routine and past runs. **README** brought to v4.
+
 ## [Unreleased] - model v4 (branch `v4`)
 
 ### Added (registered in `docs/hypotheses.md` 2026-11-05 ~23:01 and amended 2026-11-09 ~12:00 CST, before this code)

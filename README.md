@@ -42,7 +42,7 @@ sees; and a public record of every seed the bot has beaten, each with a route an
 **Final-boss near misses: 1,500.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`wins/near_misses.jsonl`](wins/near_misses.jsonl): median 62% of the boss's target scored, 226 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG, 0.13.2).
 <!-- tally:end -->
 
-## Results (as of 2026-11-03)
+## Results (through 2026-11-09)
 
 All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
 Every claim links to its data or its pre-registration.
@@ -119,20 +119,35 @@ wins). Its best was 13.08 blinds (round 1020) and 14 wins (round 1040).
 
 Weights: [`weights/balatro-bot-moe2-pins0.pt`](weights/README.md), [system card](docs/system_card_moe2.md).
 Full results: [docs/moe2_evaluation.md](docs/moe2_evaluation.md), scored in
-[hypotheses.md](docs/hypotheses-moe2.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results). Next steps are
-section J: measure the experts from the same positions first.
+[hypotheses.md](docs/hypotheses-moe2.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results). Measured
+afterwards from the same positions (2,000 seeds), the six experts play the same hand mix and land within
+0.24 blinds of each other: the handoff helps because any expert plays past ante 3 better than the early
+head, not because the experts are different strategies
+([scored](docs/hypotheses-moe2.md#added-2026-11-05-2110-cst-the-first-paired-run-scored-section-j)).
+
+### Now: model v4 (training since 2026-11-09)
+Two networks of 1.0's size, one for the table and one for the shop, each with its own critic and its own
+credit; a build-strength potential that scores the board with the game's own scoring code; each shop
+offer's value on its action; and 30% of games started mid-run at ante 4–6 from replayed wins. Same ought
+(`blinds`), Red Deck, White Stake, from random weights. A 168-hour run on chud's laptop, kept to its
+stopping rule whatever the evals show. Registered before any of its code:
+[`hypotheses-v4.md`](docs/hypotheses-v4.md); its page: [`docs/runs/v4.md`](docs/runs/v4.md).
+- **To score:** W4b at 16.71 h of compute (at least 18 of 600 eval wins, double moe2's 9); after the run,
+  W1–W3 and W4a against moe2-pins0 on 2,000 held-out seeds.
+- **The bar for going up the decks and stakes:** 25% eval wins on Red/White (chud), open to revision from
+  v4's data.
 
 ### Open
-- **The main experiment** (sections C and G of `hypotheses.md`): same facts, different oughts.
-  Registered, not yet run.
-- **Full House:** not learned. 0.3 played it 5 times in 497 chances, about the rate its exploration
-  alone would produce. moe2 ended with the pins at 0 and no Full House play left: 1 in 1,005 chances
-  for the early head, and no games for the Full House expert
-  ([details](docs/hypotheses-moe2.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results)).
+- **The main experiment** (section C, [`hypotheses-general.md`](docs/hypotheses-general.md)): same facts,
+  different oughts. Registered, not yet run; it waits for a bot that reaches the late game (ante 7 in at
+  least 25% of eval games), where the oughts disagree.
+- **Full House: closed** (2026-11-09). No bot learned it, and no run forces a hand any more: forcing one
+  muddles the variable under study, training. Full House play is still reported, no longer tested
+  ([closed hypotheses](docs/closed_hypotheses.md)).
 - **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
   0.3).
 - **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)). Proving one
-  waits for a base mixture of experts (chud, 2026-11-04). Until then, `naneinf/scan.py` looks for
+  waits for a stronger base model (chud, 2026-11-04: a base mixture of experts; that line is now v4). Until then, `naneinf/scan.py` looks for
   seeds with an early Perkeo, on the game itself; it hasn't run on the game yet.
 
 ## The research question
@@ -142,7 +157,8 @@ The idea and the framing are chud's. The bot is the agent under study; Balatro i
 **Hume's is-ought gap.** Facts alone don't settle what an agent ought to do. To exhibit that,
 hold the facts fixed (the pinned game, the same seeds, the same sim) and vary only the ought (the
 reward). Whatever then changes in what the bot does came from the reward, not from the facts.
-Sections C and G of [`docs/hypotheses.md`](docs/hypotheses.md) register that experiment.
+Section C of [`docs/hypotheses-general.md`](docs/hypotheses-general.md) registers that experiment (section G, a
+first version, was closed unrun).
 
 **Oughts are objects, like jokers.** A player buys a joker without knowing whether it will win
 the run, and buys anyway. An agent holds an ought the same way, and revises by its losses. Humans
