@@ -7,3 +7,6 @@ than 1.5 joker sells per game (`--stop-sells 1.5`), or on v4's stall rule.
 **Registered:** [design and predictions S1-S3](../hypotheses-v4b.md#added-2026-11-10-1030-cst-model-v4b-registered-before-any-of-its-code-section-j),
 after [v4's diagnosis](../hypotheses-v4.md#added-2026-11-10-1030-cst-why-v4-stalled-diagnosis-after-the-run-section-j).
 Code on branch `v4b`; output in `runs/v4b/`.
+
+**The run.** Smoke test passed 2026-11-10 10:39; training started 10:40:47 CST on chud's laptop from commit 8a186ae
+(`run_v4b.sh` from 64dcf04 plus the watcher's `-Run v4b`), 12 workers, 168-hour cap.
