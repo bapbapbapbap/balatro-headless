@@ -62,8 +62,8 @@ routing rule. Which network moves depends on the game.
 - Where games end: 159 of 600 by ante 3, 352 in antes 4–6, 22 at the final boss.
 - At about 1.5% wins, an eval's win count moves by about ±3 from chance alone.
 - These numbers can't be ranked against models 0.1–1.0. Those were evaluated on 200 seeds with a
-  win test that counted Ante 8 boss losses as wins (corrected in CHANGELOG 0.13.2), and 1.0 is
-  being re-measured.
+  win test that counted Ante 8 boss losses as wins (corrected in CHANGELOG 0.13.2), and 1.0 was
+  not re-measured.
 
 ## What it does and doesn't do (pins-zero eval)
 - **Routing:** 442 of 600 games reach the handoff. Straight 119, Three of a Kind 107, Two Pair 100,

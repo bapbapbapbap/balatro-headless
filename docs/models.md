@@ -31,7 +31,7 @@ optimistic number: across rounds, 0.2's evals averaged 10.66 in the F1 window, a
 goes deeper on average than 0.3-beta (12.79 vs 12.035) but won 5 of the 200 seeds to its 7. With 5
 and 7 wins in 200, that difference is well within chance.
 
-**1.0's performance as counted before 2026-11-03 (being re-measured; the old win test counted losses on the Ante 8 boss as wins): 2.5% of seeds** (5 of 200 fixed evaluation seeds) and beats
+**1.0's performance as counted before 2026-11-03 (not re-measured; the old win test counted losses on the Ante 8 boss as wins): 2.5% of seeds** (5 of 200 fixed evaluation seeds) and beats
 12.79 blinds per game on average. It is the end of the training line (0.1 → 0.2 → 0.3) that won
 the 435 published seeds (1,549 before the 2026-11-03 recount).
 

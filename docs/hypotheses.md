@@ -1761,3 +1761,15 @@ chud: "Lets say 25% eval win rate on red deck white stake. Open to revision from
   a new dated section that says what was read.
 - **For reference, not part of the bar:** `pins0.pt` 9 of 600 (1.5%) at pins zero; W2 is ≥10%; Claude's
   odds for v4 reaching ≥20% are 15% (2026-11-09 ~12:00).
+
+
+## Added 2026-11-09 ~18:30 CST: hypotheses that will never be scored as registered are closed
+
+chud (18:30): "Rescoring? It tests itself as it trains. Go close all the closed hypotheses as a separate md."
+The rule (chud, 18:32): "If im not training that model the hanging hypotheses of that model are unanswered and
+still closed." The ledger is [`closed_hypotheses.md`](closed_hypotheses.md): each hypothesis above, where it ended (scored;
+void as scored; closed unscored, with why), and which are still open. Nothing above is edited.
+- **The re-scoring of F1, H1 and R** registered on 2026-11-03 ~20:50 is closed, not done. They stay void as
+  scored. Every run since that correction counts wins with the game's own test.
+- **Still open:** v4's (W1–W4, aim 1's precondition), the 25% bar, and those tied to no one model: section C,
+  B1, E1, aims 2 and 3.
