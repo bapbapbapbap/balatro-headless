@@ -2,7 +2,7 @@
 # Keeps this PC awake, prints a run's training status at a steady interval, and restarts training
 # if it died unexpectedly. Run it in its own PowerShell window and leave it open:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\watch_v1.ps1 -Run v2b
-#   ... -Run v2      watch (and restart) v2 instead of v1 (or -Run v2b)
+#   ... -Run v2      watch (and restart) v2 instead of v1 (or -Run v2b, v4, v4b)
 #   ... -Run expert-full-house / early-s3 / moe / moe2   the strategy experts, early-game models and joint
 #       run (-Stake / -Back for a run at another stake or deck)
 # Options: -Interval 60       seconds between status lines
@@ -55,6 +55,9 @@ if (@("v1", "v2", "v2b") -contains $Run) {
 } elseif ($Run -eq "v3" -or $Run -eq "v3-control") {
     $arm = if ($Run -eq "v3") { "v3" } else { "control" }
     $launch = "cd ~/balatro/balatro-headless && ARMS=$arm bash train/run_v3.sh $wslWork $(Hours-For 168) $Workers"
+} elseif ($Run -eq "v4b") {
+    # model v4b: a restart runs run_v4b.sh's pre-flight (the four v4 checks, a few minutes) before resuming
+    $launch = "cd ~/balatro/balatro-headless && bash train/run_v4b.sh $wslWork $(Hours-For 168) $Workers"
 } elseif ($Run -eq "v4") {
     # model v4: a restart runs run_v4.sh's pre-flight (the four v4 checks, a few minutes) before resuming
     $launch = "cd ~/balatro/balatro-headless && bash train/run_v4.sh $wslWork $(Hours-For 168) $Workers"
@@ -72,7 +75,7 @@ $restarts = 0
 function Training-Running {
     # train.py for this run, or any launcher still in its pre-flight checks (they can take minutes
     # before train.py starts; a launcher of another run also counts, which errs toward not restarting)
-    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run|train/run_(v1|v2|v2b|v3|v4|moe|expert|early)s?\.sh|tests/(moe|pin|v4_\w+)_check\.py|diff_check\.py" *> $null
+    & wsl.exe -d $Distro -- pgrep -f "train.py --src.*runs/$Run|train/run_(v1|v2|v2b|v3|v4|v4b|moe|expert|early)s?\.sh|tests/(moe|pin|v4_\w+)_check\.py|diff_check\.py" *> $null
     return ($LASTEXITCODE -eq 0)
 }
 
