@@ -238,5 +238,7 @@ switch ($Command.ToLower()) {
     "save"    { Cmd-Save }
     "checksave" { Cmd-CheckSave }
     "progress" { Cmd-Progress }
-    default  { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 36 | ForEach-Object { $_ -replace '^# ?', '' } }
+    default  {     # the header comment above, up to its first non-comment line
+        foreach ($l in (Get-Content $PSCommandPath | Select-Object -Skip 1)) { if ($l -notmatch '^#') { break }; $l -replace '^# ?', '' }
+    }
 }
