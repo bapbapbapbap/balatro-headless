@@ -26,7 +26,8 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [`hypotheses-moe.md`](hypotheses-moe.md) | Run moe (first mixture of experts) |
 | [`hypotheses-moe2.md`](hypotheses-moe2.md) | Run moe2 (moe2-pins0) |
 | [`hypotheses-v3.md`](hypotheses-v3.md) | Model v3 |
-| [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 (current) |
+| [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 |
+| [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (current) |
 
 ## Every section, in the order it was added
 
@@ -69,3 +70,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-09 ~18:17 CST: the Full House venture closed, and the bar for going up the decks and stakes](hypotheses-general.md#added-2026-11-09-1817-cst-the-full-house-venture-closed-and-the-bar-for-going-up-the-decks-and-stakes) | general |
 | [Added 2026-11-09 ~18:30 CST: hypotheses that will never be scored as registered are closed](hypotheses-general.md#added-2026-11-09-1830-cst-hypotheses-that-will-never-be-scored-as-registered-are-closed) | general |
 | [Added 2026-11-09 ~18:40 CST: the last three open settings, fixed](hypotheses-general.md#added-2026-11-09-1840-cst-the-last-three-open-settings-fixed) | general |
+| [Added 2026-11-10 ~10:45 CST: why v4 stalled (diagnosis after the run, section J)](hypotheses-v4.md#added-2026-11-10-1045-cst-why-v4-stalled-diagnosis-after-the-run-section-j) | v4 |
+| [Added 2026-11-10 ~10:50 CST: model v4b, registered before any of its code (section J)](hypotheses-v4b.md#added-2026-11-10-1050-cst-model-v4b-registered-before-any-of-its-code-section-j) | v4b |
