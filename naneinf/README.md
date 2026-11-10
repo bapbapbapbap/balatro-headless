@@ -90,6 +90,10 @@ The bot still only sees what a player sees and has to find its own route. A seed
 yardstick: did the model reach naneinf on a seed where people know it can be done? Seeds the
 bot reaches naneinf on go in `wins/` with their routes, like every other proven seed.
 
+A route found by search (lookahead over replayed branches) also proves a seed, and is labeled as found by
+search; seeds proven by a model playing only what a player sees are counted separately
+([decision](../docs/hypotheses-general.md#added-2026-11-09-1840-cst-the-last-three-open-settings-fixed), 2026-11-09).
+
 ```bash
 cd naneinf && BALATRO_SRC=~/balatro/local/source python3 probe.py community_seeds.json out.json
 ```

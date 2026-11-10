@@ -68,3 +68,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-09 ~15:48 CST: W4b's compute target fixed, and Claude's odds after the measured costs (section J)](hypotheses-v4.md#added-2026-11-09-1548-cst-w4bs-compute-target-fixed-and-claudes-odds-after-the-measured-costs-section-j) | v4 |
 | [Added 2026-11-09 ~18:17 CST: the Full House venture closed, and the bar for going up the decks and stakes](hypotheses-general.md#added-2026-11-09-1817-cst-the-full-house-venture-closed-and-the-bar-for-going-up-the-decks-and-stakes) | general |
 | [Added 2026-11-09 ~18:30 CST: hypotheses that will never be scored as registered are closed](hypotheses-general.md#added-2026-11-09-1830-cst-hypotheses-that-will-never-be-scored-as-registered-are-closed) | general |
+| [Added 2026-11-09 ~18:40 CST: the last three open settings, fixed](hypotheses-general.md#added-2026-11-09-1840-cst-the-last-three-open-settings-fixed) | general |

@@ -258,3 +258,44 @@ void as scored; closed unscored, with why), and which are still open. Nothing ab
   scored. Every run since that correction counts wins with the game's own test.
 - **Still open:** v4's (W1–W4, aim 1's precondition), the 25% bar, and those tied to no one model: section C,
   B1, E1, aims 2 and 3.
+
+## Added 2026-11-09 ~18:40 CST: the last three open settings, fixed
+
+chud (18:39), on the three items still marked *(chud to confirm)*: "go ahead." The choices below are Claude's,
+made at his request; he can override any of them before the data they apply to exists. Nothing above is edited.
+
+### 1. Section C's first prediction: which statistics, and how it is tested
+- **Arms:** rewards `blinds`, `antes` and `win`, all from the same starting checkpoint, same game, seeds, settings
+  and number of training games. **Plus a replicate:** a second `blinds` arm with a different training seed.
+  Without it, a gap between two oughts could be the run-to-run spread of one ought.
+- **Starting checkpoint:** the first one that meets aim 1's precondition (ante 7 in ≥ 25% of 600-seed eval
+  games), since below that the three rewards pay for almost the same things.
+- **Statistics, per game:** (a) blinds skipped; (b) rerolls per shop visit; (c) money held when leaving a shop,
+  averaged over the game's shop exits; (d) jokers bought, as a frequency over joker keys.
+- **Seeds:** 2,000 from tag `c-test`, disjoint from every tag used so far. Each arm plays each seed once,
+  sampled at temperature 1 with the per-seed RNG.
+- **Test:** (a)–(c) by a paired permutation test per seed (10,000 permutations); (d) by a permutation test on the
+  Jensen–Shannon divergence between the two arms' purchase frequencies, permuting arm labels within seed. Three
+  pairs of oughts × four statistics = 12 tests, Holm-corrected, α 0.05.
+- **Passes if** at least one statistic differs between two oughts after correction, **and** the same statistic
+  does not differ significantly between the two `blinds` runs under the same test (uncorrected, α 0.05, which
+  makes the replicate check strict). *Falsified* if no pair of oughts differs on any statistic.
+
+### 2. C3, bot vs chud: size, split, level
+- **Seeds:** 200 from tag `c3-test` (Ghost Deck, Purple Stake, modded 1.0.1o), never used in training or eval.
+- **chud** plays each seed once as a seeded run, in the listed order, no restarts, without looking any seed up
+  in advance. Each run counts as it ends.
+- **The bot** plays each seed once, sampled at temperature 1 with the per-seed RNG.
+- **Test:** exact McNemar on per-seed outcomes (win = the ante-8 boss beaten), two-sided (no direction is
+  predicted), α 0.05. The 200 is set by what chud can play, not by power; if the discordant pairs are few,
+  the result is reported as underpowered rather than as no difference.
+- **Precondition:** a bot trained on Ghost Deck, Purple Stake, which waits on the 25% bar (2026-11-09 ~18:17).
+
+### 3. Aim 2: what proves a naneinf seed
+- **Any route that replays proves the seed**, however it was found, as registered for aims 2 and 3 on
+  2026-11-05 ~23:01 (search track). The proof is the replay.
+- **Every proven seed carries how it was found**, and the two are never pooled:
+  - *model*: a trained model playing only what a player sees (the standing goal in `naneinf/README.md`);
+  - *search*: lookahead over replayed branches, which proves a route exists, not that a player without
+    foresight could find it.
+- The same split applies to aim 3: a searched 100% save proves one exists; a model's save is the stronger claim.
