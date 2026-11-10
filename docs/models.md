@@ -56,7 +56,7 @@ the 435 published seeds (1,549 before the 2026-11-03 recount).
 - **Pre-registered test H1** (chud's prediction that 0.3 raises the solved rate): **passed**,
   24.4 vs 17.9 fresh-seed wins per 1,000 games against 0.2, p = 0.011. There was no concurrent
   control, so the changes and the extra training can't be told apart
-  ([result](hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)).
+  ([result](hypotheses-v2b.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)).
 
 ## What it does and doesn't do (from 0.2's 709 wins, `docs/won_games_analysis.md`)
 - **Does:** picks planets for the hand it plays (91% vs 25% chance). Its play leans on Two Pair,

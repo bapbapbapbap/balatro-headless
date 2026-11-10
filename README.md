@@ -53,7 +53,7 @@ Every claim links to its data or its pre-registration.
 > are wins**; 1,114 reached the Ante 8 boss and lost it, and stay posted as near misses. The
 > reward "blinds beaten" also paid that loss as a beaten blind. F1, H1 and R were scored on the
 > wrong count; they stay void as scored and were closed without re-scoring on 2026-11-09
-> ([closed hypotheses](docs/closed_hypotheses.md); [correction](docs/hypotheses.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins)).
+> ([closed hypotheses](docs/closed_hypotheses.md); [correction](docs/hypotheses-general.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins)).
 > Found by chud's save-progress ledger, which reads the game's own record of each win.
 
 ### Seeds proven beatable
@@ -73,9 +73,9 @@ never edited; results are added as new dated sections.
 
 | Test | Prediction | Result |
 |---|---|---|
-| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins. As scored: 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
-| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins. As scored: 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
-| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins, among the seeds and in the games. As scored: 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). ([result](docs/hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
+| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins. As scored: 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses-v2.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
+| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins. As scored: 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses-v2b.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
+| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins, among the seeds and in the games. As scored: 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). ([result](docs/hypotheses-v2b.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
 
 H1 has no concurrent control (one machine), so 0.3's two changes and its extra training can't be
 told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b in
@@ -119,7 +119,7 @@ wins). Its best was 13.08 blinds (round 1020) and 14 wins (round 1040).
 
 Weights: [`weights/balatro-bot-moe2-pins0.pt`](weights/README.md), [system card](docs/system_card_moe2.md).
 Full results: [docs/moe2_evaluation.md](docs/moe2_evaluation.md), scored in
-[hypotheses.md](docs/hypotheses.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results). Next steps are
+[hypotheses.md](docs/hypotheses-moe2.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results). Next steps are
 section J: measure the experts from the same positions first.
 
 ### Open
@@ -128,7 +128,7 @@ section J: measure the experts from the same positions first.
 - **Full House:** not learned. 0.3 played it 5 times in 497 chances, about the rate its exploration
   alone would produce. moe2 ended with the pins at 0 and no Full House play left: 1 in 1,005 chances
   for the early head, and no games for the Full House expert
-  ([details](docs/hypotheses.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results)).
+  ([details](docs/hypotheses-moe2.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results)).
 - **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
   0.3).
 - **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)). Proving one
@@ -150,7 +150,7 @@ and models are grouped here at the level of behavior, as agents whose weights ar
 prediction error, not as the same mechanism.
 
 The project's three aims, in chud's order
-([full text](docs/hypotheses.md#added-2026-11-02-2305-cst-the-projects-aims-stated-by-chud)):
+([full text](docs/hypotheses-general.md#added-2026-11-02-2305-cst-the-projects-aims-stated-by-chud)):
 1. Exhibit Hume's is-ought gap (primary).
 2. Prove a naneinf seed: a route that replays to a hand whose score is no longer a finite number.
 3. Generalize to 100% completion from a new save.
