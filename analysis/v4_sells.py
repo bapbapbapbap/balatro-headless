@@ -11,7 +11,7 @@ usage (WSL, venv active, from the repo):
   python3 analysis/v4_sells.py --src ~/balatro/local/source \
       --pair RUNS/v4/ckpt_00120.pt:RUNS/v4/games/r00120_train.jsonl.gz \
       --pair RUNS/v4/ckpt_00300.pt:RUNS/v4/games/r00300_train.jsonl.gz
-Curriculum games are skipped (they start mid-run). Read-only: writes nothing.
+Curriculum games are skipped (they start mid-run); --curriculum reads only them, from their start. Read-only: writes nothing.
 """
 import argparse
 import collections
@@ -51,7 +51,7 @@ def n_jokers(sim):
         return -1
 
 
-def run_pair(ckpt_path, games_path, src, max_games):
+def run_pair(ckpt_path, games_path, src, max_games, which="own"):
     ck = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     cfg = dict(ck["provenance"]["config"])
     arch = ck["arch"]
@@ -70,12 +70,21 @@ def run_pair(ckpt_path, games_path, src, max_games):
     t0 = time.time()
     for line in gzip.open(games_path, "rt"):
         ep = json.loads(line)
-        if ep.get("curriculum") or ep.get("mode", "train") != "train":
+        cur = ep.get("curriculum")
+        if ep.get("mode", "train") != "train" or bool(cur) != (which == "curriculum"):
             continue
         o = sim.reset(ep["seed"], ep["back"], ep["stake"], ep.get("challenge"))
+        st = cur["start_step"] if cur else 0
+        if st:                                # curriculum: the replayed start is not the bot's play
+            o = sim.fast_forward(ep["acts"][:st], ep["desc"][:st])
+            if o is None:
+                print(f"  {ep['seed']}: curriculum start did not replay; game skipped")
+                continue
         R, V, G, L, own, info = [], [], [], [], [], []
         done = False
         for k, a in enumerate(ep["acts"]):
+            if k < st:
+                continue
             if done or a >= len(o["act"]) or sim.H.action_desc(a + 1) != ep["desc"][k]:
                 print(f"  {ep['seed']}: replay diverged at step {k}; game skipped")
                 R = None
@@ -109,7 +118,7 @@ def run_pair(ckpt_path, games_path, src, max_games):
         games += 1
         if max_games and games >= max_games:
             break
-    print(f"\n=== {os.path.basename(ckpt_path)} on {os.path.basename(games_path)}: {games} games, "
+    print(f"\n=== {os.path.basename(ckpt_path)} on {os.path.basename(games_path)} ({which} games): {games} games, "
           f"{len(rows)} decisions, {time.time() - t0:.0f} s")
     report(rows)
 
@@ -147,11 +156,12 @@ def main():
     ap.add_argument("--src", required=True)
     ap.add_argument("--pair", action="append", required=True, help="CKPT.pt:GAMES.jsonl.gz")
     ap.add_argument("--max-games", type=int, default=0)
+    ap.add_argument("--curriculum", action="store_true", help="curriculum games only (from their start)")
     a = ap.parse_args()
     torch.set_num_threads(4)
     for p in a.pair:
         ck, gm = p.rsplit(":", 1)
-        run_pair(ck, gm, a.src, a.max_games)
+        run_pair(ck, gm, a.src, a.max_games, "curriculum" if a.curriculum else "own")
 
 
 if __name__ == "__main__":
