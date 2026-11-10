@@ -9,6 +9,8 @@
 #                    saved game, replayed from its seed (300 published wins + this run's own games)
 #   shop entropy     0.02 -> 0.006 at 1.5M training decisions -> 0.001 at 4M (arXiv 2610.39049); table 0.01
 #   clock            the blind clock: --gamma-blind 0.95 --lam-blind 0.95
+#   stall stop       25 evals in a row without a new best eval (500 rounds), not 3 h of flat training
+#                    average: that rule stopped moe at round 219 while its eval (12.73, its best) still rose
 # Held from 1.0: d 192, 4 layers, 6 heads (per network), encoding 2, ordered-capped actions, reward blinds,
 # hand-type exploration 0.05, seed retries, lr 1e-4, from random weights, no behavior cloning, Red Deck,
 # White Stake, eval on the 600 fixed seeds every 20 rounds (best.pt by eval blinds).
@@ -25,7 +27,11 @@ HOURS="${2:-168}"
 WORKERS="${3:-12}"
 W="${BALATRO_HOME:-$HOME/balatro}"
 R="$W/balatro-headless"
-git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
+if [ -z "${RUN_V4_UPDATED:-}" ]; then
+  # pull, then run the script as pulled (bash had already read this one before the pull)
+  git -C "$R" pull -q --ff-only || echo "git pull failed; running the code already here"
+  RUN_V4_UPDATED=1 exec bash "$R/train/run_v4.sh" "$@"
+fi
 . "$W/venv/bin/activate"
 RUN=v4
 [ -n "${SMOKE:-}" ] && RUN=v4-smoke
@@ -53,7 +59,7 @@ fi
 export ENC=2 ACTIONS=ordered-capped LR="${LR:-1e-4}" FROM_SCRATCH=1 RUN_V2_UPDATED=1 RUN
 V4="--seed 3 --explore-hands 0.05 --eval-games 600 --eval-every 20 --gamma-blind 0.95 --lam-blind 0.95
     --phase-split --build-shaping 1 --offer-values --curriculum 0.3 --curriculum-published 300
-    --curriculum-keep 600 --shop-ent 0.02,0.006@1.5M,0.001@4M"
+    --curriculum-keep 600 --shop-ent 0.02,0.006@1.5M,0.001@4M --stall-evals 25"
 if [ -n "${SMOKE:-}" ]; then
   # 3 rounds with v4's settings, a small eval, from scratch each time (no resume)
   rm -f "$SHARED/runs/$RUN/latest.pt"
