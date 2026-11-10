@@ -32,8 +32,8 @@ import torch.multiprocessing as mp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import (EXPERT_HANDS, F, PHASE_NAMES, ZERO_BY_WIDTH, MoE, Net, make_model,  # noqa: E402
-                   param_count, phase_member)
+from model import (EXPERT_HANDS, F, PHASE_NAMES, PHASE_SHOP, PHASE_TABLE, ZERO_BY_WIDTH, MoE, Net,  # noqa: E402
+                   make_model, param_count, phase_member)
 from credit import routed_gae  # noqa: E402
 from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402
 
@@ -207,7 +207,7 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 r = reward_fn(prev, cur) + args.shaping * shaping(prev, cur, g_t) \
                     + getattr(args, "build_shaping", 0) * build_shaping(prev, cur, g_t)
                 steps.append((o, a, logp, float(v[0]), r, reward_fn(prev, cur)))
-                disc.append((g_t, l_t))
+                disc.append((g_t, l_t, int(o["act"][a][0]) in (PLAY, DISCARD)))   # 3rd: a hand (v4b's hand clock)
                 if pst is not None:
                     count_pin_move(o, a, pin_id, pst)
                 if args.moe and handoff_at is not None and o["act"][a][0] == PLAY:
@@ -601,6 +601,11 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
         if getattr(args, "phase_split", False):
             # v4: each network's advantages over its own decisions, with everything earned in between
             # (train/credit.py; docs/hypotheses.md 2026-11-09, change 4)
+            lh = getattr(args, "lam_hand", 1.0)
+            if lh < 1.0 and d and len(d[0]) > 2:
+                # v4b: the table network's lambda also decays by --lam-hand at each play or discard (a hand
+                # clock); the shop network's stays on the blind clock (docs/hypotheses-v4b.md)
+                L = {PHASE_TABLE: [x[1] * (lh if x[2] else 1.0) for x in d], PHASE_SHOP: [x[1] for x in d]}
             a = routed_gae(r, v, G, L, [s[0]["member"] for s in ep["steps"]])
         elif k:
             # The early head's run ends at the handoff: its returns count only up to ante 4 (chud's
@@ -834,6 +839,10 @@ def summarize(episodes):
             "bosses_mean": float(np.mean([e["progress"]["bosses_beaten"] for e in episodes])),
             "return_mean": float(np.mean([e["return"] for e in episodes])),
             "decisions_mean": float(np.mean([e["n"] for e in episodes])),
+            # jokers sold per game, from the bot's own moves (v4's failure; v4b's --stop-sells)
+            "sells_mean": float(np.mean([sum(d.startswith("sell_joker") for d in
+                                             e["desc"][(e.get("curriculum") or {}).get("start_step", 0):])
+                                         for e in episodes])),
             "capped": sum(e["capped"] for e in episodes),
             "final_ante": dict(sorted(antes.items())),
             **pin_summary(episodes)}
@@ -1007,6 +1016,11 @@ def main():
                          "undiscounted; replaces --gamma/--lam (see rewards.step_discount). Unset = per action")
     ap.add_argument("--lam-blind", type=float, default=0.95,
                     help="with --gamma-blind: GAE lambda applied once per blind passed (1 inside a blind)")
+    ap.add_argument("--lam-hand", type=float, default=1.0,
+                    help="model v4b (with --phase-split): the table network's GAE lambda is also multiplied by this "
+                         "at every play or discard (a hand clock); 1 = off, as in v4")
+    ap.add_argument("--stop-sells", type=float, default=0.0,
+                    help="stop at the first eval averaging more than this many joker sells per game (0 = off; v4b: 1.5)")
     ap.add_argument("--eval-temp", type=float, default=1.0,
                     help="sampling temperature for eval games only (1 = the policy as trained)")
     ap.add_argument("--clip", type=float, default=0.2)
@@ -1180,6 +1194,7 @@ def main():
     if args.moe:
         assert not (args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--moe runs whole games with its own pins; --stop-ante, --bc, --sil-buffer, --pin-hand and --init-weights are off"
+    assert args.lam_hand == 1.0 or args.phase_split, "--lam-hand is model v4b's: it needs --phase-split"
     assert not (args.curriculum or args.offer_values or args.build_shaping) or args.phase_split, \
         "--curriculum, --offer-values and --build-shaping are model v4's: they need --phase-split"
     if args.phase_split:
@@ -1698,6 +1713,9 @@ def main():
                     save(it, "best")
                 else:
                     evals_since_best += 1
+                if args.stop_sells and ev["sells_mean"] > args.stop_sells:
+                    raise Stop(f"eval {it} sold {ev['sells_mean']:.2f} jokers per game (--stop-sells {args.stop_sells}: "
+                               f"v4's failure is back)")
                 if args.stall_evals and evals_since_best >= args.stall_evals:
                     raise Stop(f"no new best eval in {evals_since_best} evals (best {best_eval:.3f}; --stall-evals {args.stall_evals})")
                 capped = [e for e in eval_eps if e["capped"]][:20]

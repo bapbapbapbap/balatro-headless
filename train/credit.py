@@ -27,13 +27,17 @@ def _per_step(x, n):
 def routed_gae(rewards, values, gamma, lam, owner):
     """rewards: per decision of the whole game. values: the acting network's value at each decision;
     one more value past the last decision bootstraps a capped game (as in train.gae, absent = 0).
-    gamma, lam: one number or one per step (step t's applies to the move from t to t+1).
-    owner: which network made each decision. Returns the advantage of each decision."""
+    gamma, lam: one number or one per step (step t's applies to the move from t to t+1); lam may also be
+    a dict {network: one number or one per step}, each network's credit using its own (model v4b's hand
+    clock on the table network). owner: which network made each decision. Returns each decision's advantage."""
     n = len(rewards)
-    G, L = _per_step(gamma, n), _per_step(lam, n)
+    G = _per_step(gamma, n)
+    Ls = {m: _per_step(x, n) for m, x in lam.items()} if isinstance(lam, dict) else None
+    L = None if Ls else _per_step(lam, n)
     tail = values[n] if len(values) > n else 0.0
     adv = np.zeros(n, np.float32)
     for m in sorted(set(owner)):
+        Lm = Ls[m] if Ls else L
         idx = [t for t in range(n) if owner[t] == m]
         nxt = 0.0                                          # adv at this network's next decision
         for k in reversed(range(len(idx))):
@@ -43,7 +47,7 @@ def routed_gae(rewards, values, gamma, lam, owner):
             for j in range(t, end):
                 R += gam * rewards[j]
                 gam *= G[j]
-                lam_ *= L[j]
+                lam_ *= Lm[j]
             if k + 1 < len(idx):
                 nv, carry = values[end], nxt
             else:                                          # its last decision: to the game's end

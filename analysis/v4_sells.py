@@ -80,7 +80,7 @@ def run_pair(ckpt_path, games_path, src, max_games, which="own"):
             if o is None:
                 print(f"  {ep['seed']}: curriculum start did not replay; game skipped")
                 continue
-        R, V, G, L, own, info = [], [], [], [], [], []
+        R, V, G, L, own, info, hand = [], [], [], [], [], [], []
         done = False
         for k, a in enumerate(ep["acts"]):
             if k < st:
@@ -101,6 +101,7 @@ def run_pair(ckpt_path, games_path, src, max_games, which="own"):
             r = reward_fn(prev, cur) + cfg.get("shaping", 1.0) * shaping(prev, cur, g) \
                 + cfg.get("build_shaping", 0) * build_shaping(prev, cur, g)
             R.append(r); V.append(float(v[0])); G.append(g); L.append(l); own.append(o["member"])
+            hand.append(int(o["act"][a][0]) in (1, 2))          # a play or discard (v4b's hand clock)
             info.append((ep["desc"][k].split()[0], o["member"], r,
                          cur.get("phi_build", 0.0) - prev.get("phi_build", 0.0),
                          float(lp_all[a]) if p32 > 0 else FLOOR, money(sim) - m0, j0, prev["ante"], p32 == 0.0,
@@ -113,6 +114,9 @@ def run_pair(ckpt_path, games_path, src, max_games, which="own"):
             o["member"] = phase_member(sim.H.state_name())
             with torch.no_grad():
                 V.append(float(model(*collate([o]))[1][0]))
+        lh = cfg.get("lam_hand", 1.0)
+        if lh < 1.0:
+            L = {0: [x * (lh if h else 1.0) for x, h in zip(L, hand)], 1: L}
         adv = routed_gae(R, V, G, L, own)
         last = sim.progress["blinds_passed"] if done and not sim.progress.get("won") else None
         for x, ad in zip(info, adv):
