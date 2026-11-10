@@ -34,7 +34,7 @@ it at the end of the Ante 8 boss round whether or not the boss was beaten.
 
 ## Final-boss near misses: `near_misses.jsonl`
 Until 2026-11-03 the harness read `G.GAME.won` alone, so 1,114 runs that reached the Ante 8 boss and
-ran out of hands were published here as wins. `tools/recount_wins.py` replayed all 1,549 published
+ran out of hands were published here as wins. `tools/recount_wins.py` (at tag `pre-launcher`, `ARCHIVE.md`) replayed all 1,549 published
 routes with the corrected check: 435 are wins and stay in `routes.jsonl`; the 1,114 losses moved to
 `near_misses.jsonl`. They stay posted. Each line is the full route, which replays exactly, plus
 `recount.end`: the final state (`GAME_OVER`), the boss, the chips scored and the boss's target.

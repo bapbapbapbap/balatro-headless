@@ -65,7 +65,7 @@ The count is at the top; the list (`beaten_seeds.csv`) and the routes (`routes.j
   **untouched** game (nothing stripped): each reproduced the same run, move for move. Those checks
   read the win from `G.GAME.won` alone, so they passed the final-boss losses too.
 - On 2026-11-03 every route was replayed again with the game's own win test
-  (`tools/recount_wins.py`): 435 wins stay in `routes.jsonl`, 1,114 final-boss losses moved to
+  (`tools/recount_wins.py`, at tag `pre-launcher`: `ARCHIVE.md`): 435 wins stay in `routes.jsonl`, 1,114 final-boss losses moved to
   `near_misses.jsonl`. Anyone with the game can rerun it: `train/verify_games.py --full`.
 
 ### Pre-registered tests

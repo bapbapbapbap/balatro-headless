@@ -2,6 +2,27 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+
+## [Unreleased] - 2026-11-10
+
+### Changed
+- **One launcher, one config per run.** `bash train/launch.sh <run> --work <dir> [--smoke]` runs
+  `configs/<run>.toml`: its pre-flight checks (by name, `train/launch.py` `CHECKS`), then `train.py` with the
+  config's settings (resuming from `latest.pt`), then publishing if the config asks. `--dry-run` prints the
+  command; `--check-provenance` compares a config with a run's `provenance.json` (`configs/v4b.toml`: SAME
+  SETTINGS as v4b ran). Replaces every `train/run_*.sh` and `tools/start_v2b.sh` (kept at their tags, `ARCHIVE.md`).
+- **`train.py` split by capability**, code moved verbatim: `options.py`, `common.py`, `rollout.py`, `ppo.py`,
+  `pool.py`, `curriculum.py`, `pins.py`, `moe.py`, `explore.py`; `train.py` keeps `main()` and re-exports the rest.
+  Checked with `tests/compare_trainers.py` on chud's laptop: v4b's trainer (8a186ae) trained twice and the split
+  trainer once, 3 rounds each on the CPU with v4b's settings; all 24 saved games and all 154 weight tensors identical.
+- `tools/watch_v1.ps1` is `tools/watch.ps1`: it restarts a run with `launch.sh` when the clone's branch has the
+  run's config, else with the run's own script. `tools/balatro.ps1 train -Run <run> [-Smoke]` uses the launcher;
+  its experts / earlies / moe commands are gone with their scripts.
+
+### Added
+- `AGENTS.md` (`CLAUDE.md` imports it): the map for agents. `ARCHIVE.md`: every past run's tag and what left main.
+- `tools/check_repo.py`: the hypotheses index, run pages, configs and every path the maps name must agree with the
+  tree (`--fix` adds missing index rows); pre-flight check `repo`.
 ## [0.20.2] - 2026-11-09
 
 ### Documented (no code changed)

@@ -78,7 +78,7 @@ Greedy policy (argmax) on the fixed evaluation seeds: final-ante distribution, w
 beaten, all against random and the greedy test player on the same seeds.
 
 ## 7. Safety checks (automatic)
-Before training (`train/run_v1.sh`): the env must replay a logged run and pass the differential
+Before training (`train/run_v1.sh`, at tag `run-v1`): the env must replay a logged run and pass the differential
 check with the encoder running, or nothing starts. During training (`train/train.py`):
 - **Bad update**: non-finite loss/weights or policy moved more than `--max-kl` → reverted, learning
   rate halved; `--max-strikes` (3) in a row → stop.
