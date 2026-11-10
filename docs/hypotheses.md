@@ -1734,3 +1734,30 @@ rate over 9/600 is above 1; met strongly: that bound ≥ 2.
 - W1 75%, W2 40%, W3 70% unchanged: they compare wins, not cost.
 - **New: aim 1's precondition** (v4's best 600-seed eval reaches ante 7 in ≥ 25% of games, within the 168-hour
   run): **25%**.
+
+
+## Added 2026-11-09 ~18:17 CST: the Full House venture closed, and the bar for going up the decks and stakes
+
+Both decisions are chud's (18:17 CST), made while v4 trains and before any v4 eval has been read. The
+write-up is Claude's. Nothing above is edited.
+
+### The Full House venture is closed
+chud: "Close it because strictness of the independent variable being training. Itd muddle data to force. I
+assessed itd be easy and it wasn't. I no longer care to prove full house viability."
+- **Why:** the independent variable is training (the reward, with the facts held fixed). Forcing a hand
+  through the action mask is a second influence on play, and it muddles that.
+- **Closed, unscored:** I2 (Full House among the strongest experts, 2026-11-04 ~13:35); the completion
+  criterion "the MoE has learned Full House" (2026-11-04 ~13:40), not met at pins zero (2026-11-05 ~15:40);
+  the `moe2-nopin` control (never run).
+- **From here no run forces a hand.** How often a bot plays Full House is still reported wherever hand mix
+  is reported; it is no longer tested.
+- **Results already scored stand:** the pins-zero findings and C1–C5 of the paired run.
+
+### The bar for going up the decks and stakes
+chud: "Lets say 25% eval win rate on red deck white stake. Open to revision from v4's runs data."
+- **Bar:** a 25% win rate on the 600-seed eval, Red Deck, White Stake, unmodded 1.0.1o; win = the game's
+  own `win_game()`. This is the number the 2026-11-03 roadmap's step 1 ("working well") never had.
+- **A decision rule, not a prediction.** It may be revised once v4's data has been read; a revision goes in
+  a new dated section that says what was read.
+- **For reference, not part of the bar:** `pins0.pt` 9 of 600 (1.5%) at pins zero; W2 is ≥10%; Claude's
+  odds for v4 reaching ≥20% are 15% (2026-11-09 ~12:00).
