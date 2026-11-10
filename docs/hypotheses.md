@@ -70,5 +70,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-09 ~18:17 CST: the Full House venture closed, and the bar for going up the decks and stakes](hypotheses-general.md#added-2026-11-09-1817-cst-the-full-house-venture-closed-and-the-bar-for-going-up-the-decks-and-stakes) | general |
 | [Added 2026-11-09 ~18:30 CST: hypotheses that will never be scored as registered are closed](hypotheses-general.md#added-2026-11-09-1830-cst-hypotheses-that-will-never-be-scored-as-registered-are-closed) | general |
 | [Added 2026-11-09 ~18:40 CST: the last three open settings, fixed](hypotheses-general.md#added-2026-11-09-1840-cst-the-last-three-open-settings-fixed) | general |
-| [Added 2026-11-10 ~10:45 CST: why v4 stalled (diagnosis after the run, section J)](hypotheses-v4.md#added-2026-11-10-1045-cst-why-v4-stalled-diagnosis-after-the-run-section-j) | v4 |
-| [Added 2026-11-10 ~10:50 CST: model v4b, registered before any of its code (section J)](hypotheses-v4b.md#added-2026-11-10-1050-cst-model-v4b-registered-before-any-of-its-code-section-j) | v4b |
+| [Added 2026-11-10 ~10:30 CST: why v4 stalled (diagnosis after the run, section J)](hypotheses-v4.md#added-2026-11-10-1030-cst-why-v4-stalled-diagnosis-after-the-run-section-j) | v4 |
+| [Added 2026-11-10 ~10:30 CST: model v4b, registered before any of its code (section J)](hypotheses-v4b.md#added-2026-11-10-1030-cst-model-v4b-registered-before-any-of-its-code-section-j) | v4b |

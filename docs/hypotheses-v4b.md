@@ -2,9 +2,9 @@
 
 New sections about this run go at the end of this file, dated, and get a row in [the index](hypotheses.md).
 
-## Added 2026-11-10 ~10:50 CST: model v4b, registered before any of its code (section J)
+## Added 2026-11-10 ~10:30 CST: model v4b, registered before any of its code (section J)
 
-v4 with two changes, from random weights, after [v4's diagnosis](hypotheses-v4.md#added-2026-11-10-1045-cst-why-v4-stalled-diagnosis-after-the-run-section-j).
+v4 with two changes, from random weights, after [v4's diagnosis](hypotheses-v4.md#added-2026-11-10-1030-cst-why-v4-stalled-diagnosis-after-the-run-section-j).
 chud (10:22): "a solution category of reduce the damage to learning ... I'm totally ok restarting from scratch."
 Everything else is v4 as registered and defined (phase split, phi_build, offer values, curriculum, shop entropy
 schedule, gamma's blind clock, reward `blinds`, lr 1e-4, Red Deck, White Stake, the 600-seed eval every 20 rounds,
