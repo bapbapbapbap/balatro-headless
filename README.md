@@ -44,7 +44,7 @@ Built for one experiment: hold the game fixed, vary only the reward, and see wha
 **Final-boss near misses: 1,500.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`wins/near_misses.jsonl`](wins/near_misses.jsonl): median 62% of the boss's target scored, 226 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG, 0.13.2).
 <!-- tally:end -->
 
-## Results (through 2026-11-09)
+## Results (through 2026-11-10)
 
 All on unmodded Balatro 1.0.1o-FULL, Red Deck, White Stake, with the reward "blinds beaten".
 Every claim links to its data or its pre-registration.
@@ -127,17 +127,24 @@ afterwards from the same positions (2,000 seeds), the six experts play the same 
 head, not because the experts are different strategies
 ([scored](docs/hypotheses-moe2.md#added-2026-11-05-2110-cst-the-first-paired-run-scored-section-j)).
 
-### Now: model v4 (training since 2026-11-09)
+### v4 (2026-11-09 → 11-10): stopped, diagnosed
 Two networks of 1.0's size, one for the table and one for the shop, each with its own critic and its own
 credit; a build-strength potential that scores the board with the game's own scoring code; each shop
-offer's value on its action; and 30% of games started mid-run at ante 4–6 from replayed wins. Same ought
-(`blinds`), Red Deck, White Stake, from random weights. A 168-hour run on chud's laptop, kept to its
-stopping rule whatever the evals show. Registered before any of its code:
-[`hypotheses-v4.md`](docs/hypotheses-v4.md); its page: [`docs/runs/v4.md`](docs/runs/v4.md).
-- **To score:** W4b at 16.71 h of compute (at least 18 of 600 eval wins, double moe2's 9); after the run,
-  W1–W3 and W4a against moe2-pins0 on 2,000 held-out seeds.
-- **The bar for going up the decks and stakes:** 25% eval wins on Red/White (chud), open to revision from
-  v4's data.
+offer's value on its action; and 30% of games started mid-run at ante 4–6 from replayed wins
+([registered](docs/hypotheses-v4.md), [page](docs/runs/v4.md)). Its best eval was 4.68 blinds per game at
+round 120; then the table network learned to sell its jokers mid-blind, and the run stopped on its stall rule
+at round 620. The cause: inside a blind, credit wasn't discounted, so the whole cost of dying landed on every
+move of the final blind, and PPO pushed probability onto the moves it rarely took, selling among them
+([diagnosis](docs/hypotheses-v4.md#added-2026-11-10-1030-cst-why-v4-stalled-diagnosis-after-the-run-section-j)).
+
+### Now: model v4b (since 2026-11-10)
+v4 with credit discounted per hand played or discarded on the table network (joker drags share the next hand's
+credit), and hand-type exploration off; it stops itself if an eval averages more than 1.5 joker sells per game
+([registered](docs/hypotheses-v4b.md), [page](docs/runs/v4b.md), settings
+[`configs/v4b.toml`](configs/v4b.toml)). Same ought (`blinds`), Red Deck, White Stake, from random weights.
+- **To score:** S1–S3 (it doesn't sell; it beats v4's 4.68; it reaches v1's pace), and W1–W4 against
+  moe2-pins0 on 2,000 held-out seeds after the run.
+- **The bar for going up the decks and stakes:** 25% eval wins on Red/White (chud), open to revision.
 
 ### Open
 - **The main experiment** (section C, [`hypotheses-general.md`](docs/hypotheses-general.md)): same facts,
@@ -149,7 +156,7 @@ stopping rule whatever the evals show. Registered before any of its code:
 - **The joker-drag cap** in 0.3 holds, but drags didn't fall (22.0% of moves in 0.2, 25.9% in
   0.3).
 - **Standing goal:** a model that reaches naneinf ([`naneinf/`](naneinf/README.md)). Proving one
-  waits for a stronger base model (chud, 2026-11-04: a base mixture of experts; that line is now v4). Until then, `naneinf/scan.py` looks for
+  waits for a stronger base model (chud, 2026-11-04: a base mixture of experts; that line is now v4b). Until then, `naneinf/scan.py` looks for
   seeds with an early Perkeo, on the game itself; it hasn't run on the game yet.
 
 ## The research question
@@ -178,15 +185,18 @@ The project's three aims, in chud's order
 | Folder | What's in it |
 |---|---|
 | [`harness/`](harness/) | The headless game: LÖVE stand-in, boot (unmodded and modded), the replay validator, the playable environment and its checks |
-| [`train/`](train/) | The model, the PPO trainer and its launchers, publishing and verifying wins, exporting weights, playing a seed |
+| [`train/`](train/) | The model, the PPO trainer (split by capability), the launcher (`launch.sh`), publishing and verifying wins, exporting weights, playing a seed |
+| [`configs/`](configs/) | One file per run: its settings, start and pre-flight checks |
 | [`wins/`](wins/README.md) | Seeds proven beatable, with every route |
 | [`weights/`](weights/README.md) | Released model weights |
 | [`docs/`](docs/) | [Training runs, one page each](docs/runs/README.md), [closed hypotheses](docs/closed_hypotheses.md), [pre-registered hypotheses and results](docs/hypotheses.md), [model card](docs/models.md), [model design](docs/model_v1.md), [won-game analysis](docs/won_games_analysis.md), [reproduction guide](docs/REPRODUCE.md) |
 | [`analysis/`](analysis/README.md) | Scripts behind the won-game analysis |
 | [`naneinf/`](naneinf/README.md) | The naneinf goal, and community naneinf seeds checked on this game version |
-| [`tools/`](tools/) | Windows PowerShell: one controller (`balatro.ps1`), game bundle, update lock, WSL setup |
+| [`tools/`](tools/) | Windows PowerShell: one controller (`balatro.ps1`), the watcher, game bundle, update lock, WSL setup; `check_repo.py` |
 | [`tests/`](tests/) | Logged real-game runs (gameplay data only) and the check scripts |
 | [`CHANGELOG.md`](CHANGELOG.md) | Every change, dated |
+| [`ARCHIVE.md`](ARCHIVE.md) | Past runs' code, by tag |
+| [`AGENTS.md`](AGENTS.md) | The map for coding agents (`CLAUDE.md` imports it) |
 
 **To set it up from your own Steam copy**, see [`docs/REPRODUCE.md`](docs/REPRODUCE.md): the
 full dependency list, the mods (only for logging your own games), and `tools\balatro.ps1`, one
