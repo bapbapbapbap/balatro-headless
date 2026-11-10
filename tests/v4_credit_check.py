@@ -2,7 +2,7 @@
 
     python3 tests/v4_credit_check.py        -> prints ALL PASS or the failures
 
-1. One network acting everywhere: identical to train.gae (copied here from train.py's source, so this
+1. One network acting everywhere: identical to ppo.gae (copied here from ppo.py's source, so this
    needs no torch).
 2. lam = 1, no bootstrap: each decision's advantage = the discounted return from it, counting every
    reward until the game ends (the other network's included), minus its own value.
@@ -25,7 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "train"))
 from credit import routed_gae  # noqa: E402
 
-src = open(os.path.join(HERE, "..", "train", "train.py")).read()
+src = open(os.path.join(HERE, "..", "train", "ppo.py")).read()
 ns = {"np": np}
 for node in ast.parse(src).body:
     if isinstance(node, ast.FunctionDef) and node.name in ("per_step", "gae"):
