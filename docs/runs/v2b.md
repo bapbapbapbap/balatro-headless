@@ -4,9 +4,9 @@
 exploration 0.05, lr 1e-5. From the evening of 2026-11-02 to 2026-11-03 (round 810's `best.pt` became 1.0).
 
 **Registered and scored:**
-- H1, solved rate vs v2 (chud's): [registered](../hypotheses.md#added-2026-11-02-2055-cst-h-v2b-vs-v2-solved-rate-registered-before-the-window-opens), [scored (pass)](../hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate);
-  void as scored, closed without re-scoring ([ledger](../closed_hypotheses.md)); correction: [2026-11-03 ~20:50](../hypotheses.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins).
-- R, 1.0 re-solving the published seeds: [registered](../hypotheses.md#added-2026-11-03-1615-cst-r-re-solve-model-10-on-the-published-won-seeds-registered-after-the-run-started-before-any-of-its-output-was-read), [scored](../hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10);
+- H1, solved rate vs v2 (chud's): [registered](../hypotheses-v2b.md#added-2026-11-02-2055-cst-h-v2b-vs-v2-solved-rate-registered-before-the-window-opens), [scored (pass)](../hypotheses-v2b.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate);
+  void as scored, closed without re-scoring ([ledger](../closed_hypotheses.md)); correction: [2026-11-03 ~20:50](../hypotheses-general.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins).
+- R, 1.0 re-solving the published seeds: [registered](../hypotheses-v2b.md#added-2026-11-03-1615-cst-r-re-solve-model-10-on-the-published-won-seeds-registered-after-the-run-started-before-any-of-its-output-was-read), [scored](../hypotheses-v2b.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10);
   void as scored, same correction. Data: `analysis/results/resolve_1.0/`.
 
 **Left behind:** `weights/balatro-bot-1.0.pt` (round 810) and `balatro-bot-0.3-beta.pt` (round 550)

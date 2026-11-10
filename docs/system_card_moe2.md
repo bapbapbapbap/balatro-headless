@@ -73,7 +73,7 @@ routing rule. Which network moves depends on the game.
 - **Full House:** the early head had a Full House or higher on offer at 1,005 decisions and played
   one once. With no early Full Houses, the router never picks the Full House expert. The completion
   criterion chud set for the MoE (it learns Full House) is **not met**
-  ([scored](hypotheses.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results)).
+  ([scored](hypotheses-moe2.md#added-2026-11-05-1540-cst-moe2-at-pins-zero-results)).
 - **Final boss:** across all of moe2's games, each expert converted 15.5–20.7% of its final-boss
   fights.
 
