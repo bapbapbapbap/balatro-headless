@@ -10,7 +10,7 @@ Important for anyone reading or using this repository:
 - The bot observes cards face up as a player would, the deck as a set, and never the draw order or the game's random state. Strategy is not encoded; what the bot wants is only the reward.
 - A seed counts as beaten only if its saved route replays move for move to the game's own win (the Ante 8 boss beaten). Until 2026-11-03 final-boss losses were miscounted as wins; those are now kept separately as near misses. Current counts are in the README's tally block, not here.
 - Hypotheses are pre-registered in `docs/hypotheses.md` before their data exists. Earlier sections are never edited; results and corrections are added as new dated sections.
-- **Current model: v4** (run `v4`, training since 2026-11-09 ~16:00 CST, 168-hour cap, 12 workers, from branch `v4`). Two networks of 1.0's size (table and shop, each with its own critic, credit routed per network on a blind clock), a build-strength potential (`phi_build`), offer values on shop actions, and a replay curriculum (30% of games start at ante 4–6). Reward `blinds`, Red Deck, White Stake, from random weights. Registered in `docs/hypotheses.md` 2026-11-05 ~23:01, amended 2026-11-09 ~12:00, definitions ~15:25, W4b's target ~15:48. It runs to its stopping rule (stops learning, or 168 hours).
+- **Current model: v4b** (run `v4b`, training since 2026-11-10 10:40 CST, 168-hour cap, 12 workers, from branch `v4b`, commit 8a186ae). v4's design (two networks with routed credit, a build-strength potential, offer values, a replay curriculum) with a hand clock on the table network's GAE lambda and hand-type exploration off; it stops itself if an eval averages more than 1.5 joker sells per game. Registered in `docs/hypotheses-v4b.md`; why v4 stalled is the last section of `docs/hypotheses-v4.md`. Agents: start at `AGENTS.md`.
 - **Standing decisions** (`docs/hypotheses.md` 2026-11-09 ~18:17): no run forces a hand (the Full House venture is closed); the bar for going up the decks and stakes is a 25% win rate on the 600-seed eval, Red/White, open to revision from v4's data.
 - **Aims** (chud's, in order): 1. exhibit Hume's is-ought gap; 2. prove a naneinf seed (a score that overflows to inf/nan, in a route that replays; none proven yet); 3. 100% a fresh save (a Gold Stake win with every joker, Gold Stake on every deck, every challenge). Aims 2–3 are existence proofs and may also be found by search (`docs/hypotheses.md` 2026-11-05 ~23:01).
 
@@ -25,7 +25,8 @@ Important for anyone reading or using this repository:
 | moe | `moe` | mixture of experts (early head + 7 hand experts), pinned | stopped on the stall rule, 2026-11-04 |
 | moe2-pins0 | `moe2` | early head + 6 hand experts, pins faded to 0; 9 of 600 eval wins, 12.94 blinds per game; never learned Full House | released (`weights/balatro-bot-moe2-pins0.pt`, `docs/system_card_moe2.md`); the baseline v4 is tested against |
 | v3 | `v3`, `v3-control` | single network, discount per blind passed; code built | replaced as the target by v4; no result recorded |
-| **v4** | `v4` | see above | **training** |
+| v4 | `v4` | two networks, routed credit, build potential, curriculum; best eval 4.68 blinds/game, then learned to sell its jokers mid-blind | stopped on the stall rule, 2026-11-10 |
+| **v4b** | `v4b` | see above | **training** |
 
 One page per run: [`docs/runs/`](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/runs/README.md).
 
@@ -47,7 +48,11 @@ Two folders matter:
 - `C:\Users\<you>\balatro-work` (Windows side), which Linux sees as `/mnt/c/Users/<you>/balatro-work`: the shared work folder. Training runs (`runs/<name>/`: checkpoints, `health.json`, `metrics.jsonl`, `train.log`, saved games, wins), the game bundle, and the PowerShell scripts run from it. Windows and Linux both read and write it.
 
 
-### The current run (v4)
+### The current run (v4b)
+
+- **Launch** (from PowerShell): `wsl bash -lc 'cd ~/balatro/balatro-headless && git checkout v4b && SMOKE=1 bash train/run_v4b.sh /mnt/c/Users/<you>/balatro-work 1 12'`, then the same without `SMOKE=1` and with `168 12`. Watch with `watch_v1.ps1 -Run v4b`. Output in `runs/v4b/`; read `sells_mean` in its evals (`metrics.jsonl`).
+
+### v4 (stopped 2026-11-10)
 
 - **W4a / v4's test** (`analysis/compare_models.py`, A = v4, B = pins0): `--seed-tag v4-test`; the summary adds wins per sim-hour and its bootstrap bound.
 - **Watch it** (second PowerShell window): `powershell -NoProfile -ExecutionPolicy Bypass -File $env:USERPROFILE\balatro-work\watch_v1.ps1 -Run v4 -Hours 168 -Workers 12`. `-ExecutionPolicy Bypass` lets this one script run without changing the system policy. Start it after training prints `== training`. The watcher keeps the PC awake, prints a status line each minute from `health.json`, and restarts training only after an unexpected death (never after a deliberate stop; at most 5 times per watcher; after a restart it waits up to 30 minutes for the relaunch's pre-flight). A restart runs `git pull`, so it picks up fixes pushed to the branch the clone is on (`v4` while v4 trains). It runs from a copy in the work folder because the repo lives on the Linux side; refresh it with `wsl -d Ubuntu-24.04 -- bash -lc "cp ~/balatro/balatro-headless/tools/watch_v1.ps1 /mnt/c/Users/<you>/balatro-work/"`. A Windows reboot stops it too.
