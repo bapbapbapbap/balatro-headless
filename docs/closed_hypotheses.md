@@ -50,7 +50,8 @@ them at the time (v1 retired, v2 and then v2b continued) stand as history.
 
 ## Still open (not closed here)
 
-v4's, and those not tied to any one model.
+v4's, and the general philosophical and project goals (chud, 18:33), which no one model answers and which
+stay open across models.
 
 | ID | What | Registered |
 |---|---|---|
