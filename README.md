@@ -163,7 +163,7 @@ The project's three aims, in chud's order
 | [`train/`](train/) | The model, the PPO trainer and its launchers, publishing and verifying wins, exporting weights, playing a seed |
 | [`wins/`](wins/README.md) | Seeds proven beatable, with every route |
 | [`weights/`](weights/README.md) | Released model weights |
-| [`docs/`](docs/) | [Pre-registered hypotheses and results](docs/hypotheses.md), [model card](docs/models.md), [model design](docs/model_v1.md), [won-game analysis](docs/won_games_analysis.md), [reproduction guide](docs/REPRODUCE.md) |
+| [`docs/`](docs/) | [Training runs, one page each](docs/runs/README.md), [pre-registered hypotheses and results](docs/hypotheses.md), [model card](docs/models.md), [model design](docs/model_v1.md), [won-game analysis](docs/won_games_analysis.md), [reproduction guide](docs/REPRODUCE.md) |
 | [`analysis/`](analysis/README.md) | Scripts behind the won-game analysis |
 | [`naneinf/`](naneinf/README.md) | The naneinf goal, and community naneinf seeds checked on this game version |
 | [`tools/`](tools/) | Windows PowerShell: one controller (`balatro.ps1`), game bundle, update lock, WSL setup |
