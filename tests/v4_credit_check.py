@@ -2,7 +2,7 @@
 
     python3 tests/v4_credit_check.py        -> prints ALL PASS or the failures
 
-1. One network acting everywhere: identical to train.gae (copied here from train.py's source, so this
+1. One network acting everywhere: identical to ppo.gae (copied here from ppo.py's source, so this
    needs no torch).
 2. lam = 1, no bootstrap: each decision's advantage = the discounted return from it, counting every
    reward until the game ends (the other network's included), minus its own value.
@@ -10,6 +10,9 @@
 4. Shaping telescopes per network: with r = gamma*phi' - phi only and values 0, a network's advantage at
    a decision with lam = 0 is Gam*phi(next own decision) - phi(this one).
 5. Blind-clock discounts (1 inside a blind, gamma between blinds) and a capped game's bootstrap.
+6. Per-network lambda (model v4b's hand clock): the same lambda for both networks as a dict equals the plain
+   list; with the table network's lambda at 0.8 per hand, a death charge reaches a table move k hands before
+   it scaled by 0.8^k, a drag shares the credit of the hand after it, and the shop's advantage is unchanged.
 """
 import ast
 import os
@@ -22,7 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "train"))
 from credit import routed_gae  # noqa: E402
 
-src = open(os.path.join(HERE, "..", "train", "train.py")).read()
+src = open(os.path.join(HERE, "..", "train", "ppo.py")).read()
 ns = {"np": np}
 for node in ast.parse(src).body:
     if isinstance(node, ast.FunctionDef) and node.name in ("per_step", "gae"):
@@ -82,6 +85,33 @@ v = [0.0] * 6 + [2.0]                                             # capped: valu
 adv = routed_gae(r, v, g, 1.0, owner)
 check("5 shop sees the blind undiscounted", abs(adv[0] - (1.0 + 0.95 * 2.0)) < 1e-6, str(adv))
 check("5 capped bootstrap", abs(adv[5] - 2.0) < 1e-6 and abs(adv[3] - 2.0) < 1e-6, str(adv))
+
+# 6. Per-network lambda.
+for trial in range(200):
+    n = rng.randint(1, 40)
+    r = [rng.uniform(-1, 2) for _ in range(n)]
+    v = [rng.uniform(-1, 1) for _ in range(n + rng.randint(0, 1))]
+    g = [rng.choice([1.0, 0.95]) for _ in range(n)]
+    l = [rng.choice([1.0, 0.95, 0.8]) for _ in range(n)]
+    owner = [rng.randint(0, 1) for _ in range(n)]
+    check("6 dict == list", np.allclose(routed_gae(r, v, g, l, owner), routed_gae(r, v, g, {0: l, 1: l}, owner),
+                                        atol=1e-6), f"trial {trial}")
+    l0 = [x * rng.choice([1.0, 0.8]) for x in l]
+    a_split = routed_gae(r, v, g, {0: l0, 1: l}, owner)
+    a_plain = routed_gae(r, v, g, l, owner)
+    shop = [t for t in range(n) if owner[t] == 1]
+    check("6 shop unchanged", np.allclose(a_split[shop], a_plain[shop], atol=1e-6), f"trial {trial}")
+# a final blind: shop, then table moves play, drag, drag, discard, play (dies: -2 on the last step)
+owner = [1, 0, 0, 0, 0, 0]
+hand = [False, True, False, False, True, True]
+r = [0, 0, 0, 0, 0, -2.0]
+lam_table = [0.8 if h else 1.0 for h in hand]
+adv = routed_gae(r, [0.0] * 6, 1.0, {0: lam_table, 1: [1.0] * 6}, owner)
+check("6 last move takes it all", abs(adv[5] + 2.0) < 1e-6, str(adv))
+check("6 one hand back: 0.8", abs(adv[4] + 1.6) < 1e-6, str(adv))
+check("6 drags share the next hand's credit", abs(adv[3] + 1.6) < 1e-6 and abs(adv[2] + 1.6) < 1e-6, str(adv))
+check("6 first play: two hands back, 0.8^2", abs(adv[1] + 1.28) < 1e-6, str(adv))
+check("6 shop on the blind clock", abs(adv[0] + 2.0) < 1e-6, str(adv))
 
 print("\n".join(FAILS) if FAILS else "ALL PASS")
 sys.exit(1 if FAILS else 0)

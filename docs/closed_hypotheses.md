@@ -47,16 +47,18 @@ them at the time (v1 retired, v2 and then v2b continued) stand as history.
 | Joker-to-hand correlation | jokers correlate with hand strategies (chud's interview) | [2026-11-03 ~17:00](hypotheses-moe.md#added-2026-11-03-1700-cst-i-strategy-specialists-design-registered-before-any-specialist-exists) | never registered as a prediction |
 | Section J draft | the next MoE's design options | [2026-11-05 ~11:00](hypotheses-moe2.md#added-2026-11-05-1100-cst-j-the-next-mixture-of-experts-design-draft-nothing-registered) | replaced by the v4 registration |
 | V1–V3, v3 A/B | v3 wins ≥ 4% and beats pins0; more blinds; the gain comes from the build | [2026-11-05 ~21:19](hypotheses-v3.md#added-2026-11-05-2119-cst-model-v3-registered-before-any-of-its-code-exists-section-j) | v3 replaced as the target by v4 ([2026-11-05 ~23:01](hypotheses-v4.md#added-2026-11-05-2301-cst-model-v4-registered-before-any-of-its-code-section-j)); never run |
+| W1–W4, aim 1's precondition (v4's) | v4's wins, wins per compute, ante-7 reach | [2026-11-05 ~23:01](hypotheses-v4.md#added-2026-11-05-2301-cst-model-v4-registered-before-any-of-its-code-section-j), [2026-11-09 ~12:00](hypotheses-v4.md#added-2026-11-09-1200-cst-v4-amended-before-any-of-its-code-section-j) | v4 stopped 2026-11-10 on its stall rule ([diagnosis](hypotheses-v4.md#added-2026-11-10-1030-cst-why-v4-stalled-diagnosis-after-the-run-section-j)); W4b's 16.71 h never reached. The same tests carry to v4b's `best.pt` by [v4b's registration](hypotheses-v4b.md#added-2026-11-10-1030-cst-model-v4b-registered-before-any-of-its-code-section-j) |
 
 ## Still open (not closed here)
 
-v4's, and the general philosophical and project goals (chud, 18:33), which no one model answers and which
+v4b's, and the general philosophical and project goals (chud, 2026-11-09 18:33), which no one model answers and which
 stay open across models.
 
 | ID | What | Registered |
 |---|---|---|
-| W1–W3 | v4 wins ≥ 4% and beats pins0; ≥ 10%; reaches ante 7 more, dies less in antes 4–6 | [2026-11-05 ~23:01](hypotheses-v4.md#added-2026-11-05-2301-cst-model-v4-registered-before-any-of-its-code-section-j) |
-| W4a, W4b (chud's) | v4 at least doubles wins per compute (play cost; training cost at 16.71 h) | [2026-11-09 ~12:00](hypotheses-v4.md#added-2026-11-09-1200-cst-v4-amended-before-any-of-its-code-section-j), [2026-11-09 ~15:48](hypotheses-v4.md#added-2026-11-09-1548-cst-w4bs-compute-target-fixed-and-claudes-odds-after-the-measured-costs-section-j) |
+| S1–S3 | v4b doesn't sell (no eval > 1.5 sells/game); beats v4's 4.68; reaches 5.58 by round 200 | [2026-11-10 ~10:30](hypotheses-v4b.md#added-2026-11-10-1030-cst-model-v4b-registered-before-any-of-its-code-section-j) |
+| W1–W3 | v4b wins ≥ 4% and beats pins0; ≥ 10%; reaches ante 7 more, dies less in antes 4–6 (v4's tests, carried to v4b) | [2026-11-05 ~23:01](hypotheses-v4.md#added-2026-11-05-2301-cst-model-v4-registered-before-any-of-its-code-section-j), [2026-11-10 ~10:30](hypotheses-v4b.md#added-2026-11-10-1030-cst-model-v4b-registered-before-any-of-its-code-section-j) |
+| W4a, W4b (chud's) | v4b at least doubles wins per compute (play cost; training cost at 16.71 h) | [2026-11-09 ~12:00](hypotheses-v4.md#added-2026-11-09-1200-cst-v4-amended-before-any-of-its-code-section-j), [2026-11-09 ~15:48](hypotheses-v4.md#added-2026-11-09-1548-cst-w4bs-compute-target-fixed-and-claudes-odds-after-the-measured-costs-section-j) |
 | Aim 1's precondition | the best eval reaches ante 7 in ≥ 25% of games | [2026-11-05 ~23:01](hypotheses-v4.md#added-2026-11-05-2301-cst-model-v4-registered-before-any-of-its-code-section-j), [2026-11-09 ~15:48](hypotheses-v4.md#added-2026-11-09-1548-cst-w4bs-compute-target-fixed-and-claudes-odds-after-the-measured-costs-section-j) |
 | The 25% bar | 25% eval wins, Red/White, before going up the decks and stakes (a decision rule) | [2026-11-09 ~18:17](hypotheses-general.md#added-2026-11-09-1817-cst-the-full-house-venture-closed-and-the-bar-for-going-up-the-decks-and-stakes) |
 | C1–C3 (section C) | the main experiment: different oughts give different behavior; an ought that isn't the goal can beat it; bot vs chud (C1's statistics and C3's size fixed 2026-11-09 ~18:40) | [section C](hypotheses-general.md#c-isolating-oughts-the-main-experiment) |

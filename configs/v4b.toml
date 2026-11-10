@@ -1,0 +1,55 @@
+# Model v4b. Registered in docs/hypotheses-v4b.md (2026-11-10 ~10:30 CST); run page docs/runs/v4b.md.
+# Launched 2026-11-10 10:40 CST from commit 8a186ae (train/run_v4b.sh, which these settings reproduce: checked
+# against runs/v4b/provenance.json with `launch.py v4b --check-provenance`).
+#
+#   bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work [--smoke] [--hours H] [--workers N]
+
+[run]
+start = "scratch"            # scratch | resume:<checkpoint> | weights:<released weights file>
+hours = 168
+workers = 12
+checks = ["repo", "fixture-replay", "ordered", "diff", "v4-credit", "v4-phase", "v4-phi", "v4-curriculum"]
+mirror_dir = "/mnt/f/balatro data/{run}"   # every win copied here too (second drive)
+spill_dir = "/mnt/f/balatro data"          # checkpoints and games go here when the main drive is low
+publish_on_stop = false
+
+# train.py's settings (train/options.py); anything not listed keeps its default there.
+[train]
+# the model: two networks of 1.0's size (table and shop), encoding 2, ordered actions with the joker-drag cap
+phase_split = true
+d = 192
+layers = 4
+heads = 6
+enc = 2
+actions = "ordered-capped"
+offer_values = true
+# what it wants, and how credit reaches its moves
+reward = "blinds"
+build_shaping = 1
+gamma_blind = 0.95
+lam_blind = 0.95
+lam_hand = 0.8
+shop_ent = "0.02,0.006@1.5M,0.001@4M"
+# training
+seed = 3
+lr = 1e-4
+curriculum = 0.3
+curriculum_published = 300
+curriculum_keep = 600
+# the game
+back = "b_red"
+stake = 1
+# evals and stops
+eval_games = 600
+eval_every = 20
+stall_evals = 25
+stop_sells = 1.5
+max_wins = 1000000
+
+# --smoke: runs/<run>-smoke, from scratch, 3 rounds, then stop
+[smoke]
+iterations = 3
+eval_games = 12
+eval_every = 2
+games_per_worker = 2
+hours = 1

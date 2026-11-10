@@ -19,7 +19,7 @@ Set-ExecutionPolicy -Scope Process Bypass   # this window only: lets the scripts
 .\tools\balatro.ps1 lock      # stop Steam updating Balatro (keeps 1.0.1o)
 .\tools\balatro.ps1 bundle    # game source + mods + logs -> balatro_bundle.zip in your work folder
 .\tools\balatro.ps1 setup     # WSL: packages, repo, LuaJIT 2.0.5 + lupa, numpy + torch, every accuracy check
-.\tools\balatro.ps1 train -Run v1   # first run from scratch (v2 starts from v1's games); later -Run v2, -Run v2b
+.\tools\balatro.ps1 train -Run v4b -Smoke   # pre-flight + 3 rounds; then without -Smoke for the run
 .\tools\balatro.ps1 status    # one-screen status of a run
 .\tools\balatro.ps1 watch     # keep the PC awake; restart training only if it crashes
 .\tools\balatro.ps1 stop      # stop a run cleanly (it saves latest.pt)
@@ -27,7 +27,7 @@ Set-ExecutionPolicy -Scope Process Bypass   # this window only: lets the scripts
 .\tools\balatro.ps1 publish   # add every new win from your runs to wins\, update the tally, commit and push
 .\tools\balatro.ps1 help
 ```
-Options: `-Work C:\Users\<you>\balatro-work` (default), `-Run v1|v2|v2b` (default v2b),
+Options: `-Work C:\Users\<you>\balatro-work` (default), `-Run <run>` (a config in `configs/`, default v4b),
 `-Distro Ubuntu-24.04` (default), `-Workers 14`, `-Hours 168`. Before the first `setup`, install
 WSL once from an admin PowerShell: `wsl --install -d Ubuntu-24.04`, then reboot and create your
 Linux user.
@@ -139,25 +139,25 @@ a newer LuaJIT, so it is rebuilt here.
 
 ## 3. Training the bot
 
+A run is a config, `configs/<run>.toml`: its settings (`train.py`'s, by name), how it starts, and its pre-flight
+checks. One launcher runs any of them:
 ```bash
 cd ~/balatro/balatro-headless
-bash train/run_v2.sh /mnt/c/Users/<you>/balatro-work      # first launch: clones v1's play, then RL
+bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work --smoke   # pre-flight, 3 rounds into runs/v4b-smoke
+bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work           # the run
 ```
-- The launcher runs pre-flight checks (a saved win replays exactly on the untouched game,
-  ordered actions do what they say, fast sim matches the untouched game) and refuses to
-  train if any fails.
-- Results go to `balatro-work/runs/<run>/`: `train.log`, `health.json`, `metrics.jsonl`,
-  checkpoints, every game in `games/`, and every win in `wins.jsonl`, each replayed before
-  it is saved and flagged if it doesn't reproduce.
+- The launcher runs the config's pre-flight checks (e.g. a saved win replays exactly on the untouched game,
+  ordered actions do what they say, the fast sim matches the untouched game, the v4 checks) and refuses to
+  train if any fails. Their output is in `runs/<run>/preflight.log`.
+- Results go to `balatro-work/runs/<run>/`: `train.log`, `health.json`, `metrics.jsonl`, `provenance.json`
+  (commit, game hash, every setting), checkpoints, every game in `games/`, and every win in `wins.jsonl`,
+  each replayed before it is saved and flagged if it doesn't reproduce.
 - Later launches resume from `latest.pt`. Ctrl+C stops cleanly within seconds.
-- `tools/watch_v1.ps1 -Run v2` (or `-Run v2b`) keeps the PC awake, prints status every
-  minute, and restarts training only after a crash, never after a deliberate stop.
-- v2 needs `runs/v1` to exist for its first launch (it imitates v1's games). From scratch,
-  start with `train/run_v1.sh`.
-- v2b (model 0.3) continues v2: its first launch is `tools/start_v2b.sh <work folder>`, which
-  stops v2 cleanly and starts from v2's `latest.pt`; later launches use `train/run_v2b.sh`.
-- A run stops itself when its training score hasn't improved for 3 hours (`--stall-hours`),
-  among other safety stops (see `docs/model_v1.md`, section 7).
+- `tools/watch.ps1 -Run <run>` keeps the PC awake, prints status every minute, and restarts training only
+  after a crash, never after a deliberate stop.
+- Stops are the config's (e.g. v4b: 25 evals without a new best, or an eval averaging more than 1.5 joker
+  sells per game), plus the safety stops in `docs/model_v1.md`, section 7.
+- Past runs (v1 to v4) launched from their own scripts; each is kept at its tag (`ARCHIVE.md`).
 
 ## 4. Checking the output
 

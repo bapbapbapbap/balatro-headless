@@ -8,30 +8,27 @@
 #   lock      stop Steam updating Balatro (tools\lock_balatro.ps1); "unlock" undoes it
 #   bundle    extract the game's Lua source + mods + logs into balatro_bundle.zip in -Work
 #   setup     WSL: clone the repo, build LuaJIT 2.0.5 + lupa, unpack the bundle, run every check
-#   train     start (or resume) training for -Run in its own window
+#   train     start (or resume) -Run in its own window, from configs/<run>.toml (train/launch.sh);
+#             -Smoke first: pre-flight + 3 rounds into runs/<run>-smoke
 #   stop      stop -Run cleanly (it saves latest.pt)
 #   status    one-screen status of -Run from health.json and the last evals
-#   watch     keep the PC awake and restart -Run only if it crashes (tools\watch_v1.ps1)
+#   watch     keep the PC awake and restart -Run only if it crashes (tools\watch.ps1)
 #   verify    replay every route in wins\routes.jsonl on the untouched game
 #   publish   replay every new win from every run under -Work\runs, add it to wins\, update the
 #             tally (README badge and counts), commit and push
 #
-# The mixture of experts and the save (docs/hypotheses.md section I and roadmap; each starts in
-# its own window and resumes where it stopped):
+# Checks and the save (aim 3):
 #   checks    every deck and challenge starts right; fast sim vs the untouched game on every deck
 #             at White and Gold Stake and on every challenge
-#   experts   train the hand experts one after another (-Hands "Full House|Flush" for some; -Hours each)
-#   earlies   grow early-game models (-Seeds "1 2 3"; -Hours each)
-#   moe       the mixture of experts, trained jointly from model 0.2 (uses any solo early/expert runs
-#             that exist); -Seeds "2" grows another one (runs\moe-s2)
 #   save      play one save from a new profile with -Weights, writing every run to -Save (-Runs N)
 #   checksave replay -Save in order on a new profile; says SAVE 100% PROVEN only at 100%
 #   progress  the save-progress tables in docs\proof.md from the published wins; commit and push
 #   help      this list
 #
-# Options: -Work C:\Users\<you>\balatro-work   -Run v2b   -Distro Ubuntu-24.04
-#          -Workers 14   -Hours 168   -Stake 1   -Back b_red
-#          -Hands "..."   -Seeds "..."   -Weights <file>   -Save <file>   -Runs 100
+# Options: -Work C:\Users\<you>\balatro-work   -Run v4b   -Distro Ubuntu-24.04
+#          -Workers N   -Hours H (default: the run's config)   -Smoke
+#          -Weights <file>   -Save <file>   -Runs 100
+# Runs from before the launcher (v1 to v4) are launched from their tags: see ARCHIVE.md.
 #
 # Nothing here touches the game's files except "lock" (read-only flag on Steam's manifest, a
 # shortcut and a backup; see lock_balatro.ps1). Training, the game source and every result live
@@ -40,21 +37,19 @@
 param(
     [Parameter(Position = 0)][string]$Command = "help",
     [string]$Work = (Join-Path $env:USERPROFILE "balatro-work"),
-    [string]$Run = "v2b",
+    [string]$Run = "v4b",
     [string]$Distro = "Ubuntu-24.04",
-    [int]$Workers = 14,
+    [int]$Workers = 12,
     [int]$Hours = 168,
-    [int]$Stake = 1,
-    [string]$Back = "b_red",
-    [string]$Hands = "",
-    [string]$Seeds = "",
+    [switch]$Smoke,
     [string]$Weights = "",
     [string]$Save = "",
     [int]$Runs = 100
 )
 
 $ErrorActionPreference = "Stop"
-$script:HoursGiven = $PSBoundParameters.ContainsKey("Hours")   # experts/earlies/moe have their own default hours
+$script:HoursGiven = $PSBoundParameters.ContainsKey("Hours")      # else the run's config decides
+$script:WorkersGiven = $PSBoundParameters.ContainsKey("Workers")
 $Tools = $PSScriptRoot
 $PinnedHash = "0D75FE164ACCF3312734D4B37AC98788DD15F0B8E4F9BB8B7F90C4E59DE93F47"
 $RepoRaw = "https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main"
@@ -137,37 +132,14 @@ function To-Wsl([string]$p) {
     return $p
 }
 
-function Hours-Or([int]$default) {
-    if ($script:HoursGiven) { return $Hours }
-    return $default
-}
-
 function Start-Window([string]$what, [string]$bash) {
-    $launch = "cd ~/balatro/balatro-headless && git pull -q --ff-only; export STAKE=$Stake BACK=$Back; $bash"
+    $launch = "cd ~/balatro/balatro-headless && git pull -q --ff-only; $bash"
     Start-Process -FilePath "wsl.exe" -ArgumentList @("-d", $Distro, "--", "bash", "-lc", "`"$launch; exec bash`"")
     Say "started $what in a new window" Green
 }
 
 function Cmd-Checks {
     [void](Wsl "cd ~/balatro/balatro-headless && git pull -q --ff-only; . ~/balatro/venv/bin/activate && python3 tests/start_check.py --src ~/balatro/local/source | tail -25 && bash tests/run_coverage_checks.sh ~/balatro/local/source")
-}
-
-function Cmd-Experts {
-    $w = Wsl-Path $Work
-    $h = if ($Hands) { "HANDS='$Hands' " } else { "" }
-    Start-Window "the experts" "${h}bash train/run_experts.sh '$w' $(Hours-Or 12) $Workers"
-}
-
-function Cmd-Earlies {
-    $w = Wsl-Path $Work
-    $s = if ($Seeds) { "SEEDS='$Seeds' " } else { "" }
-    Start-Window "the early-game models" "${s}bash train/run_earlies.sh '$w' $(Hours-Or 8) $Workers"
-}
-
-function Cmd-Moe {
-    $w = Wsl-Path $Work
-    $t = if ($Seeds) { "MOE_SEED=$Seeds " } else { "" }
-    Start-Window "the mixture of experts" "${t}bash train/run_moe.sh '$w' $(Hours-Or 24) $Workers"
 }
 
 function Save-Path {
@@ -195,15 +167,14 @@ function Cmd-Progress {
 }
 
 function Cmd-Train {
-    if (@("v1", "v2", "v2b") -notcontains $Run) { Bad "train starts v1, v2 or v2b; for the others use experts, earlies or moe"; return }
     $w = Wsl-Path $Work
-    $script = "train/run_$Run.sh"
-    if ($Run -eq "v2b" -and -not (Test-Path (Join-Path $Work "runs\v2b\latest.pt"))) {
-        $script = "tools/start_v2b.sh"     # first v2b launch: stops v2 cleanly, starts from its latest.pt
-    }
-    $launch = "cd ~/balatro/balatro-headless && git pull -q --ff-only; bash $script $w $Hours $Workers"
+    $opts = ""
+    if ($script:HoursGiven) { $opts += " --hours $Hours" }
+    if ($script:WorkersGiven) { $opts += " --workers $Workers" }
+    if ($Smoke) { $opts += " --smoke" }
+    $launch = "cd ~/balatro/balatro-headless && bash train/launch.sh $Run --work $w$opts"
     Start-Process -FilePath "wsl.exe" -ArgumentList @("-d", $Distro, "--", "bash", "-lc", "`"$launch; exec bash`"")
-    Say "started $Run in a new window ($script). Watch it with: status, or watch" Green
+    Say "started $Run in a new window (configs/$Run.toml). Watch it with: status, or watch" Green
 }
 
 function Cmd-Stop {
@@ -229,9 +200,10 @@ function Cmd-Status {
 }
 
 function Cmd-Watch {
-    $a = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $Tools "watch_v1.ps1"), "-Run", $Run, "-Work", $Work,
-           "-Distro", $Distro, "-Workers", $Workers, "-Stake", $Stake, "-Back", $Back)
+    $a = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $Tools "watch.ps1"), "-Run", $Run, "-Work", $Work,
+           "-Distro", $Distro)
     if ($script:HoursGiven) { $a += @("-Hours", $Hours) }
+    if ($script:WorkersGiven) { $a += @("-Workers", $Workers) }
     & powershell @a
 }
 
@@ -263,11 +235,10 @@ switch ($Command.ToLower()) {
     "verify" { Cmd-Verify }
     "publish" { Cmd-Publish }
     "checks"  { Cmd-Checks }
-    "experts" { Cmd-Experts }
-    "earlies" { Cmd-Earlies }
-    "moe"     { Cmd-Moe }
     "save"    { Cmd-Save }
     "checksave" { Cmd-CheckSave }
     "progress" { Cmd-Progress }
-    default  { Get-Content $PSCommandPath | Select-Object -Skip 1 -First 36 | ForEach-Object { $_ -replace '^# ?', '' } }
+    default  {     # the header comment above, up to its first non-comment line
+        foreach ($l in (Get-Content $PSCommandPath | Select-Object -Skip 1)) { if ($l -notmatch '^#') { break }; $l -replace '^# ?', '' }
+    }
 }
