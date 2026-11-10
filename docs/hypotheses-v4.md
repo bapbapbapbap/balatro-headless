@@ -275,7 +275,7 @@ rate over 9/600 is above 1; met strongly: that bound ≥ 2.
   run): **25%**.
 
 
-## Added 2026-11-10 ~10:45 CST: why v4 stalled (diagnosis after the run, section J)
+## Added 2026-11-10 ~10:30 CST: why v4 stalled (diagnosis after the run, section J)
 
 v4 stopped itself at round 620 (2026-11-10 00:55, `--stall-evals 25`): best eval 4.68 blinds/game at round 120,
 2.83 by round 200, ~3.5 after. Read from `runs/v4/metrics.jsonl`, the saved eval and training games, and
