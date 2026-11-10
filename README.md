@@ -52,8 +52,8 @@ Every claim links to its data or its pre-registration.
 > boss was beaten, and the harness read that flag alone. Of 1,549 seeds published as beaten, **435
 > are wins**; 1,114 reached the Ante 8 boss and lost it, and stay posted as near misses. The
 > reward "blinds beaten" also paid that loss as a beaten blind. F1, H1 and R were scored on the
-> wrong count and are being re-scored, as registered, with only the win test corrected
-> ([correction](docs/hypotheses.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins)).
+> wrong count; they stay void as scored and were closed without re-scoring on 2026-11-09
+> ([closed hypotheses](docs/closed_hypotheses.md); [correction](docs/hypotheses.md#added-2026-11-03-2050-cst-correction-final-boss-losses-were-counted-as-wins)).
 > Found by chud's save-progress ledger, which reads the game's own record of each win.
 
 ### Seeds proven beatable
@@ -73,9 +73,9 @@ never edited; results are added as new dated sections.
 
 | Test | Prediction | Result |
 |---|---|---|
-| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Void as scored; re-scoring.** Counted final-boss losses as wins. As scored: 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
-| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Void as scored; re-scoring.** Counted final-boss losses as wins. As scored: 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
-| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Void as scored; re-scoring.** Counted final-boss losses as wins, among the seeds and in the games. As scored: 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). ([result](docs/hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
+| **F1**: model 0.2 vs 0.1, new beaten seeds per hour | 0.2 is faster | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins. As scored: 90.8 vs 42.3 per hour (ratio 2.15, 95% CI 1.70–2.71), one-sided exact test, p = 2×10⁻¹² ([result](docs/hypotheses.md#added-2026-11-02-1825-cst-f1-result-v2-vs-v1)) |
+| **H1** (chud's): model 0.3 vs 0.2, solved rate | 0.3 is higher | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins. As scored: 24.4 vs 17.9 wins per 1,000 fresh seeds (ratio 1.37, 95% CI 1.04–1.79), p = 0.011 ([result](docs/hypotheses.md#added-2026-11-03-1245-cst-h-result-v2b-vs-v2-solved-rate)) |
+| **R0** (chud's): model 1.0 on the 1,549 proven seeds vs 1,549 fresh seeds, 10 games each | proven seeds clear above 1.0's 2.5% | **Void as scored; closed without re-scoring** ([ledger](docs/closed_hypotheses.md)). Counted final-boss losses as wins, among the seeds and in the games. As scored: 21.0% vs 2.9% of games won; per-seed difference +18.1 points (seed bootstrap 95% +16.7 to +19.4). ([result](docs/hypotheses.md#added-2026-11-03-2015-cst-r-result-re-solve-by-10)) |
 
 H1 has no concurrent control (one machine), so 0.3's two changes and its extra training can't be
 told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b in
@@ -85,7 +85,7 @@ told apart. The model names 0.1, 0.2 and 0.3 are the runs called v1, v2 and v2b 
 - **Released: model 1.0** ([`weights/`](weights/README.md), [model card](docs/models.md)), 1.6M
   parameters: the final weights of the 0.3 run (round 810, 90,720 games), the end of the training
   line (0.1 → 0.2 → 0.3) that won the 435 seeds above.
-- **1.0's current performance: being re-measured.** 2.5% of seeds (5 of 200 fixed evaluation
+- **1.0's performance, as counted before 2026-11-03 (not re-measured):** 2.5% of seeds (5 of 200 fixed evaluation
   seeds) and 12.79 blinds per game were counted with the old win test, so both include final-boss
   losses (each such loss counted as a win and as 24 blinds instead of 23). Its reward never paid
   more for beating the last boss than for losing to it.
@@ -163,7 +163,7 @@ The project's three aims, in chud's order
 | [`train/`](train/) | The model, the PPO trainer and its launchers, publishing and verifying wins, exporting weights, playing a seed |
 | [`wins/`](wins/README.md) | Seeds proven beatable, with every route |
 | [`weights/`](weights/README.md) | Released model weights |
-| [`docs/`](docs/) | [Training runs, one page each](docs/runs/README.md), [pre-registered hypotheses and results](docs/hypotheses.md), [model card](docs/models.md), [model design](docs/model_v1.md), [won-game analysis](docs/won_games_analysis.md), [reproduction guide](docs/REPRODUCE.md) |
+| [`docs/`](docs/) | [Training runs, one page each](docs/runs/README.md), [closed hypotheses](docs/closed_hypotheses.md), [pre-registered hypotheses and results](docs/hypotheses.md), [model card](docs/models.md), [model design](docs/model_v1.md), [won-game analysis](docs/won_games_analysis.md), [reproduction guide](docs/REPRODUCE.md) |
 | [`analysis/`](analysis/README.md) | Scripts behind the won-game analysis |
 | [`naneinf/`](naneinf/README.md) | The naneinf goal, and community naneinf seeds checked on this game version |
 | [`tools/`](tools/) | Windows PowerShell: one controller (`balatro.ps1`), game bundle, update lock, WSL setup |

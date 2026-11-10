@@ -79,6 +79,7 @@ Every result can also be checked without PowerShell: on any Linux machine with t
 
 - [README](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/README.md): summary, current tally, results, research question, repository map, harness validation, versions, usage
 - [Training runs](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/runs/README.md): one page per run (v1 → v4): what it was, what was registered and scored for it, what it left behind, and how to take out one run's routes
+- [Closed hypotheses](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/closed_hypotheses.md): where every registered hypothesis ended (scored, void, closed unscored) and which are still open
 - [Pre-registered hypotheses and results](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/hypotheses.md): every prediction, test window and result, dated, including corrections
 - [Model card](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/models.md): the released models, their training, evaluation and hashes
 - [System card, moe2-pins0](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/system_card_moe2.md): the released mixture of experts: how it routes, how it was trained, what it does and doesn't do
