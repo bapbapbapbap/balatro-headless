@@ -93,6 +93,7 @@ def run_pair(ckpt_path, games_path, src, max_games, which="own"):
             with torch.no_grad():
                 logits, v = model(*collate([o]))
             lp_all = torch.log_softmax(logits[0], -1)
+            p_sell = float(torch.softmax(logits[0], -1)[torch.from_numpy(o["act"][:, 0].astype(np.int64)) == 14].sum())
             p32 = torch.softmax(logits[0], -1)[a].item()
             m0, j0 = money(sim), n_jokers(sim)
             prev, cur, done = sim.step(a)
@@ -103,7 +104,7 @@ def run_pair(ckpt_path, games_path, src, max_games, which="own"):
             info.append((ep["desc"][k].split()[0], o["member"], r,
                          cur.get("phi_build", 0.0) - prev.get("phi_build", 0.0),
                          float(lp_all[a]) if p32 > 0 else FLOOR, money(sim) - m0, j0, prev["ante"], p32 == 0.0,
-                         float(lp_all[a])))
+                         float(lp_all[a]), p_sell, prev["blinds_passed"]))
             if not done:
                 o = sim.observe()
         if R is None:
@@ -113,8 +114,9 @@ def run_pair(ckpt_path, games_path, src, max_games, which="own"):
             with torch.no_grad():
                 V.append(float(model(*collate([o]))[1][0]))
         adv = routed_gae(R, V, G, L, own)
+        last = sim.progress["blinds_passed"] if done and not sim.progress.get("won") else None
         for x, ad in zip(info, adv):
-            rows.append(x[:4] + (float(ad),) + x[4:])
+            rows.append(x[:4] + (float(ad),) + x[4:10] + (x[10], x[11] == last))
         games += 1
         if max_games and games >= max_games:
             break
@@ -146,6 +148,14 @@ def report(rows):
               f"jokers held before {np.mean([s[7] for s in sells]):.2f}, mean ante {np.mean([s[8] for s in sells]):.2f}")
         print("  dphi_build of sells: min {:.3f}  median {:.3f}  max {:.3f}; share > 0: {:.2f}".format(
             *np.percentile([s[3] for s in sells], [0, 50, 100]), np.mean([s[3] > 0 for s in sells])))
+    print("\ntable decisions by blind (final = the blind the game was lost in):")
+    print(f"{'blind':6} {'move':12} {'n':>6} {'adv':>8} {'adv_n':>7} {'P(sell)':>8}")
+    for fin in (False, True):
+        for verb in ("play", "discard", "sell_joker", "move_joker", "ALL"):
+            ix = [i for i, r in enumerate(rows) if r[1] == 0 and r[12] == fin and (verb == "ALL" or r[0] == verb)]
+            if ix:
+                print(f"{'final' if fin else 'other':6} {verb:12} {len(ix):6d} {adv[ix].mean():8.3f} {norm[ix].mean():7.3f} "
+                      f"{np.mean([rows[i][11] for i in ix]):8.4f}")
     z = [r for r in rows if r[9]]
     print(f"\ntaken moves with float32 probability 0 (stored at the log(1e-30) floor): {len(z)} of {len(rows)}; "
           f"their true log-prob, median {np.median([r[10] for r in z]) if z else float('nan'):.1f}")
