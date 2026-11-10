@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are YYYY-MM-DD.
 
+## [0.20.2] - 2026-11-09
+
+### Documented (no code changed)
+- **README front page:** the lead sentence now names the experiment (hold the game fixed, vary only the reward: Hume's is-ought gap), matching the repo's About text. "Zero mismatches" links to Harness validation. The naneinf and final-boss near-miss badges left the top; both counts stay in the tally block just below (`train/tally.py` still writes their badge files).
+- **About text** (repo settings) leads with what the repo is, then the experiment, then the other two aims.
+
 ## [0.20.1] - 2026-11-09
 
 ### Documented (PRs #107–#113; no code changed)

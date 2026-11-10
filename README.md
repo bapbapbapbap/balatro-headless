@@ -3,21 +3,23 @@
 [![seeds proven beatable](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge.json)](wins/README.md)
 [![naneinf seeds proven](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_naneinf.json)](naneinf/README.md)
 [![highest stake beaten](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_stake.json)](wins/README.md)
-[![final-boss near misses](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbapbapbapbap%2Fbalatro-headless%2Fmain%2Fwins%2Fbadge_near.json)](wins/README.md#final-boss-near-misses-near_missesjsonl)
 
 **Balatro's real game logic, run headless; a bot trained on it that sees only what a player
-sees; and a public record of every seed the bot has beaten, each with a route anyone can replay.**
+sees; and a public record of every seed the bot has beaten, each with a route anyone can replay.
+Built for one experiment: hold the game fixed, vary only the reward, and see what changes
+(Hume's is-ought gap).**
 
 - **The harness** runs the game's own Lua from your install, with no window, sound or Steam, so
   runs can be stepped, replayed and searched from code. Nothing is reimplemented. It is checked
-  against runs logged in the real game, decision by decision, with zero mismatches.
+  against runs logged in the real game, decision by decision, with
+  [zero mismatches](#harness-validation).
 - **The bot** is a transformer trained by reinforcement learning on the harness. It sees cards
   face up, the deck as a set, and never the draw order or the game's random state.
 - **The output** is seeds proven beatable. Each beaten seed is saved with its route, every move
   from the seed to the win, and replayed before it counts. The game is deterministic, so the
   route is the proof.
-- **The research aim** (chud's) is to exhibit Hume's is-ought gap in an agent: hold the facts
-  fixed and vary only the ought, the reward. [More below](#the-research-question).
+- **The research aim** (chud's) is to exhibit Hume's is-ought gap in an agent; the facts are the
+  game, the ought is the reward. [More below](#the-research-question).
 
 > ### Balatro is not ours.
 > **Balatro** was created by **LocalThunk** and is published by **Playstack**. The game, its
