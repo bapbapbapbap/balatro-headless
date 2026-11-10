@@ -1,4 +1,4 @@
-# Hypotheses: Model v4 (current)
+# Hypotheses: Model v4
 
 Sections moved verbatim on 2026-11-09 from `docs/hypotheses.md`, in their original order. The registration
 timestamps are the commits that added them to that file; the file as it stood, whole, is [here](https://github.com/bapbapbapbap/balatro-headless/blob/e3778d071534439425b2eca5eba2fff1b26002f1/docs/hypotheses.md).
@@ -273,3 +273,43 @@ rate over 9/600 is above 1; met strongly: that bound ≥ 2.
 - W1 75%, W2 40%, W3 70% unchanged: they compare wins, not cost.
 - **New: aim 1's precondition** (v4's best 600-seed eval reaches ante 7 in ≥ 25% of games, within the 168-hour
   run): **25%**.
+
+
+## Added 2026-11-10 ~10:45 CST: why v4 stalled (diagnosis after the run, section J)
+
+v4 stopped itself at round 620 (2026-11-10 00:55, `--stall-evals 25`): best eval 4.68 blinds/game at round 120,
+2.83 by round 200, ~3.5 after. Read from `runs/v4/metrics.jsonl`, the saved eval and training games, and
+`analysis/v4_sells.py` (branch `v4-diag`: replays saved training games under the checkpoint that played them and
+rebuilds each move's training reward and routed advantage).
+
+**What broke: the table network learned to sell its jokers mid-blind.** Eval (600 fixed seeds), jokers sold per
+game: 0.50 at round 120, 1.91 at 140, 2.69 at 180, ~3 from 300 on, all but ~0.01 of them in `SELECTING_HAND`
+(the table network's state); buys stayed ~3-4. The usual sequence: every discard used, then 1-4 sells in a row,
+then the remaining hands played.
+
+**Why: the death charge is copied onto every move of the blind the game is lost in.** The blind clock sets
+gamma = lambda = 1 inside a blind, so the whole cost of dying (phi_build to 0, the blind's progress potential taken
+back) lands undiscounted on every play, discard and drag of the final blind. Normalized advantages, table network,
+own training games:
+
+| | round 120, survived blinds | round 120, final blind | round 160, survived | round 160, final |
+|---|---|---|---|---|
+| play | +0.42 | -0.98 | +0.40 | -0.69 |
+| discard | +0.41 | -1.17 | +0.32 | -1.06 |
+| move_joker | +0.28 | -0.69 | +0.42 | -0.62 |
+| sell_joker | -0.09 | -0.71 | +0.32 (38 sells) | -0.70 |
+
+The final blind holds 29% of the table network's decisions (round 120). PPO pushes down the moves taken there and
+the softmax moves that probability to moves rarely taken, selling among them: the policy's mean probability of a
+sell per table decision in the final blind rose from 0.014 (round 120) to 0.065 (round 160), and in survived
+blinds from 0.003 to 0.014. The sells' own advantage was negative at every checkpoint measured, in own games
+(-0.55, -0.40, -0.32, -0.10 at rounds 120, 160, 180, 300) and in curriculum games (-0.43, -0.22 at 140, 160): the
+rise did not come from selling being rewarded. Knock-on: the routed credit charges the table's sells to the shop
+network's return, and the shop's `buy` advantage turned negative after round 120 (+0.09, -0.14, -0.11, -0.20 at
+120, 160, 180, 300); buys per training game fell from 5.6 to 3.9.
+
+**A second, separate fault: `--explore-hands` stored log-probabilities at the floor.** An explored play whose
+probability is 0 in float32 is stored as log(1e-30) = -69; its true log-probability was ~-135 (median, round 300).
+At round 300, 109 of 6,591 decisions (13% of table plays): PPO's ratio on them is ~e^-65, so they give no
+gradient, and 109 x ~65 / 6,591 ~ 1.1 accounts for the logged `kl` of ~1.0-1.5 from round ~220 on. None at rounds
+120-180, so not the cause of the collapse. (Measured with the checkpoint one update after the weights that played.)
