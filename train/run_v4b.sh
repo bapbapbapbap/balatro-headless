@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Model v4b (docs/hypotheses-v4b.md, registered 2026-11-10 ~10:50 CST before any of its code): v4 from random
-# weights with two changes, after v4's diagnosis (docs/hypotheses-v4.md, 2026-11-10 ~10:45):
+# Model v4b (docs/hypotheses-v4b.md, registered 2026-11-10 ~10:30 CST before any of its code): v4 from random
+# weights with two changes, after v4's diagnosis (docs/hypotheses-v4.md, 2026-11-10 ~10:30):
 #   hand clock       --lam-hand 0.8: the table network's GAE lambda also x0.8 at every play or discard (drags,
 #                    sells, consumables and every shop-side move leave it unchanged); the shop's stays v4's
 #   no exploration   --explore-hands off (its stored log-probs fell to the float32 floor in v4)
