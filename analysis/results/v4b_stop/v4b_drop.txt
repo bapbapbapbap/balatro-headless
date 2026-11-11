@@ -1,0 +1,11 @@
+done: 3 games, 0 mismatched, 3 s -> /mnt/c/Users/Jacobi/balatro-work/v4b_drop_smoke.jsonl
+200/1800 games, 0 mismatched, 48 s
+400/1800 games, 0 mismatched, 97 s
+600/1800 games, 0 mismatched, 147 s
+800/1800 games, 0 mismatched, 196 s
+1000/1800 games, 0 mismatched, 252 s
+1200/1800 games, 0 mismatched, 299 s
+1400/1800 games, 0 mismatched, 342 s
+1600/1800 games, 0 mismatched, 383 s
+1800/1800 games, 0 mismatched, 429 s
+done: 1800 games, 0 mismatched, 429 s -> /mnt/c/Users/Jacobi/balatro-work/v4b_drop.jsonl

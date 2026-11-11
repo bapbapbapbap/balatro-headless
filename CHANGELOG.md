@@ -3,9 +3,12 @@
 All notable changes to this project. Dates are YYYY-MM-DD.
 
 
-## [Unreleased] - 2026-11-10
+## [Unreleased] - 2026-11-11
 
 ### Changed
+- **v4b's sell stop is off** (`stop_sells = 0` in `configs/v4b.toml`, 2026-11-11). It stopped the run at eval 280
+  (2.56 joker sells per game; best eval 8.31 blinds/game at round 240). The run continues from round 279's save
+  on the stall rule alone; registered with predictions T1-T3 in `docs/hypotheses-v4b.md`.
 - **One launcher, one config per run.** `bash train/launch.sh <run> --work <dir> [--smoke]` runs
   `configs/<run>.toml`: its pre-flight checks (by name, `train/launch.py` `CHECKS`), then `train.py` with the
   config's settings (resuming from `latest.pt`), then publishing if the config asks. `--dry-run` prints the
@@ -20,6 +23,10 @@ All notable changes to this project. Dates are YYYY-MM-DD.
   its experts / earlies / moe commands are gone with their scripts.
 
 ### Added
+- `analysis/v4b_drop.py`, `analysis/v4b_shop_credit.py`, `analysis/v4b_sell_followup.py`: what v4b's eval games
+  held, bought and sold at rounds 240-280; the shop network's credit at every sell-legal decision; and the tables
+  the diagnosis cites, from those two scripts' output. All of their output from 2026-11-10 and 11 is in
+  `analysis/results/v4b_stop/` (16 MB).
 - `AGENTS.md` (`CLAUDE.md` imports it): the map for agents. `ARCHIVE.md`: every past run's tag and what left main.
 - `tools/check_repo.py`: the hypotheses index, run pages, configs and every path the maps name must agree with the
   tree (`--fix` adds missing index rows); pre-flight check `repo`.

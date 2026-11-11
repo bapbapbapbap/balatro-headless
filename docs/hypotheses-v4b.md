@@ -172,3 +172,21 @@ The run is not stopped at round 400; the stall rule decides that.
 The diagnosis and the predictions T1-T3 in the three sections above are Claude's own (model: Claude Fable 5.2,
 `claude-fable-5-2`), reviewed by chud (09:18: "your hypotheses are your own (note your model) and note reviewed by
 me"). The decision to continue is chud's.
+
+## Added 2026-11-11 ~09:35 CST: the diagnosis's data archived; two corrections to it
+
+Claude's (Claude Fable 5.2), reviewed by chud. The outputs the 09:25 diagnosis reads are now in the repo,
+`analysis/results/v4b_stop/`, with `analysis/v4b_sell_followup.py`, which prints its tables from them. Rerun
+from the archived copies, every figure in the diagnosis reproduces. Two statements in it need correcting:
+
+1. **"The critic's value per joker held" is over sell-legal states only.** The credit files hold shop decisions
+   where a sell was legal, so every state in that regression has at least one joker. It says nothing about the
+   value of the first joker.
+2. **Point 4 claims more than the table shows.** It says the rise after a sell "is there while the critic puts
+   no value on a held joker". At round 200 the coefficient was also about zero (+0.03) and the value fell after
+   a free-slot sell (-0.10); at round 160 it was -0.23, with 5 sells in 335 games. So a critic that puts no value
+   on jokers was there at least 60 rounds before the selling, and does not by itself say when the rise appears.
+   What stands: the rise is at 220-260 and gone at 280, where the coefficient is +0.45; it does not follow
+   money; it is on nearly every joker type. Why it began between 200 and 220 is not known.
+
+T1-T3 and the continuation do not depend on either.
