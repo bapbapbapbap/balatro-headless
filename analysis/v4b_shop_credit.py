@@ -30,6 +30,7 @@ import glob
 import gzip
 import json
 import os
+import resource
 import sys
 import time
 from types import SimpleNamespace
@@ -248,7 +249,8 @@ def main():
     a = ap.parse_args()
     torch.set_num_threads(4)
     roots = a.roots.split(",")
-    out = open(a.out, "w") if a.out else None
+    out = open(a.out, "a") if a.out else None         # appends: a rerun of later checkpoints keeps earlier lines
+    sys.stdout.reconfigure(line_buffering=True)        # through tee: every line reaches the file at once
     print(f"device {a.device}; roots {roots}")
     for it in [int(x) for x in a.its.split(",")]:
         ck = find(a.run, f"ckpt_{it:05d}.pt", roots)
@@ -271,11 +273,17 @@ def main():
                     continue
                 rows.extend(steps)
                 games += 1
+                if games % 25 == 0:
+                    gpu = torch.cuda.memory_allocated() / 2**30 if a.device.startswith("cuda") else 0.0
+                    print(f"    {games} games, {len(rows)} decisions, {time.time() - t0:.0f} s, "
+                          f"peak RSS {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20:.2f} GB, "
+                          f"GPU {gpu:.2f} GB", flush=True)
                 if out:
                     for s in steps:
                         if s["member"] == SHOP and s["sell_legal"]:
                             out.write(json.dumps({"ckpt": it, "seed": ep["seed"], "iteration": ep.get("iteration"),
                                                   **{k: v for k, v in s.items() if k not in ("hand",)}}) + "\n")
+                    out.flush()
                 if a.max_games and games >= a.max_games:
                     break
             if a.max_games and games >= a.max_games:
@@ -283,7 +291,10 @@ def main():
         if skipped:
             print(f"    {skipped} games did not replay (skipped)")
         report(it, rows, games, time.time() - t0)
-        del model, sim
+        sys.stdout.flush()
+        del model, sim, rows
+        if a.device.startswith("cuda"):
+            torch.cuda.empty_cache()
     if out:
         out.close()
 
