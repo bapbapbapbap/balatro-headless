@@ -43,7 +43,7 @@ stake = 1
 eval_games = 600
 eval_every = 20
 stall_evals = 25
-stop_sells = 1.5
+stop_sells = 0               # off since 2026-11-11 (was 1.5; it stopped the run at eval 280): docs/hypotheses-v4b.md, last section
 max_wins = 1000000
 
 # --smoke: runs/<run>-smoke, from scratch, 3 rounds, then stop

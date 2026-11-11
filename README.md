@@ -139,10 +139,13 @@ move of the final blind, and PPO pushed probability onto the moves it rarely too
 
 ### Now: model v4b (since 2026-11-10)
 v4 with credit discounted per hand played or discarded on the table network (joker drags share the next hand's
-credit), and hand-type exploration off; it stops itself if an eval averages more than 1.5 joker sells per game
+credit), and hand-type exploration off
 ([registered](docs/hypotheses-v4b.md), [page](docs/runs/v4b.md), settings
 [`configs/v4b.toml`](configs/v4b.toml)). Same ought (`blinds`), Red Deck, White Stake, from random weights.
-- **To score:** S1–S3 (it doesn't sell; it beats v4's 4.68; it reaches v1's pace), and W1–W4 against
+- **So far:** best eval 8.31 blinds/game at round 240 (v4's best: 4.68). It stopped itself at round 280 when its
+  shop network began selling jokers it had room to keep ([scored](docs/hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-stopped-at-round-280-on-the-sell-stop-s1-s3-scored), [diagnosis](docs/hypotheses-v4b.md#added-2026-11-11-0925-cst-why-v4bs-shop-network-sold-and-what-it-cost-diagnosis-after-the-stop)), and
+  continues from there with that stop off ([registered](docs/hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-continues-from-round-280-with-the-sell-stop-off-registered-before-its-config-changes)).
+- **To score:** T1–T3 (the selling fades; an eval passes 8.31; the two go together), and W1–W4 against
   moe2-pins0 on 2,000 held-out seeds after the run.
 - **The bar for going up the decks and stakes:** 25% eval wins on Red/White (chud), open to revision.
 

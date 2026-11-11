@@ -17,4 +17,14 @@ reorganized: `train.py` split by capability and every per-run script replaced by
 (chud's call, 11:46: resume on the new code). Evidence that nothing it does changed:
 `tests/compare_trainers.py` on chud's laptop trained v4b's launch commit (8a186ae) twice and the split trainer
 (3296286) once, 3 rounds each on the CPU with v4b's settings: all 24 saved games and all 154 weight tensors identical;
-and `launch.py v4b --check-provenance runs/v4b/provenance.json` gives SAME SETTINGS. It resumes from round 70 on main.
+and `launch.py v4b --check-provenance runs/v4b/provenance.json` gives SAME SETTINGS. It resumed from round 70 on main at 11:51.
+
+**Stopped at round 280.** At 15:58 on 2026-11-10 the sell stop fired: eval 280 averaged 2.56 joker sells per game
+(7.20 blinds/game). Best eval 8.31 blinds/game at round 240 (`best.pt`); 5 wins in 26,880 training games.
+[S1 failed, S2 and S3 met](../hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-stopped-at-round-280-on-the-sell-stop-s1-s3-scored). The sells were the shop network's, not the table network's
+mid-blind selling the stop was written for: [diagnosis](../hypotheses-v4b.md#added-2026-11-11-0925-cst-why-v4bs-shop-network-sold-and-what-it-cost-diagnosis-after-the-stop).
+
+**Continuing with the sell stop off** (chud's call, 2026-11-11; [registered with T1-T3](../hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-continues-from-round-280-with-the-sell-stop-off-registered-before-its-config-changes)).
+`stop_sells = 0` in `configs/v4b.toml`, nothing else changed. The same launch command resumes it from
+`runs/v4b/latest.pt` (round 279; round 280 and its eval run again). It stops on the stall rule: 25 evals with no
+new best above 8.31.
