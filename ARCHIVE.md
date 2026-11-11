@@ -16,7 +16,7 @@ file names those commits. Nothing here needs reading to work on the current run.
 | `run-moe` | 17c1602 | moe | 2026-11-03 → 11-04 | `train/run_moe.sh` (+ `run_expert(s).sh`, `run_early.sh`, `run_earlies.sh`) | stopped on the stall rule | [moe](docs/runs/moe.md) |
 | `run-moe2` | 3d5b12f | moe2, moe2-pins0 | 2026-11-04 → 11-05 | `train/run_moe.sh` | 790 published wins; pins0 released | [moe2](docs/runs/moe2.md) |
 | `run-v4` | fd02b0d | v4 | 2026-11-09 → 11-10 | `train/run_v4.sh` | best eval 4.68; learned to sell its jokers | [v4](docs/runs/v4.md) |
-| `run-v4b` | 8a186ae | v4b | 2026-11-10 → | `train/run_v4b.sh` (same settings: `configs/v4b.toml`) | training (paused at round 70 on 2026-11-10) | [v4b](docs/runs/v4b.md) |
+| `run-v4b` | 8a186ae | v4b | 2026-11-10 → | `train/run_v4b.sh` (same settings: `configs/v4b.toml`) | stopped at round 280 on the sell stop (best eval 8.31); continues on main with the stop off | [v4b](docs/runs/v4b.md) |
 
 v3 never trained: its code (`train/run_v3.sh`, the blind clock it introduced is current) is at `pre-launcher`.
 
