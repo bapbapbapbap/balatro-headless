@@ -46,3 +46,16 @@ the seeds common to all antes is also biased (see the script's docstring). First
 moe2's `pins0.pt`, results in `docs/moe2_evaluation.md`.
 Cost: per seed and handoff ante, 7 games per rollout (6 experts + the control). Run it when training
 isn't using the CPU, or with few workers.
+
+## v4b's stop: what the shop network's selling cost, and why its credit allowed it
+Three scripts, run after v4b stopped itself at round 280 (2026-11-10). `v4b_drop.py` replays saved eval games
+with no model and records what was held, bought, sold and scored at every blind. `v4b_shop_credit.py` replays
+training games under a checkpoint and rebuilds the shop network's credit at every decision where a sell was
+legal (as `v4_sells.py` does for the table network). `v4b_sell_followup.py` reads their output and prints the
+tables the diagnosis cites; it needs neither the game nor torch.
+```bash
+python3 v4b_drop.py --src ~/balatro/local/source --games RUNS/v4b/games --rounds 240,260,280 --out v4b_drop.jsonl --workers 12
+python3 v4b_shop_credit.py --src ~/balatro/local/source --run v4b --its 200,220 --window 5 --out v4b_shop_credit_c.jsonl
+python3 v4b_sell_followup.py --drop v4b_drop.jsonl --credit v4b_shop_credit_c.jsonl v4b_shop_credit_b.jsonl
+```
+Results: `results/v4b_stop/` (every output, and its own README). Read in `docs/hypotheses-v4b.md`, 2026-11-11.

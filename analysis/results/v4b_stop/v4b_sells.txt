@@ -1,0 +1,75 @@
+
+=== ckpt_00160.pt on r00160_train.jsonl.gz (own games): 67 games, 7774 decisions, 132 s
+net   move                  n   reward   dphi_b      adv   adv_n  adv>0   p=0
+shop  move_joker         3395   -0.000   -0.000   -0.236   0.050   0.48     0
+table play               1396    0.268   -0.056    0.053   0.034   0.54     0
+table discard             684   -0.001   -0.001   -0.048  -0.061   0.51     0
+shop  select_blind        549    0.001    0.001   -0.584  -0.134   0.43     0
+shop  cash_out            482    0.001    0.001   -0.452  -0.064   0.46     0
+shop  end_shop            482    0.000    0.000   -0.467  -0.072   0.45     0
+shop  buy                 308    0.143    0.143   -0.412  -0.043   0.46     0
+table move_joker          110   -0.001   -0.001   -0.055  -0.068   0.47     0
+shop  reroll               74   -0.001   -0.001   -0.283   0.026   0.47     0
+shop  open_pack            57   -0.000   -0.000   -0.285   0.025   0.37     0
+shop  pick                 56   -0.009   -0.009   -0.186   0.077   0.43     0
+shop  sell_consumable      52    0.000    0.000   -0.780  -0.238   0.31     0
+shop  buy_and_use          46    0.021    0.021   -0.802  -0.249   0.39     0
+shop  redeem               37    0.006    0.006   -0.552  -0.117   0.41     0
+shop  use_consumable       30    0.033    0.033   -0.251   0.042   0.43     0
+shop  reroll_boss           5    0.000    0.000   -0.734  -0.213   0.40     0
+table sell_joker            3   -0.171   -0.171    0.620   0.568   0.67     0
+shop  skip_pack             3    0.006    0.006    0.163   0.261   0.67     0
+table use_consumable        3   -0.038   -0.038   -0.245  -0.246   0.33     0
+shop  sell_joker            1    0.000    0.000   -0.070   0.138   0.00     0
+table sell_consumable       1    0.000    0.000   -0.048  -0.061   0.00     0
+
+table sells: 3; mean money +2.00, jokers held before 4.33, mean ante 2.67
+  dphi_build of sells: min -0.258  median -0.254  max 0.000; share > 0: 0.00
+
+table decisions by blind (final = the blind the game was lost in):
+blind  move              n      adv   adv_n  P(sell)
+other  play           1130    0.292   0.259   0.0019
+other  discard         550    0.182   0.155   0.0002
+other  sell_joker        3    0.620   0.568   0.0237
+other  move_joker       62    0.524   0.478   0.0075
+other  ALL            1748    0.265   0.234   0.0017
+final  play            266   -0.960  -0.919   0.0061
+final  discard         134   -0.990  -0.948   0.0007
+final  move_joker       48   -0.803  -0.772   0.0089
+final  ALL             449   -0.950  -0.911   0.0048
+
+taken moves with float32 probability 0 (stored at the log(1e-30) floor): 0 of 7774; their true log-prob, median nan
+
+=== ckpt_00260.pt on r00260_train.jsonl.gz (own games): 67 games, 10694 decisions, 182 s
+net   move                  n   reward   dphi_b      adv   adv_n  adv>0   p=0
+shop  move_joker         4492   -0.000   -0.000    0.160   0.010   0.55     0
+table play               1573    0.309   -0.055    0.002   0.076   0.52     0
+table discard             781   -0.002   -0.002   -0.186  -0.095   0.44     0
+shop  select_blind        679    0.001    0.001    0.141  -0.001   0.57     0
+shop  cash_out            612    0.001    0.001    0.155   0.007   0.55     0
+shop  end_shop            612    0.000    0.000    0.044  -0.057   0.53     0
+shop  buy                 419    0.094    0.094    0.202   0.034   0.57     0
+shop  open_pack           349   -0.000   -0.000    0.072  -0.041   0.54     0
+table move_joker          342    0.001    0.001   -0.236  -0.140   0.37     0
+shop  pick                328    0.046    0.046    0.055  -0.051   0.55     0
+shop  sell_consumable     121    0.000    0.000    0.090  -0.031   0.52     0
+shop  redeem               85   -0.005   -0.005    0.199   0.032   0.55     0
+shop  buy_and_use          82    0.022    0.022    0.156   0.008   0.55     0
+shop  use_consumable       72    0.016    0.016    0.224   0.047   0.57     0
+shop  sell_joker           53   -0.077   -0.077    0.074  -0.040   0.55     0
+shop  reroll               49   -0.000   -0.000    0.257   0.066   0.59     0
+shop  skip_pack            36    0.001    0.001    0.164   0.012   0.47     0
+table use_consumable        9    0.010    0.010    0.131   0.194   0.44     0
+
+table decisions by blind (final = the blind the game was lost in):
+blind  move              n      adv   adv_n  P(sell)
+other  play           1313    0.210   0.265   0.0001
+other  discard         627    0.040   0.111   0.0000
+other  move_joker      235    0.126   0.189   0.0001
+other  ALL            2182    0.152   0.213   0.0001
+final  play            260   -1.048  -0.877   0.0010
+final  discard         154   -1.109  -0.932   0.0000
+final  move_joker      107   -1.031  -0.861   0.0002
+final  ALL             523   -1.060  -0.887   0.0005
+
+taken moves with float32 probability 0 (stored at the log(1e-30) floor): 0 of 10694; their true log-prob, median nan
