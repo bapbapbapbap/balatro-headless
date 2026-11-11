@@ -166,3 +166,9 @@ something other than credit holds them up, and the shop entropy bonus is the fir
 T2 met with sells still high: the sell count was the wrong thing to watch. No eval above 8.31 by round 400 with
 sells down: round 268's update, or something not yet looked at, did lasting damage; compare `ckpt_00260.pt`.
 The run is not stopped at round 400; the stall rule decides that.
+
+## Added 2026-11-11 ~09:30 CST: whose the 09:25 sections are
+
+The diagnosis and the predictions T1-T3 in the three sections above are Claude's own (model: Claude Fable 5.2,
+`claude-fable-5-2`), reviewed by chud (09:18: "your hypotheses are your own (note your model) and note reviewed by
+me"). The decision to continue is chud's.
