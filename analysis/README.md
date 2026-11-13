@@ -58,3 +58,15 @@ python3 analysis/walls.py --src ~/balatro/local/source --games /mnt/c/Users/<you
 python3 analysis/walls_report.py walls.jsonl
 ```
 Result on v4b: `results/walls_v4b/walls_report.txt`, read in `docs/hypotheses-v4b.md` (2026-11-13 sections).
+
+## Why v4b hoards: branch rich late shops (2026-11-13)
+`economy_branch.py` takes one rich late shop exit per saved eval game (ante >= 5, money over the interest cap),
+reads the shop network's P(reroll) and value there, and plays three branches out with the checkpoint: the bot's
+own `end_shop`, one forced reroll, and a scripted spender that judges by phi_build. Paired by state, on common
+sampling RNG. Explanations A-D and the decision rules: `docs/hypotheses-v4b.md`, 2026-11-13 ~11:40.
+```bash
+python3 analysis/economy_branch.py /mnt/c/Users/<you>/balatro-work/runs/v4b/best.pt --src ~/balatro/local/source \
+    --games /mnt/c/Users/<you>/balatro-work/runs/v4b/games --rounds 1840,1860,1880 --playouts 8 --workers 12 \
+    --out econ_v4b.jsonl                                   # rerun to resume
+python3 analysis/economy_branch.py --summary econ_v4b.jsonl
+```

@@ -254,3 +254,54 @@ wasted") into what the bot learns from; that matters for aim 1. Nothing here is 
 
 The scoring of T1-T3, the replay tools, the four rules and the reading in the two sections above are Claude's
 (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud. The questions and the hoarding guess are chud's.
+
+## Added 2026-11-13 ~11:40 CST: why v4b hoards, four explanations and the test between them (registered before data)
+
+chud paused v4b at ~11:25 so the laptop can run this. The premise is chud's: from his own play, spending money
+late correlates with more blinds. The question is his too: what keeps v4b from spending (the walls section above:
+late shop exits over the interest cap 60-77%, 97% of them with no reroll, 0.016 rerolls per shop visit).
+
+**A correction first (Claude's).** In chat Claude said the build shaping "can't see" spending, because
+`H.offer_values()` gives 0 to rerolls, packs and the vouchers phi_build doesn't count. That overstated it. v4b
+discounts on the blind clock (`gamma_blind`, `lam_blind`), so inside one shop gamma = lambda = 1, and with
+`build_shaping = 1` a reroll followed by a buy in the same shop gets the buy's phi_build gain back through GAE.
+The 0 only means the bot can't see a reroll's worth before taking it.
+
+**Four explanations, all open.**
+- A. Exploration collapse: the shop entropy floor (0.001 since 4M decisions) took hold before rich late shops were
+  common, so P(reroll) is near 0 and the few rerolls sampled can't move the policy.
+- B. The signal says no: a reroll the bot does take doesn't pay under its training return, because its buying
+  after one is poor, or phi_build misprices what rerolls find (option value, xMult jokers its 16 deals miss).
+- C. Spending doesn't pay in this setting (red deck, white stake, the `blinds` reward), even spent well.
+- D. Mechanical: reroll not offered when it should be.
+
+**The test** (`analysis/economy_branch.py`, this commit; no data yet). From the eval games of rounds 1840, 1860,
+1880, one shop exit per game: an `end_shop` at ante >= 5 with money over the interest cap, picked with a fixed RNG
+per seed. At it, `best.pt`'s shop network gives P(reroll) and the other moves' probabilities (temperature 1) and
+its value V. Three branches from that state: `end` (the bot's own move), `reroll` (one reroll, then the bot plays
+on), `spend` (a scripted spender: keeps the interest cap, spends the rest on positive-offer-value buys, joker swaps
+phi_build gains at least 0.02 on, vouchers with non-negative offer value, Celestial and Buffoon packs, then
+rerolls; then the bot plays on). Each branch is played out 8 times by `best.pt` at temperature 1, play-out p
+sharing its sampling RNG across branches. Recorded: blinds beaten after the branch point, the trainer's discounted
+return from there (the shaping telescopes to the same -phi_build at the shared point, so it cancels), wins, and
+each branch's one-step view, delta = phi_build' - phi_build + V' - V. Differences are paired by state, with 95%
+bootstrap intervals over states. The number of games is set from the smoke's timing before any branch result is
+read; the smoke's output is not part of the result.
+
+**Decision rules** (written before the data):
+- D: reroll is offered at fewer than 99% of the qualifying exits where it is affordable -> D holds; fix the harness
+  first and read nothing else.
+- A: median P(reroll) at the branch points under 0.01, and reroll minus end discounted return above 0 (interval
+  above 0).
+- B: reroll minus end return not above 0 (interval reaches 0 or below), and spend minus end blinds above 0
+  (interval above 0). If spend's mean delta is at most end's while its play-outs gain, the learner's one-step view
+  (critic and phi_build) misprices spending.
+- C: neither reroll nor spend above end, in blinds or return (each interval reaches 0 or below).
+- Size: spending is worth a v4c only if spend minus end is at least +0.3 blinds per state.
+- A and a positive spend can both hold: then exploration is at least part of it, and v4c starts there.
+
+## Added 2026-11-13 ~11:40 CST: whose the 11:40 sections are
+
+The premise (spending correlates with blinds, from his play), the question and the call to pause v4b are chud's,
+reviewed by Claude. The four explanations, the correction, the test, the scripted spender and the decision rules
+are Claude's (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud.
