@@ -1,0 +1,86 @@
+games 1800, wins 51
+
+== H1 hoarding ==
+deaths a4-8 holding > cap at the death blind: 59.2% (727/1229)
+deaths a1-3 holding > cap: 12.5% (65/520)
+money at death by ante (median / mean / share>cap):
+  a1 n= 180 median $4 mean $4.7 over-cap 0.0% (0/180)
+  a2 n= 185 median $8 mean $10.0 over-cap 6.5% (12/185)
+  a3 n= 154 median $16 mean $20.5 over-cap 34.4% (53/154)
+  a4 n= 222 median $22 mean $26.0 over-cap 45.5% (101/222)
+  a5 n= 413 median $36 mean $36.6 over-cap 59.3% (245/413)
+  a6 n= 316 median $47 mean $46.2 over-cap 64.9% (205/316)
+  a7 n= 199 median $44 mean $46.5 over-cap 61.8% (123/199)
+  a8 n=  79 median $67 mean $68.4 over-cap 67.1% (53/79)
+same blind, died vs passed: share over cap / mean excess over cap / mean $
+  a4 big   died ('41.7% (15/36)', '9.56', '23.00')  passed ('41.9% (538/1285)', '8.06', '24.28')
+  a4 boss  died ('48.5% (81/167)', '10.79', '27.73')  passed ('50.2% (559/1114)', '11.15', '28.70')
+  a5 big   died ('67.7% (67/99)', '18.49', '38.60')  passed ('60.0% (597/995)', '18.17', '36.90')
+  a5 boss  died ('59.9% (167/279)', '20.08', '37.96')  passed ('66.4% (476/717)', '22.68', '42.42')
+  a6 big   died ('61.7% (50/81)', '22.46', '41.05')  passed ('67.9% (387/570)', '27.32', '46.80')
+  a6 boss  died ('67.3% (146/217)', '29.64', '48.79')  passed ('71.9% (253/352)', '31.70', '51.79')
+  a7 big   died ('50.0% (26/52)', '23.73', '37.44')  passed ('71.6% (189/264)', '37.28', '56.98')
+  a7 boss  died ('69.3% (88/127)', '34.09', '52.92')  passed ('77.5% (107/138)', '46.61', '67.48')
+  a8 big   died ('60.0% (6/10)', '32.80', '48.30')  passed ('78.3% (90/115)', '53.21', '74.29')
+  a8 boss  died ('68.3% (43/63)', '52.44', '71.68')  passed ('92.2% (47/51)', '60.25', '85.04')
+
+shop exits by ante: n, over cap, rerolls/visit, [over-cap exits: rerolls/visit, affordable joker + free slot]
+  a1 n= 3707 over-cap 0.1% (3/3707) rr 0.003 | rr 0.000, affordable+free 0.0% (0/3)
+  a2 n= 5030 over-cap 2.4% (121/5030) rr 0.005 | rr 0.000, affordable+free 62.8% (76/121)
+  a3 n= 4414 over-cap 19.9% (878/4414) rr 0.013 | rr 0.005, affordable+free 49.3% (433/878)
+  a4 n= 3938 over-cap 42.1% (1658/3938) rr 0.019 | rr 0.023, affordable+free 23.9% (396/1658)
+  a5 n= 3221 over-cap 60.0% (1934/3221) rr 0.029 | rr 0.032, affordable+free 12.0% (233/1934)
+  a6 n= 1889 over-cap 67.2% (1270/1889) rr 0.040 | rr 0.048, affordable+free 4.1% (52/1270)
+  a7 n=  919 over-cap 69.2% (636/919) rr 0.037 | rr 0.038, affordable+free 2.0% (13/636)
+  a8 n=  370 over-cap 77.3% (286/370) rr 0.030 | rr 0.038, affordable+free 1.0% (3/286)
+all over-cap exits: mean excess 30.29 | free slot 23.9% (1625/6786) | zero rerolls 97.2% (6594/6786) | could afford >=3 rerolls 67.1% (4554/6786)
+cap at game end: {25.0: 1789, 50.0: 11}
+vouchers: [('v_grabber', 410), ('v_hieroglyph', 344), ('v_paint_brush', 221), ('v_petroglyph', 53), ('v_blank', 48), ('v_nacho_tong', 48), ('v_planet_merchant', 20), ('v_directors_cut', 14), ('v_seed_money', 11), ('v_clearance_sale', 10), ('v_crystal_ball', 8), ('v_palette', 7)]
+money at win: median 78.0
+
+== H2 build, died vs passed at the same blind: jokers / xMult jokers / max hand level / free slots ==
+  a1 big   died n= 58 1.00 / 0.02 / 1.24 / 4.00   passed n=1798 1.29 / 0.10 / 1.23 / 3.72
+  a1 boss  died n= 99 1.18 / 0.15 / 1.44 / 3.82   passed n=1687 1.82 / 0.13 / 1.58 / 3.19
+  a2 big   died n= 54 1.35 / 0.22 / 2.24 / 3.65   passed n=1627 2.84 / 0.19 / 2.22 / 2.16
+  a2 boss  died n= 96 2.05 / 0.11 / 2.27 / 2.96   passed n=1528 3.35 / 0.23 / 2.50 / 1.66
+  a3 big   died n= 31 2.13 / 0.26 / 3.35 / 2.87   passed n=1445 3.93 / 0.24 / 3.06 / 1.08
+  a3 boss  died n=108 3.24 / 0.24 / 3.22 / 1.76   passed n=1335 4.22 / 0.25 / 3.33 / 0.79
+  a4 big   died n= 36 3.53 / 0.47 / 3.53 / 1.47   passed n=1285 4.52 / 0.26 / 3.97 / 0.49
+  a4 boss  died n=167 4.17 / 0.33 / 4.17 / 0.84   passed n=1114 4.69 / 0.26 / 4.27 / 0.32
+  a5 big   died n= 99 4.29 / 0.30 / 4.42 / 0.71   passed n= 995 4.82 / 0.26 / 4.94 / 0.20
+  a5 boss  died n=279 4.74 / 0.26 / 4.83 / 0.28   passed n= 717 4.89 / 0.26 / 5.41 / 0.14
+  a6 big   died n= 81 4.75 / 0.23 / 5.26 / 0.28   passed n= 570 4.95 / 0.27 / 6.19 / 0.07
+  a6 boss  died n=217 4.90 / 0.22 / 6.21 / 0.11   passed n= 352 4.99 / 0.31 / 6.82 / 0.05
+  a7 big   died n= 52 4.92 / 0.33 / 6.58 / 0.10   passed n= 264 5.00 / 0.32 / 7.48 / 0.02
+  a7 boss  died n=127 4.98 / 0.29 / 7.39 / 0.06   passed n= 138 4.98 / 0.34 / 8.17 / 0.04
+  a8 boss  died n= 63 4.94 / 0.35 / 9.16 / 0.10   passed n=  51 4.96 / 0.25 / 9.16 / 0.06
+
+== H3 boss deaths by boss (antes 1-3 | 4-8): n, mean score/target, boss death rate when faced ==
+ antes 1-3: 303 boss deaths; top 4 share 43.6% (132/303)
+   bl_mouth           41  ratio 0.56  death rate 21.9% (41/187)
+   bl_manacle         36  ratio 0.60  death rate 9.4% (36/384)
+   bl_needle          34  ratio 0.59  death rate 17.6% (34/193)
+   bl_window          21  ratio 0.74  death rate 5.4% (21/387)
+   bl_wall            19  ratio 0.75  death rate 12.1% (19/157)
+   bl_psychic         16  ratio 0.62  death rate 5.0% (16/318)
+   bl_goad            16  ratio 0.77  death rate 4.0% (16/403)
+   bl_pillar          15  ratio 0.77  death rate 4.4% (15/343)
+   bl_flint           14  ratio 0.70  death rate 8.5% (14/164)
+   bl_eye             13  ratio 0.55  death rate 15.9% (13/82)
+ antes 4-8: 853 boss deaths; top 4 share 34.1% (291/853)
+   bl_eye             89  ratio 0.65  death rate 55.3% (89/161)
+   bl_wall            81  ratio 0.69  death rate 51.9% (81/156)
+   bl_mouth           61  ratio 0.55  death rate 49.6% (61/123)
+   bl_needle          60  ratio 0.68  death rate 55.6% (60/108)
+   bl_flint           53  ratio 0.74  death rate 34.6% (53/153)
+   bl_water           51  ratio 0.71  death rate 31.5% (51/162)
+   bl_serpent         43  ratio 0.67  death rate 37.7% (43/114)
+   bl_psychic         38  ratio 0.58  death rate 26.4% (38/144)
+   bl_final_vessel    36  ratio 0.42  death rate 94.7% (36/38)
+   bl_pillar          31  ratio 0.75  death rate 25.0% (31/124)
+
+== H4 margin at the death blind (score/target) ==
+ antes 1-3 n=519 median 0.76  >=0.8 43.7% (227/519)  <0.5 14.1% (73/519)
+   deciles: [7, 10, 15, 19, 22, 46, 80, 93, 104, 123]
+ antes 4-8 n=1229 median 0.78  >=0.8 47.3% (581/1229)  <0.5 15.0% (184/1229)
+   deciles: [8, 14, 24, 57, 81, 127, 154, 183, 294, 287]
