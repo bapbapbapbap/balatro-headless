@@ -172,3 +172,85 @@ The run is not stopped at round 400; the stall rule decides that.
 The diagnosis and the predictions T1-T3 in the three sections above are Claude's own (model: Claude Fable 5.2,
 `claude-fable-5-2`), reviewed by chud (09:18: "your hypotheses are your own (note your model) and note reviewed by
 me"). The decision to continue is chud's.
+
+## Added 2026-11-13 ~11:30 CST: T1-T3 scored
+
+From `runs/v4b/metrics.jsonl` (chud's laptop, read 2026-11-13). The continuation's eval 280 repeated the first
+one exactly (7.20 blinds/game, 2.56 sells). Evals after it, blinds / joker sells per game:
+r300 8.62/1.62, r320 8.40/1.59, r340 8.00/1.72, r360 9.59/0.78, r380 8.89/2.19, r400 8.32/1.30, r420 9.08/0.92.
+
+- **T1 not met.** Evals 340 and 380 sold more than 1.5 jokers per game (1.72, 2.19).
+- **T2 met.** Eval 300 was 8.62 > 8.31, the first new best after the stop.
+- **T3 open.** It needs `analysis/v4b_drop.py` on eval 300's games (free-slot sells per game vs eval 280's 1.91);
+  not run yet.
+
+By this section's own "what each outcome says": T2 met with sells still high, so the sell count was the wrong
+thing to watch. The best evals since then sell about 2 jokers per game (r1840: 13.40 blinds, 2.30 sells). The run
+has not met its stall rule; at round 1890 it had trained 48.4 h and 181,536 games.
+
+## Added 2026-11-13 ~11:30 CST: where v4b's games end, economy or scaling (diagnosis while it runs)
+
+The question is chud's (09:45: "economy or scaling basically"), and so is the hoarding guess (09:47: "I bet its
+also saving more than its interest cap and winning with big amounts saved"); reviewed by Claude. The tools, the
+four decision rules below and the reading are Claude's, reviewed by chud. **The rules were written down before
+the data existed (the Project's status note, 09:55) but were not committed to git first, so by this repo's rule
+they are not registered predictions;** they are scored here only as a record of what was expected.
+
+**Eval record.** Evals are 600 games at eval_temp 1.0, about ±0.2. Best 13.40 blinds/game at round 1840
+(`best.pt`); evals r1700-1880 average 13.09, r1600-1680 12.81. moe2's best was 13.08 (r1020). Caveat below
+(Hieroglyph) before calling it a record over moe2.
+
+**What the bot can see.** Money, the interest cap and the interest it would earn are already in the observation
+(`harness/encode.lua`, GLOBAL features 4, 11 and 23-25). Money is not in the reward and not in phi_build except
+where a joker reads it (Bull, Bootstraps). The shop entropy coefficient has been at its floor 0.001 since 4M
+decisions (`shop_ent` in `configs/v4b.toml`); the run is past 25M.
+
+**Where games end** (saved move text of evals r1800-1880, 3,000 games, 75 wins, no replay): boss blinds 65.8% of
+deaths, big 24.3%, small 9.9%, bosses leading at every ante. Share of all games ending in ante 1: 10.4%, 2: 9.4,
+3: 7.9, 4: 10.5, 5: 20.5, 6: 18.4, 7: 12.4, 8: 6.0. Rerolls: 0.016 per shop visit.
+
+**Replay** (`analysis/walls.py` on evals r1840/1860/1880: 1,800 games, 0 mismatches, 51 wins; report
+`analysis/walls_report.py`, output `analysis/results/walls_v4b/walls_report.txt`):
+- Money. Median at death by ante: $4, $8, $16, $22, $36, $47, $44, $67 (antes 1-8); at a win $78. Shop exits
+  over the cap: 0.1% (ante 1), 20% (3), 60% (5), 77% (8). 97.2% of over-cap exits made no reroll; in 67% the
+  money over the cap alone paid for 3+ rerolls; mean excess $30. Seed Money in 11 games, Money Tree in none.
+- At the same blind, games that passed held as much money as games that died, or more (ante 7 boss: $53 died,
+  $67 passed; ante 8 boss: $72, $85). Late over-cap exits seldom had a free slot (ante 5: 12% left an affordable
+  joker with a free slot; ante 6: 4%).
+- Build, died vs passed at the same blind. Antes 1-3: 1-2 fewer jokers, empty slots (ante 2 big 1.35 vs 2.84,
+  ante 3 big 2.13 vs 3.93). Antes 5-8: same joker count (~4.9, slots full), same and few xMult jokers (~0.3, by an
+  approximate key list), main-hand level about one lower (ante 5 boss 4.83 vs 5.41, ante 6 big 5.26 vs 6.19,
+  ante 7 big 6.58 vs 7.48, ante 7 boss 7.39 vs 8.17).
+- Bosses. Death rate when faced, antes 1-3: The Mouth 22%, The Needle 18%, The Eye 16%, against The Goad 4%,
+  The Pillar 4%, The Psychic 5%. Antes 4-8: The Eye 55%, The Needle 56%, The Wall 52%, The Mouth 50%, against
+  The Pillar 25%, The Psychic 26%. Violet Vessel 95% (36 of 38).
+- Margin at the death blind (score / target): median 0.76 (antes 1-3), 0.78 (4-8); at least 0.8 in 44% / 47%,
+  under 0.5 in 14% / 15%.
+- Hieroglyph / Petroglyph (ante back by one) bought in 344 of 1,800 games; replayed antes add 0.58 blinds per
+  game to the eval average. Under the "blinds" reward an ante replayed pays 3 more. moe2's rate is not known, so
+  13.09 vs moe2's 12.93 is not yet like for like.
+
+**The rules, scored.**
+- H1, hoarding costs games (ante 4-8 deaths over the cap at least 30%; losers over the cap more than survivors
+  at the same ante; most over-cap exits leave an affordable joker in a free slot, or reroll under 0.1 per
+  visit): **not met.** 59% and the rerolls hold; losers do not hold more than survivors. Hoarding is real and
+  policy-wide (chud's guess is right about that), so this data cannot say whether spending would help: nothing in
+  it spends.
+- H2, build (losers under the cap, with fewer jokers / xMult jokers / lower main-hand levels): **partly.** Early,
+  fewer jokers with slots free; late, lower main-hand level with the same jokers.
+- H3, early boss effects (top 4 bosses at least 50% of ante 1-3 boss deaths, scoring under half the target):
+  **not met** (43.6%; mean ratios 0.55-0.75). Bosses that restrict which hands count (The Mouth, The Needle, The
+  Eye) still kill 3-5x as often as others.
+- H4, near misses (most deaths at least 0.8 of target): **not met**, nor its opposite.
+
+**Reading (Claude's).** Early games end poor and short of jokers; late games end rich with full slots and a
+weaker main hand. A late game that leaves $30 idle could have bought planets at $3 or rerolled for them: that
+link is an inference, not tested here. The cheapest test leaves the reward alone: raise the shop entropy floor
+(0.001 to about 0.005) in a registered v4c, and see whether late rerolls, planet buys and main-hand levels rise.
+A money term in the shaping would also work on it, but it writes a human judgment ("money over the cap is
+wasted") into what the bot learns from; that matters for aim 1. Nothing here is registered; chud decides.
+
+## Added 2026-11-13 ~11:30 CST: whose the 11:30 sections are
+
+The scoring of T1-T3, the replay tools, the four rules and the reading in the two sections above are Claude's
+(model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud. The questions and the hoarding guess are chud's.

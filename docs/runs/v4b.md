@@ -28,3 +28,9 @@ mid-blind selling the stop was written for: [diagnosis](../hypotheses-v4b.md#add
 `stop_sells = 0` in `configs/v4b.toml`, nothing else changed. The same launch command resumes it from
 `runs/v4b/latest.pt` (round 279; round 280 and its eval run again). It stops on the stall rule: 25 evals with no
 new best above 8.31.
+
+**Still training (2026-11-13).** At round 1890: 48.4 h and 181,536 games since the first launch. Best eval 13.40
+blinds/game at round 1840 (`best.pt`); evals r1700-1880 average 13.09. T1 not met, T2 met, T3 open:
+[scored](../hypotheses-v4b.md#added-2026-11-13-1130-cst-t1-t3-scored). Where its games end, economy or scaling:
+[diagnosis while it runs](../hypotheses-v4b.md#added-2026-11-13-1130-cst-where-v4bs-games-end-economy-or-scaling-diagnosis-while-it-runs)
+(`analysis/walls.py`, `analysis/walls_report.py`).
