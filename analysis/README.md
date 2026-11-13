@@ -46,3 +46,27 @@ the seeds common to all antes is also biased (see the script's docstring). First
 moe2's `pins0.pt`, results in `docs/moe2_evaluation.md`.
 Cost: per seed and handoff ante, 7 games per rollout (6 experts + the control). Run it when training
 isn't using the CPU, or with few workers.
+
+## Where games end: economy or scaling (v4b, 2026-11-13)
+`walls.py` replays saved eval games on the sim (no model) and records every blind (ante, target, jokers, money,
+hand levels, plays, score) plus every shop visit just before it ends: money, interest cap, jokers and slots,
+rerolls, buys and what was left on the shelf with its cost. `walls_report.py` (plain python) turns that into
+money vs the cap, losers vs survivors at the same blind, boss death rates and score/target at death.
+```bash
+python3 analysis/walls.py --src ~/balatro/local/source --games /mnt/c/Users/<you>/balatro-work/runs/v4b/games \
+    --rounds 1840,1860,1880 --workers 4 --out walls.jsonl
+python3 analysis/walls_report.py walls.jsonl
+```
+Result on v4b: `results/walls_v4b/walls_report.txt`, read in `docs/hypotheses-v4b.md` (2026-11-13 sections).
+
+## Why v4b hoards: branch rich late shops (2026-11-13)
+`economy_branch.py` takes one rich late shop exit per saved eval game (ante >= 5, money over the interest cap),
+reads the shop network's P(reroll) and value there, and plays three branches out with the checkpoint: the bot's
+own `end_shop`, one forced reroll, and a scripted spender that judges by phi_build. Paired by state, on common
+sampling RNG. Explanations A-D and the decision rules: `docs/hypotheses-v4b.md`, 2026-11-13 ~11:40.
+```bash
+python3 analysis/economy_branch.py /mnt/c/Users/<you>/balatro-work/runs/v4b/best.pt --src ~/balatro/local/source \
+    --games /mnt/c/Users/<you>/balatro-work/runs/v4b/games --rounds 1840,1860,1880 --playouts 8 --workers 12 \
+    --out econ_v4b.jsonl                                   # rerun to resume
+python3 analysis/economy_branch.py --summary econ_v4b.jsonl
+```

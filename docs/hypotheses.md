@@ -76,3 +76,8 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-11 ~09:25 CST: why v4b's shop network sold, and what it cost (diagnosis after the stop)](hypotheses-v4b.md#added-2026-11-11-0925-cst-why-v4bs-shop-network-sold-and-what-it-cost-diagnosis-after-the-stop) | v4b |
 | [Added 2026-11-11 ~09:25 CST: v4b continues from round 280 with the sell stop off, registered before its config changes](hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-continues-from-round-280-with-the-sell-stop-off-registered-before-its-config-changes) | v4b |
 | [Added 2026-11-11 ~09:30 CST: whose the 09:25 sections are](hypotheses-v4b.md#added-2026-11-11-0930-cst-whose-the-0925-sections-are) | v4b |
+| [Added 2026-11-13 ~11:30 CST: T1-T3 scored](hypotheses-v4b.md#added-2026-11-13-1130-cst-t1-t3-scored) | v4b |
+| [Added 2026-11-13 ~11:30 CST: where v4b's games end, economy or scaling (diagnosis while it runs)](hypotheses-v4b.md#added-2026-11-13-1130-cst-where-v4bs-games-end-economy-or-scaling-diagnosis-while-it-runs) | v4b |
+| [Added 2026-11-13 ~11:30 CST: whose the 11:30 sections are](hypotheses-v4b.md#added-2026-11-13-1130-cst-whose-the-1130-sections-are) | v4b |
+| [Added 2026-11-13 ~11:40 CST: why v4b hoards, four explanations and the test between them (registered before data)](hypotheses-v4b.md#added-2026-11-13-1140-cst-why-v4b-hoards-four-explanations-and-the-test-between-them-registered-before-data) | v4b |
+| [Added 2026-11-13 ~11:40 CST: whose the 11:40 sections are](hypotheses-v4b.md#added-2026-11-13-1140-cst-whose-the-1140-sections-are) | v4b |
