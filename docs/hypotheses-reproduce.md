@@ -116,3 +116,15 @@ Claude's, reviewed by chud.
 
 Claude's. The section above headed "~16:50 CST" was committed at 16:24 (commit 8fca40f). Section times from
 here on are read from the clock when written.
+
+## Added 2026-11-14, after chud's 16:48 CST message (the commit's time is the record): R's pre-flight, and jokers mirrored whole
+
+Claude's, reviewed by chud. Before R's laptop run:
+- `rank.py` runs a pre-flight on a fresh run (eval seeds 599-600, outside R's 300) and starts R only if it passes:
+  the game's LuaJIT 2.0.5; A0 replays v4b's own eval games exactly; every arm finishes a game; Balatro Lab's bot
+  decides in the arms that hand it decisions and nearly all its moves map to legal moves; the output folder is
+  writable; the twin follows past the first half of the game in most arms.
+- The pre-flight's first cloud run caught the twin lost within ~25 moves in every arm: Gros Michel's 1-in-6
+  extinction rolled by Balatro Lab's own randomness. Detail 1 of the 16:24 section now covers whole jokers: the twin's
+  jokers are rebuilt from the game's (its own objects kept where they match). After that the twin followed every arm
+  but two past the first half (A1 to move 103, A5 to move 63); pre-flight passed in the cloud.

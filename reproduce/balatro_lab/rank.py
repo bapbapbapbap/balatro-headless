@@ -17,6 +17,9 @@ v4b plays the rest of that game: counted as `lost_twin` with the move number.
     python3 rank.py --weights W.pt --lab <balatro-lab> --src <source> --arms A0,A1,A2,A3,A4,A5 --seeds 300 \
                     --workers 8 --out rank.jsonl
     python3 rank.py --report rank.jsonl
+
+A fresh run (no output file yet) first runs smoke(): pre-flight checks on 2 seeds outside R's; it stops with
+SMOKE FAILED and the reasons rather than start the night's run. --smoke-only runs just the checks.
 """
 from __future__ import annotations
 
@@ -187,15 +190,26 @@ def play_arm(sim, model, collate, seed, arm, bot_factory, args):
             for k, h in G.GAME.hands.items():
                 run.hand_levels[str(k)] = int(h.level)
         if "jokers" in d or "joker_state" in d:
-            game = [(TW.g_name(c), TW.edition_of(c), c) for c in M.lua_list(G.jokers.cards)]
-            if sorted(n for n, _, _ in game) == sorted(j.name for j in run.jokers):
-                free = list(run.jokers)
-                for n, ed, c in game:
-                    j = next(j for j in free if j.name == n)
+            # the game's jokers, in its order; the twin's own object kept where one matches (it may hold more
+            # state than state.py carries), a new one where the twin lost or never got it (Gros Michel's
+            # extinction, Madness, an edition or a joker a chance effect gave)
+            from balatro.jokers import CATALOG
+            free, new = list(run.jokers), []
+            for c in M.lua_list(G.jokers.cards):
+                n, ed = TW.g_name(c), TW.edition_of(c)
+                j = next((j for j in free if j.name == n and j.edition == ed), None) or \
+                    next((j for j in free if j.name == n), None)
+                if j is not None:
                     free.remove(j)
-                    j.edition = ed
-                    for k, v in TW.joker_state(n, c.ability, G).items():
-                        setattr(j, k, v)
+                elif n in CATALOG:
+                    j = CATALOG[n](ed)
+                else:
+                    continue
+                j.edition = ed
+                for k, v in TW.joker_state(n, c.ability, G).items():
+                    setattr(j, k, v)
+                new.append(j)
+            run.jokers = new
         if "consumables" in d:
             run.consumables = [CONSUMABLES[TW.g_name(c)]() for c in M.lua_list(G.consumeables.cards)
                                if TW.g_name(c) in CONSUMABLES]
@@ -313,6 +327,71 @@ def worker(a):
                 print(json.dumps(rec)[:240], flush=True)
 
 
+def smoke(a):
+    """Pre-flight, before R's run: fails loudly instead of wasting a night. Uses eval seeds 599-600 (not in R's
+    first 300). Checks: (1) the game's LuaJIT 2.0.5 (twin.py refuses others); (2) A0 replays v4b's own eval games
+    exactly (same moves, same blinds) on 2 seeds; (3) every arm finishes a game with no error; (4) Balatro Lab's
+    bot actually decides in the arms that hand it decisions, and almost none of its moves fail to map;
+    (5) the output folder is writable; (6) the twin follows the game past the first half in most arms."""
+    import torch
+    from common import collate, eval_seeds
+    from model import make_model, phase_member
+    M.phase_member = phase_member
+    os.environ.setdefault("VALUEBOT_WEIGHTS", "hand")
+    TW.TIMEOUT = 3600
+    TW.load_lab(a.lab)
+    from balatro.strategy import ValueBot
+    print(f"smoke: {TW.LUAJIT}", flush=True)
+    problems = []
+    out_dir = os.path.dirname(os.path.abspath(a.out))
+    try:
+        with open(os.path.join(out_dir, ".rank_smoke_write_test"), "w") as f:
+            f.write("ok")
+        os.remove(os.path.join(out_dir, ".rank_smoke_write_test"))
+    except OSError as e:
+        problems.append(f"output folder not writable: {e}")
+    sim, route_of = M.load_ours(a.weights, a.src)
+    w = torch.load(a.weights, map_location="cpu", weights_only=True)
+    model = make_model(argparse.Namespace(**dict(w["trained"]["provenance"]["config"])), len(w["vocab"]))
+    model.load_state_dict(w["state_dict"])
+    model.eval()
+    seeds = eval_seeds(600)[598:600]
+    for seed in seeds:
+        acts, _desc, prog = route_of(seed)
+        sim.build_phi = False
+        r = play_arm(sim, model, collate, seed, "A0", ValueBot, a)
+        ok = r["moves"] == len(acts) and r["blinds"] == prog["blinds_beaten"]
+        print(f"smoke: A0 {seed}: {r['moves']} moves / {r['blinds']} blinds; eval code: {len(acts)} / "
+              f"{prog['blinds_beaten']} -> {'same' if ok else 'DIFFERENT'}", flush=True)
+        if not ok:
+            problems.append(f"A0 does not replay v4b's eval game on {seed}")
+    early = []
+    for arm in [x for x in a.arms.split(",") if x != "A0"]:
+        t = time.time()
+        try:
+            r = play_arm(sim, model, collate, seeds[0], arm, ValueBot, a)
+        except Exception:
+            problems.append(f"{arm} crashed: {traceback.format_exc(limit=3)}")
+            continue
+        theirs = r["theirs"] + r["theirs_no_twin"]
+        print(f"smoke: {arm} {seeds[0]}: {r['blinds']} blinds, their moves {theirs}, unmapped {r['unmapped']}, "
+              f"lost twin {'at move ' + str(r['lost_twin']['move']) if r['lost_twin'] else 'no'}, "
+              f"{time.time() - t:.0f} s", flush=True)
+        if theirs == 0:
+            problems.append(f"{arm}: Balatro Lab's bot made no move")
+        if r["unmapped"] > max(2, theirs // 10):
+            problems.append(f"{arm}: {r['unmapped']} of its moves had no matching legal move")
+        if r["lost_twin"] and r["lost_twin"]["move"] < r["moves"] // 2:
+            early.append(f"{arm} at move {r['lost_twin']['move']} of {r['moves']}: {r['lost_twin']['why'][:120]}")
+    if len(early) > 2:          # one early loss can be the seed's luck; most arms losing it is a bug
+        problems.append("the twin is lost in the first half of the game in most arms:\n    " + "\n    ".join(early))
+    if problems:
+        print("SMOKE FAILED:\n  " + "\n  ".join(problems), flush=True)
+        return False
+    print("SMOKE PASSED", flush=True)
+    return True
+
+
 def report(path):
     rows = [json.loads(l) for l in open(path) if "error" not in json.loads(l)]
     by = {}
@@ -352,10 +431,17 @@ def main() -> int:
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--out", default="rank.jsonl")
     ap.add_argument("--report")
+    ap.add_argument("--smoke-only", action="store_true", help="run the pre-flight checks and stop")
+    ap.add_argument("--no-smoke", action="store_true", help="skip them (they run by default on a fresh run)")
     a = ap.parse_args()
     if a.report:
         report(a.report)
         return 0
+    if a.smoke_only or (not a.no_smoke and a.first == 0 and not os.path.exists(a.out)):
+        if not smoke(a):
+            return 1
+        if a.smoke_only:
+            return 0
     if a.workers > 1:
         per = -(-a.seeds // a.workers)
         procs = []
@@ -365,7 +451,7 @@ def main() -> int:
                 break
             procs.append(subprocess.Popen([sys.executable, __file__, "--weights", a.weights, "--lab", a.lab,
                                            "--src", a.src, "--arms", a.arms, "--seeds", str(n),
-                                           "--first", str(a.first + k * per), "--max-steps", str(a.max_steps),
+                                           "--first", str(a.first + k * per), "--max-steps", str(a.max_steps), "--no-smoke",
                                            "--out", a.out.replace(".jsonl", f"_w{k}.jsonl")]))
         for p in procs:
             p.wait()
