@@ -28,6 +28,7 @@ gap (facts fixed, only the reward varied); 2. prove a naneinf seed; 3. 100% a fr
 | Beaten seeds | `wins/README.md` (`wins/routes.jsonl` is 7.5 MB: query it, don't read it) |
 | Diagnostics | `analysis/compare_models.py` (model vs model on tagged seeds), `analysis/v4_sells.py` (per-move rewards and advantages) |
 | Windows side | `tools/balatro.ps1` (setup, train, status, watch, publish), `tools/watch.ps1` |
+| Other people's bots | `reproduce/<project>/README.md` (their code stays in their repos, imported from a pinned clone); registrations `docs/hypotheses-reproduce.md` |
 
 Don't read unless asked: `CHANGELOG.md` (77 KB), `wins/*.jsonl`, `weights/*.pt`, `analysis/results/`.
 
