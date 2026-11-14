@@ -49,3 +49,49 @@ chud's predictions: to be added in a section of his own.
 - T2b: "they discard / we play": theirs better, interval above 0. Claude 65%.
 - T2c: kicker-only differences: interval contains 0. Claude 70%.
 - T2d: shop "they buy a joker / we open a pack": theirs better, interval above 0. Claude 60%.
+
+## Added 2026-11-14 ~16:15 CST: T1 withdrawn; T2 replaced by ranking test R; how v5 is chosen
+
+Claude's, reviewed by chud, except where marked chud's.
+
+**T1 withdrawn before it ran** (chud, 16:00: why spend the laptop on it). Balatro Lab's held-out second set
+(72.5%) and the fidelity results above already speak against seed tuning; the hours go to v5 instead.
+
+**T2 replaced, before any of its code, by R.** T2 judged a choice by letting Balatro Lab's bot play on from it,
+which favors its own choices. R measures directly, on our game code, what v4b would gain if one kind of decision
+were made the way Balatro Lab's bot makes it.
+
+**Correction to the 11:00 plan:** "power as the shaping potential" was listed as untried; v4/v4b already train
+with it (`harness/build_phi.lua`: phi_build, mean best score over 16 deals, scaling jokers projected 6 rounds),
+and v4c added offer values. What v4b lacks is choosing by computed values: no score per candidate play, no search.
+
+**R, the ranking test.**
+- Seeds: our eval seeds 1-300 (`train/common.py eval_seeds(600)[:300]`), Red Deck, White Stake, 1.0.1o, on the
+  laptop (LuaJIT 2.0.5).
+- Arms (same seeds, paired): A0 v4b best.pt alone (round 1840), playing as in its evals; A1 hand play (play,
+  discard) handed to Balatro Lab's bot; A2 shop (buy, buy and use, redeem, open pack, reroll, leave, and selling
+  or using in the shop); A3 pack picks; A4 blind select or skip; A5 all of them (Balatro Lab's bot plays the real
+  game: its win rate on our code).
+- How a decision is handed over: Balatro Lab's seeded run follows the game in lockstep (`twin.py`); at a handed-over
+  decision its bot chooses on a copy of the twin's state (as `mine.py`), and that choice is played in the game as
+  the matching harness move. v4b makes every other move. Random draws the twin rolls differently are copied from the
+  game (as in `mine.py`); where the twin can't follow at all, v4b plays the rest of that game and the game is
+  counted, with the share of such games reported per arm.
+- Check before any arm is scored: A0 must reproduce v4b's own eval games (same blinds beaten, every seed).
+- Outcome: blinds beaten per game (skips not counted, as `blinds_mean`) and wins, each arm minus A0 paired by
+  seed, 95% interval by bootstrap over seeds.
+- Claude's predictions: R1 A1 gains the most blinds of A1-A4, 55%. R2 A1 gains at least 1.0 blind/game, interval
+  above 0, 70%. R3 A2 gains, interval above 0, 60%. R4 A4 within 0.3 blinds/game of A0, 70%. R5 A5 wins at least
+  60% of games, 75%.
+- chud's prediction (stated 16:05, his words): "given the reproduced 340/480 = .7083 win rate, I believe aligning
+  our bot's behavior with its behavior more will increase our win rate, which [will] give the best win rate we've
+  gotten so far." Scored on v5: v5's best eval win rate above every earlier model's best eval win rate (the number
+  to beat is looked up from the record and written into v5's registration before v5's code).
+
+**How v5 is chosen (rule, fixed now).** v5 = v4b's design, warm-started from v4b best.pt, plus the computation
+behind the arm with the largest blind gain in R (ties: the larger win gain): for hand play, each legal play's and
+discard's exact value from the game's own scoring as an action input; for the shop, each offer's computed value
+(v4c's offer values, extended to what R shows); never Balatro Lab's hand-set values or its weights, and no
+imitation of its moves (those would make the oughts its, not ours). If no arm gains with its interval above 0, v5
+is not built from R and the next step is reconsidered with chud. v5's design and predictions are registered after
+R and before v5's code.
