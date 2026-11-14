@@ -111,3 +111,8 @@ Claude's, reviewed by chud.
   from the game state (`state.py`, whose scoring matched the game on 4,143/4,143 hands), counted as
   `theirs_no_twin`. Shop, pack and blind decisions after a loss go to v4b, counted by `lost_twin`.
 - Reported per arm with the result: moves decided by Balatro Lab's bot, unmapped ones, games that lost the twin.
+
+## Added 2026-11-14 16:24 CST: time correction
+
+Claude's. The section above headed "~16:50 CST" was committed at 16:24 (commit 8fca40f). Section times from
+here on are read from the clock when written.
