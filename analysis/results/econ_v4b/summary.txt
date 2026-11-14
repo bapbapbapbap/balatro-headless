@@ -1,0 +1,20 @@
+games 1800, errors 0, with a qualifying exit 722, all three branches played 722
+
+D. qualifying exits 4126: reroll offered 100.0%; where affordable (4126) 100.0%
+
+A. at the branch point (n=722, temperature 1): P(reroll) median 0.0152, mean 0.0162, under 0.01 in 35%, under 0.05 in 99%; P(end_shop) median 0.690; P(buy) median 0.0000
+   ante 5.61, money $52 (cap $25), jokers 4.86/5.03
+
+branch    blinds after   discounted return   wins     delta (one-step view)
+end          2.868          2.576           6.75%   -0.0821
+reroll       2.996          2.684           7.55%   +0.0106
+spend        3.162          2.824           7.96%   +0.1646
+
+paired, branch minus end (95% bootstrap over states)
+  reroll blinds +0.128  [+0.038, +0.219]
+  reroll return +0.108  [+0.035, +0.181]
+  spend  blinds +0.293  [+0.164, +0.426]
+  spend  return +0.248  [+0.142, +0.356]
+
+spend branch, moves per state: buy 0.46, swap 1.07, redeem 0.55, open_pack 0.02, pick 0.02, reroll 2.76; money left $28 (median)
+seconds per game: median 5

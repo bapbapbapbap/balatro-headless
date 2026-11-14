@@ -81,3 +81,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-13 ~11:30 CST: whose the 11:30 sections are](hypotheses-v4b.md#added-2026-11-13-1130-cst-whose-the-1130-sections-are) | v4b |
 | [Added 2026-11-13 ~11:40 CST: why v4b hoards, four explanations and the test between them (registered before data)](hypotheses-v4b.md#added-2026-11-13-1140-cst-why-v4b-hoards-four-explanations-and-the-test-between-them-registered-before-data) | v4b |
 | [Added 2026-11-13 ~11:40 CST: whose the 11:40 sections are](hypotheses-v4b.md#added-2026-11-13-1140-cst-whose-the-1140-sections-are) | v4b |
+| [Added 2026-11-13 ~18:20 CST: why v4b hoards, the test's result](hypotheses-v4b.md#added-2026-11-13-1820-cst-why-v4b-hoards-the-tests-result) | v4b |
+| [Added 2026-11-13 ~18:20 CST: whose the 18:20 sections are](hypotheses-v4b.md#added-2026-11-13-1820-cst-whose-the-1820-sections-are) | v4b |

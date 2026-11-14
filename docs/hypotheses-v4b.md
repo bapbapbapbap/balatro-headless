@@ -305,3 +305,44 @@ read; the smoke's output is not part of the result.
 The premise (spending correlates with blinds, from his play), the question and the call to pause v4b are chud's,
 reviewed by Claude. The four explanations, the correction, the test, the scripted spender and the decision rules
 are Claude's (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud.
+
+## Added 2026-11-13 ~18:20 CST: why v4b hoards, the test's result
+
+Run on chud's laptop (finished 16:41 CST), as registered except play-outs: 4 per branch, not 8, set from the
+smoke's timing before any branch result was read. Rounds 1840, 1860, 1880: 1,800 eval games, 0 errors, 722 with a
+qualifying exit, all three branches played at all 722. Output: `analysis/results/econ_v4b/summary.txt`.
+
+| branch | blinds after | discounted return | wins | one-step delta |
+|---|---|---|---|---|
+| end (the bot's move) | 2.868 | 2.576 | 6.75% | -0.082 |
+| reroll (one, then the bot) | 2.996 | 2.684 | 7.55% | +0.011 |
+| spend (scripted, then the bot) | 3.162 | 2.824 | 7.96% | +0.165 |
+
+Paired minus end, 95% bootstrap over states: reroll blinds +0.128 [+0.038, +0.219], return +0.108 [+0.035,
++0.181]; spend blinds +0.293 [+0.164, +0.426], return +0.248 [+0.142, +0.356]. At the branch points P(reroll)
+median 0.0152 (under 0.01 in 35% of states), P(end_shop) median 0.690, P(buy) median 0.
+
+**Scored by the registered rules:**
+- D: missed. Reroll offered at 100% of 4,126 qualifying exits, all affordable.
+- A: missed, on its threshold. Reroll minus end return is above 0, but median P(reroll) is 0.0152, not under 0.01.
+- B: missed. Its first condition needs reroll minus end return not above 0; the interval is above 0. Its
+  sub-clause (spend's delta at most end's) also does not hold: the one-step view ranks spend > reroll > end.
+- C: missed. Both reroll and spend beat end in blinds and return.
+- Size: missed by 0.007. Spend minus end is +0.293 blinds per state against a bar of +0.3; the interval contains
+  0.3. By the rule as written, spending is not shown worth a v4c.
+
+None of the four explanations is supported by its rule. chud's premise holds in this setting: late spending pays
+(+0.29 blinds and +1.2 points of win rate from one exit), and a single reroll pays (+0.13). The bot almost never
+takes either, though its own one-step view (critic plus phi_build) rates ending the shop lowest of the three.
+Why the policy doesn't follow that is not answered by this test.
+
+**Not registered, read after the data** (per-state blinds, spend minus end / reroll minus end): ante 5 +0.31 /
++0.20 (n 427), ante 6 +0.29 / -0.01 (187), ante 7 +0.39 / +0.13 (74), ante 8 -0.08 / +0.01 (34); money $70+
++0.46 (196), under $40 +0.20 (196); spend beat end in 40% of states, lost in 30%. The spender's gain came mostly
+from rerolls (2.76 per state) and swaps (1.07), plain buys 0.46. The test branched one exit per game; these games
+had 5.7 qualifying exits each, so what spending at every one would add is untested.
+
+## Added 2026-11-13 ~18:20 CST: whose the 18:20 sections are
+
+chud ran the test. The scoring and the unregistered breakdowns are Claude's (model: Claude Opus 5.5,
+`claude-opus-5-5`), reviewed by chud.
