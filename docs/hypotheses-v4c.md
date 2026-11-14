@@ -134,3 +134,14 @@ The pre-flight missed it because check 4 only compares jokers a route's shelves 
 - `tests/v4c_swap_check.py` check 7: every joker in the game (150) is built, refreshed and valued as a pool card
   at the first shop of each ante on one route, the game unchanged. Without the fix it fails on Steel and Stone
   Joker; with it, all 150 pass at 8 shops. Checks 1–5 give the same results as the ~20:45 run.
+
+## Added 2026-11-13 ~23:58 CST: smoke 3 passed; the gate applies, pool samples 8 -> 4
+
+Claude's (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud. The registered gate, applied as written.
+
+Smoke 3 (launch 840c27d, 2026-11-13 23:40) passed every pre-flight check, the warm start included, and trained 3
+rounds without error. Sim time per decision, phi_build and offer values on, over the same 3 routes in the
+pre-flight: ordered-capped 14.5 ms, ordered-capped-swap 41.1 ms, **2.82x**. In the smoke's own rounds: 45.7,
+53.3, 66.8 ms against v4b's last 22.7 ms (2.0–2.9x, few games). Both are over 1.6x, so per the gate
+`configs/v4c.toml` `pool_samples` goes from 8 to 4. The gate cuts samples only; it does not promise the run
+comes back under 1.6x. Nothing else changes. Smoke evals (12 games each, not a result): 11.08 and 10.25 blinds.

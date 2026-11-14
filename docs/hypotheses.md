@@ -88,3 +88,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-13 ~18:45 CST: whose the 18:45 sections are](hypotheses-v4c.md#added-2026-11-13-1845-cst-whose-the-1845-sections-are) | v4c |
 | [Added 2026-11-13 ~20:45 CST: smoke 1 stopped in pre-flight; two pool-card bugs fixed](hypotheses-v4c.md#added-2026-11-13-2045-cst-smoke-1-stopped-in-pre-flight-two-pool-card-bugs-fixed) | v4c |
 | [Added 2026-11-13 ~23:55 CST: smoke 2 crashed in training on Steel Joker; pool cards now get Card:update](hypotheses-v4c.md#added-2026-11-13-2355-cst-smoke-2-crashed-in-training-on-steel-joker-pool-cards-now-get-cardupdate) | v4c |
+| [Added 2026-11-13 ~23:58 CST: smoke 3 passed; the gate applies, pool samples 8 -> 4](hypotheses-v4c.md#added-2026-11-13-2358-cst-smoke-3-passed-the-gate-applies-pool-samples-8---4) | v4c |

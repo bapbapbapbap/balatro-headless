@@ -24,7 +24,7 @@ heads = 6
 enc = 2
 actions = "ordered-capped-swap"
 offer_values = true
-pool_samples = 8             # the gate (hypotheses-v4c.md): 4 if the smoke's sim time is over 1.6x v4b's
+pool_samples = 4             # the gate applied (hypotheses-v4c.md, 2026-11-13 ~23:58): smoke sim 2.82x v4b's
 # what it wants, and how credit reaches its moves (v4b's)
 reward = "blinds"
 build_shaping = 1
