@@ -37,6 +37,14 @@
 -- cards are hand positions, ascending.
 --
 -- Not offered (yet): boss reroll (Director's Cut / Retcon), endless mode after a win.
+--
+-- H.swaps (off by default; set by the "ordered-capped-swap" action set, model v4c, docs/hypotheses-v4c.md):
+-- in the shop, "swap i>j" sells held joker i and buys shop joker j as one move, offered when j can't be
+-- bought for lack of room (the game's own check), i can be sold (the game's own check), i isn't Negative
+-- (its sale frees no slot) or Invisible Joker (its sale adds a joker), and j is affordable once i's sell value
+-- is paid (the game's own can_buy rule). Applied as the game's sell, settled, then the game's buy, settled:
+-- the end state of the two moves in turn. Listed after every other shop move, so every other move keeps its
+-- index and routes played without swaps replay unchanged.
 
 local H = ...
 H.mode = H.mode or "controls"
@@ -118,6 +126,26 @@ local function has_buy_space(card)
   local ok, r = pcall(G.FUNCS.check_for_buy_space, card)
   alert_no_space = alert
   return ok and r
+end
+
+-- model v4c's swap: may held joker jc be sold to make room for shop joker sc (see H.swaps above)?
+local function swap_ok(jc, sc)
+  local GG = G.GAME
+  if jc.ability.name == "Invisible Joker" or (jc.edition and jc.edition.negative) then return false end
+  local ok, sellable = pcall(function() return jc:can_sell_card() end)
+  if not (ok and sellable) then return false end
+  return not (sc.cost > GG.dollars + (jc.sell_cost or 0) - GG.bankrupt_at and sc.cost > 0)
+end
+H.swap_ok = swap_ok
+
+local function add_swaps(acts)
+  for j, sc in ipairs(G.shop_jokers and G.shop_jokers.cards or {}) do
+    if sc.ability.set == "Joker" and not has_buy_space(sc) then
+      for i, jc in ipairs(G.jokers.cards) do
+        if swap_ok(jc, sc) then acts[#acts + 1] = { type = "swap", i = i, j = j } end
+      end
+    end
+  end
 end
 
 local XMULT_JOKERS = { ["Photograph"] = true, ["The Idol"] = true, ["Bloodstone"] = true,
@@ -299,6 +327,7 @@ function H.legal_actions()
       if button_check(G.FUNCS.can_open, c) then add(acts, { type = "open_pack", i = i }) end
     end
     add_jokers_and_consumables(acts, controls)
+    if H.swaps then add_swaps(acts) end           -- last: every other move keeps its index
 
   elseif PACK[st] or (S.SMODS_BOOSTER_OPENED and st == S.SMODS_BOOSTER_OPENED) then
     if controls and HAND_SHOWN[st] and G.hand and G.hand.cards[1] then add_hand_controls(acts) end
@@ -396,6 +425,21 @@ end
 -- event, the same pause a player sits through before the Play button lights up.
 function H.step(a)
   H._drags = a.type == "move_joker" and (H._drags or 0) + 1 or 0
+  if a.type == "swap" then
+    -- the game's sell, settled (the sale's money and the card's removal are events), then the game's buy
+    local sc = G.shop_jokers.cards[a.j]
+    H.apply({ type = "sell_joker", i = a.i })
+    local n1 = H.settle()
+    if n1 < 0 then return n1 end
+    if not (sc and button_check(G.FUNCS.can_buy, sc) and has_buy_space(sc)) then
+      H.swap_partial = (H.swap_partial or 0) + 1   -- the buy isn't legal after all: the move was a sale (counted)
+      return n1
+    end
+    H.apply({ type = "buy", i = a.j })
+    local n2 = H.settle()
+    if n2 < 0 then return n2 end
+    return n1 + n2
+  end
   H.apply(a)
   local n = H.settle()
   if n < 0 then return n end

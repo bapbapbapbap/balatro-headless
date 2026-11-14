@@ -15,6 +15,8 @@
 local H = ...
 
 local K_DEALS = 16
+-- build_power's cache, in entries (32 through v4b; v4c's swap, reroll and pack values ask for ~30 per board)
+local CACHE_SIZE = H.swaps and 256 or 32
 local PROJECT_ROUNDS = 6
 -- Per-round growth of scaling jokers (ability field -> per round). The planner's table
 -- (roshantaneja/balatro-gym env/planner.py GROWTH, "rough community-consensus rates for a spam-hand
@@ -93,24 +95,31 @@ local function in_manacle()
   return G.STATE == G.STATES.SELECTING_HAND and b and b.name == "The Manacle" and not b.disabled
 end
 
--- opts: nil, or a change to evaluate (an offer): {joker = card} | {level = hand} | {voucher = card}
+-- What a joker adds to the board's counts when it joins it (s = 1), or takes away when it leaves (s = -1):
+-- what its add_to_deck / remove_from_deck change.
+local function joker_counts(e, card, s)
+  local a = card.ability
+  e.hs = e.hs + s * (a.h_size or 0)
+  if (a.d_size or 0) > 0 then e.discards = e.discards + s * a.d_size end
+  if a.name == "Turtle Bean" then e.hs = e.hs + s * a.extra.h_size end
+  if a.name == "Troubadour" then e.hs = e.hs + s * a.extra.h_size; e.hands = e.hands + s * a.extra.h_plays end
+  if a.name == "Stuntman" then e.hs = e.hs - s * a.extra.h_size end
+  if a.name == "Oops! All 6s" then e.prob = s > 0 and e.prob * 2 or e.prob / 2 end
+  if card.edition and card.edition.negative then e.slots = e.slots + s end
+end
+
+-- opts: nil, or a change to evaluate (an offer): {joker = card} | {level = hand} | {voucher = card}, and for
+-- model v4c's swap {joker = card, remove = held joker, gain = its sell value} (remove alone: the board without it)
 local function effective(opts)
   local e = {
     hs = (G.hand and G.hand.config.card_limit or 8) + (in_manacle() and 1 or 0),
     hands = G.GAME.round_resets.hands, discards = G.GAME.round_resets.discards,
     slots = G.jokers.config.card_limit, prob = G.GAME.probabilities.normal,
-    dollars = G.GAME.dollars - (opts and opts.cost or 0),      -- an offer is paid for (Bull, Bootstraps)
+    -- an offer is paid for (Bull, Bootstraps); a sold joker's value comes in
+    dollars = G.GAME.dollars - (opts and opts.cost or 0) + (opts and opts.gain or 0),
   }
-  if opts and opts.joker then
-    local a = opts.joker.ability
-    e.hs = e.hs + (a.h_size or 0)
-    if (a.d_size or 0) > 0 then e.discards = e.discards + a.d_size end
-    if a.name == "Turtle Bean" then e.hs = e.hs + a.extra.h_size end
-    if a.name == "Troubadour" then e.hs = e.hs + a.extra.h_size; e.hands = e.hands + a.extra.h_plays end
-    if a.name == "Stuntman" then e.hs = e.hs - a.extra.h_size end
-    if a.name == "Oops! All 6s" then e.prob = e.prob * 2 end
-    if opts.joker.edition and opts.joker.edition.negative then e.slots = e.slots + 1 end
-  end
+  if opts and opts.remove then joker_counts(e, opts.remove, -1) end
+  if opts and opts.joker then joker_counts(e, opts.joker, 1) end
   if opts and opts.voucher then
     local v = VOUCHER[opts.voucher.ability.name] or {}
     e.hs, e.hands = e.hs + (v.hs or 0), e.hands + (v.hands or 0)
@@ -172,8 +181,9 @@ function H.build_key(opts, base)
     end
     if r == "sell" then for _, c in ipairs(G.jokers.cards) do o[#o + 1] = tostring(c.sell_cost) end end
   end
+  if opts.remove then o[#o + 1] = "-J"; o[#o + 1] = card_sig(opts.remove) end
   if opts.level then o[#o + 1] = "+L" .. opts.level end
-  o[#o + 1] = "$" .. tostring(opts.cost or 0)
+  o[#o + 1] = "$" .. tostring(opts.cost or 0) .. "+" .. tostring(opts.gain or 0)
   if opts.voucher then o[#o + 1] = "+V" .. opts.voucher.config.center.key end
   return table.concat(o, ";")
 end
@@ -428,10 +438,10 @@ function H.build_power_fresh(opts)
     G.GAME.dollars = e.dollars
     G.jokers.config.card_limit = e.slots
     G.GAME.round_resets.hands, G.GAME.round_resets.discards = e.hands, e.discards
-    if opts and opts.joker then
+    if opts and (opts.joker or opts.remove) then
       local j = {}
-      for i, c in ipairs(G.jokers.cards) do j[i] = c end
-      j[#j + 1] = opts.joker
+      for _, c in ipairs(G.jokers.cards) do if c ~= opts.remove then j[#j + 1] = c end end
+      if opts.joker then j[#j + 1] = opts.joker end     -- a bought joker goes in rightmost, as the game puts it
       G.jokers.cards = j
     end
     if opts and opts.voucher then G.GAME.used_vouchers[opts.voucher.config.center.key] = true end
@@ -532,21 +542,184 @@ function H.build_power(opts, base)
   end
   local phi, B = H.build_power_fresh(opts)
   table.insert(C, 1, { key = key, phi = phi, B = B })
-  C[33] = nil
+  C[CACHE_SIZE + 1] = nil
   return phi, B
 end
 
+-- ---------------------------------------------------------------- model v4c: what the pool could bring
+-- (docs/hypotheses-v4c.md, 2026-11-13 ~18:45 CST.) A reroll's and a Buffoon or Celestial pack's value: the
+-- expected best gain over cards drawn the way the game draws them, from what a player knows: the game's own
+-- pools (get_current_pool, given the rarity so it draws no random number), its shop rates and its joker rarity
+-- odds. Never the seed's next shop or pack. Drawn by a fixed generator seeded from the board, separate from
+-- the game's random numbers, so a state always gets the same value. Sampled cards are valued in base edition.
+local POOL_SAMPLES = H.pool_samples or 8
+local RARITY = { { 0.70, 0.5 }, { 0.95, 0.8 }, { 1.0, 0.99 } }   -- (cumulative odds, the rarity roll that picks it)
+
+local function pool_keys(kind, roll)
+  local ok, pool = pcall(get_current_pool, kind, roll)
+  if not ok then error("get_current_pool(" .. kind .. "): " .. tostring(pool)) end
+  local out = {}
+  for _, k in ipairs(pool) do if k ~= "UNAVAILABLE" then out[#out + 1] = k end end
+  return out
+end
+
+-- A card for a pool joker that is on no board: Card's methods and fields, its ability set by the game's own
+-- set_ability (sprites delayed, events, unlocks and random numbers stubbed out), registered nowhere. One per
+-- joker per runtime; its cost is set again each time it is valued.
+local function pool_card(key)
+  H._pool_cards = H._pool_cards or {}
+  local c = H._pool_cards[key]
+  if c then return c end
+  local center = G.P_CENTERS[key]
+  c = setmetatable({ config = { center = center, card = {} }, params = {}, T = { x = 0, y = 0, w = 1, h = 1 },
+                     VT = { x = 0, y = 0, w = 1, h = 1, r = 0, scale = 1 }, children = {}, states = {},
+                     base_cost = 0, extra_cost = 0, cost = 0, sell_cost = 0, debuff = false, facing = "front",
+                     sort_id = -1, ID = -1 }, { __index = Card })
+  for _, f in ipairs({ "juice_up", "start_dissolve", "remove", "set_sprites", "align", "hard_set_T" }) do c[f] = NOOP end
+  local g = G.GAME
+  local scalars = {}
+  for k, v in pairs(g) do if type(v) ~= "table" then scalars[k] = v end end
+  local saved = {}
+  for _, k in ipairs(STUBS) do saved[k] = _G[k]; _G[k] = NOOP end
+  local pe, ps, pr = pseudorandom_element, pseudoseed, pseudorandom
+  pseudoseed = function() return 0.5 end
+  pseudorandom = function(_, lo, hi) if lo and hi then return math.floor((lo + hi) / 2) end return 0.5 end
+  pseudorandom_element = function(t) local ks = {}; for k in pairs(t) do ks[#ks + 1] = k end
+    table.sort(ks, function(a, b) return tostring(a) < tostring(b) end); return t[ks[1]], ks[1] end
+  local add_event = G.E_MANAGER.add_event
+  G.E_MANAGER.add_event = NOOP
+  local ok, err = pcall(function() Card.set_ability(c, center, true, true) end)
+  G.E_MANAGER.add_event = add_event
+  pseudorandom_element, pseudoseed, pseudorandom = pe, ps, pr
+  for _, k in ipairs(STUBS) do _G[k] = saved[k] end
+  for k, v in pairs(scalars) do g[k] = v end
+  if not ok then error("pool card " .. key .. ": " .. tostring(err)) end
+  H._pool_cards[key] = c
+  return c
+end
+
+local function set_cost(c)
+  local ok, err = pcall(function() Card.set_cost(c) end)
+  if not ok then error("pool card cost: " .. tostring(err)) end
+end
+
+local function str_seed(str)
+  local h = 5381
+  for i = 1, #str, 7 do h = (h * 33 + str:byte(i)) % 2147483647 end
+  return h
+end
+
+-- The held joker whose sale costs the build least, among those a swap may sell (env.lua's swap_ok rules
+-- without a shop card), and phi_build without it. nil if none may be sold.
+local function weakest(base, now)
+  local best, best_phi = nil, nil
+  for _, jc in ipairs(G.jokers.cards) do
+    local ok, sellable = pcall(function() return jc:can_sell_card() end)
+    if ok and sellable and jc.ability.name ~= "Invisible Joker" and not (jc.edition and jc.edition.negative) then
+      local phi = H.build_power({ remove = jc, gain = jc.sell_cost or 0 }, base)
+      if not best_phi or phi > best_phi then best, best_phi = jc, phi end
+    end
+  end
+  return best
+end
+
+-- The gain of taking pool joker `key` with `money` to spend (price paid only if it's a shop card): a buy
+-- if there's room, else a swap against the weakest held joker; nil if it can't be afforded or placed.
+local function joker_gain(key, money, priced, base, now, weak)
+  local c = pool_card(key)
+  set_cost(c)
+  local cost = priced and c.cost or 0
+  if #G.jokers.cards < G.jokers.config.card_limit then
+    if priced and cost > money - G.GAME.bankrupt_at and cost > 0 then return nil end
+    return H.build_power({ joker = c, cost = cost }, base) - now
+  end
+  if not weak then return nil end
+  if priced and cost > money + (weak.sell_cost or 0) - G.GAME.bankrupt_at and cost > 0 then return nil end
+  return H.build_power({ joker = c, remove = weak, cost = cost, gain = weak.sell_cost or 0 }, base) - now
+end
+
+local function planet_gain(key, base, now)
+  local hand = G.P_CENTERS[key].config.hand_type
+  if not hand then return nil end
+  return H.build_power({ level = hand }, base) - now
+end
+
+local function draw_joker(rnd, pools)
+  local u, roll = rnd(), RARITY[3][2]
+  for _, r in ipairs(RARITY) do if u < r[1] then roll = r[2]; break end end
+  local pool = pools[roll]
+  if not pool then pool = pool_keys("Joker", roll); pools[roll] = pool end
+  return pool[math.min(#pool, 1 + math.floor(rnd() * #pool))]
+end
+
+-- kind: "reroll" (a fresh shop) | "Buffoon" | "Celestial" (a pack of n cards, free). Expected best gain >= 0.
+local function pool_value(kind, n, money, base, now)
+  local vkey = table.concat({ base, kind, n, money, G.GAME.joker_rate or 0, G.GAME.tarot_rate or 0,
+                             G.GAME.planet_rate or 0, G.GAME.playing_card_rate or 0, G.GAME.spectral_rate or 0,
+                             G.GAME.round_resets.ante, G.GAME.discount_percent or 0, G.GAME.inflation or 0 }, "|")
+  H._pool_vals = H._pool_vals or {}
+  for _, en in ipairs(H._pool_vals) do if en.key == vkey then return en.v end end
+  local state = str_seed(vkey)
+  local function rnd() state = (state * 1103515245 + 12345) % 2147483648; return state / 2147483648 end
+  local weak = (#G.jokers.cards >= G.jokers.config.card_limit) and weakest(base, now) or nil
+  local pools, planets = {}, nil
+  local function planet_pool() planets = planets or pool_keys("Planet"); return planets end
+  local total = 0
+  for _ = 1, POOL_SAMPLES do
+    local best = 0
+    for _ = 1, n do
+      local v = nil
+      if kind == "Buffoon" then
+        v = joker_gain(draw_joker(rnd, pools), money, false, base, now, weak)
+      elseif kind == "Celestial" then
+        local pl = planet_pool()
+        if #pl > 0 then v = planet_gain(pl[math.min(#pl, 1 + math.floor(rnd() * #pl))], base, now) end
+      else
+        local GG = G.GAME
+        local jr, tr, pr = GG.joker_rate or 0, GG.tarot_rate or 0, GG.planet_rate or 0
+        local tot = jr + tr + pr + (GG.playing_card_rate or 0) + (GG.spectral_rate or 0)
+        local u = rnd() * tot
+        if u < jr then
+          v = joker_gain(draw_joker(rnd, pools), money, true, base, now, weak)
+        elseif u >= jr + tr and u < jr + tr + pr then
+          local pl = planet_pool()
+          local key = #pl > 0 and pl[math.min(#pl, 1 + math.floor(rnd() * #pl))]
+          if key then
+            local c = G.P_CENTERS[key]
+            local cost = math.max(1, math.floor(((c.cost or 3) + (GG.inflation or 0) + 0.5) * (100 - (GG.discount_percent or 0)) / 100))
+            if cost <= money - GG.bankrupt_at then v = planet_gain(key, base, now) end
+          end
+        end                                   -- Tarot, playing card, Spectral: 0, as phi_build doesn't count them
+      end
+      if v and v > best then best = v end
+    end
+    total = total + best
+  end
+  local v = total / POOL_SAMPLES
+  table.insert(H._pool_vals, 1, { key = vkey, v = v })
+  H._pool_vals[17] = nil
+  return v
+end
+H.pool_value, H.pool_card = pool_value, pool_card
+
 -- The value of each encoded action (H._encoded_actions, as last encoded): phi_build after taking the
 -- offer minus phi_build now, for buying or picking a joker or a planet and redeeming a voucher (a planet
--- valued as used: its hand leveled, Constellation grown, even when bought into a slot to use later); 0 for
--- every other action, the offer paid for at its price. As integers x 10000 (the action row's number columns), space-separated.
+-- valued as used: its hand leveled, Constellation grown, even when bought into a slot to use later); with
+-- H.swaps (model v4c) also for a swap (the held joker off, the shop joker on, its sale's money in), a reroll
+-- and a Buffoon or Celestial pack (pool_value above); 0 for every other action, the offer paid for at its
+-- price. As integers x 10000 (the action row's number columns), space-separated.
 function H.offer_values()
   local acts = H._encoded_actions or {}
   local out = {}
   local now, base = nil, nil
+  local function board()
+    base = base or H.build_key_base()
+    now = now or H.build_power(nil, base)
+  end
   for k, a in ipairs(acts) do
     local opts = nil
     local c = nil
+    local v = 0
     if a.type == "buy" or a.type == "buy_and_use" then c = G.shop_jokers and G.shop_jokers.cards[a.i]
     elseif a.type == "pick" then c = G.pack_cards and G.pack_cards.cards[a.i]
     elseif a.type == "redeem" then c = G.shop_vouchers and G.shop_vouchers.cards[a.i] end
@@ -558,10 +731,28 @@ function H.offer_values()
       elseif set == "Voucher" then opts = { voucher = c } end
       if opts then opts.cost = a.type == "pick" and 0 or (c.cost or 0) end    -- a pack's cards are free
     end
-    local v = 0
+    if H.swaps then
+      local GG = G.GAME
+      if a.type == "swap" then
+        local jc, sc = G.jokers.cards[a.i], G.shop_jokers.cards[a.j]
+        opts = { joker = sc, remove = jc, cost = sc.cost or 0, gain = jc.sell_cost or 0 }
+      elseif a.type == "reroll" then
+        board()
+        local rc = (GG.current_round.free_rerolls or 0) > 0 and 0 or (GG.current_round.reroll_cost or 0)
+        v = pool_value("reroll", (GG.shop and GG.shop.joker_max) or 2, GG.dollars - rc, base, now)
+      elseif a.type == "open_pack" then
+        local b = G.shop_booster and G.shop_booster.cards[a.i]
+        local name = b and b.ability.name or ""
+        local kind = name:find("Buffoon") and "Buffoon" or (name:find("Celestial") and "Celestial") or nil
+        if kind then
+          board()
+          local ex = b.ability.extra
+          v = pool_value(kind, type(ex) == "number" and ex or 2, GG.dollars - (b.cost or 0), base, now)
+        end
+      end
+    end
     if opts then
-      base = base or H.build_key_base()
-      now = now or H.build_power(nil, base)
+      board()
       v = H.build_power(opts, base) - now
     end
     out[k] = math.floor(v * 10000 + 0.5)        -- to the nearest 1e-4

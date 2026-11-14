@@ -40,8 +40,9 @@ def build_parser():
     ap.add_argument("--enc", type=int, choices=[1, 2, 3], default=1,
                     help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score; "
                          "3 = v2 plus deck and challenge tokens (v2 weights load into it)")
-    ap.add_argument("--actions", choices=["subsets", "ordered", "ordered-capped"], default="subsets",
-                    help="action list: subsets (v1) or ordered (lead card, Death direction, boss reroll)")
+    ap.add_argument("--actions", choices=["subsets", "ordered", "ordered-capped", "ordered-capped-swap"], default="subsets",
+                    help="action list: subsets (v1) or ordered (lead card, Death direction, boss reroll); "
+                         "ordered-capped-swap (v4c) adds the shop's swap move, listed last")
     ap.add_argument("--d", type=int, default=96)
     ap.add_argument("--layers", type=int, default=2)
     ap.add_argument("--heads", type=int, default=4)
@@ -128,6 +129,11 @@ def build_parser():
     ap.add_argument("--shop-ent", default=None,
                     help="v4: the shop network's entropy coefficient by training decisions (both networks), e.g. "
                          "'0.02,0.006@1.5M,0.001@4M' (linear between; default: --ent)")
+    ap.add_argument("--pool-samples", type=int, default=8,
+                    help="v4c: draws from the game's pools behind a reroll's or a Buffoon/Celestial pack's offer value")
+    ap.add_argument("--warm-start",
+                    help="v4c: start from a v4/v4b training checkpoint's weights (fresh optimizer, round 0, this run's "
+                         "own best eval and stall clock); the swap move's type embedding starts as buy's")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)

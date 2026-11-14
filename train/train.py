@@ -34,7 +34,7 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import EXPERT_HANDS, make_model, param_count  # noqa: E402
+from model import EXPERT_HANDS, make_model, param_count, warm_start_state  # noqa: E402
 from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402,F401
 # The trainer's parts, by capability. Imported here too so `import train` keeps exposing them (play.py,
 # analysis/, tests/ and tools/ use train.<name>).
@@ -96,6 +96,13 @@ def summarize(episodes):
             "sells_mean": float(np.mean([sum(d.startswith("sell_joker") for d in
                                              e["desc"][(e.get("curriculum") or {}).get("start_step", 0):])
                                          for e in episodes])),
+            # v4c's measures (hypotheses-v4c.md): swaps and rerolls per game, from the bot's own moves
+            "swaps_mean": float(np.mean([sum(d.startswith("swap ") for d in
+                                             e["desc"][(e.get("curriculum") or {}).get("start_step", 0):])
+                                         for e in episodes])),
+            "rerolls_mean": float(np.mean([sum(d == "reroll" for d in
+                                               e["desc"][(e.get("curriculum") or {}).get("start_step", 0):])
+                                           for e in episodes])),
             "capped": sum(e["capped"] for e in episodes),
             "final_ante": dict(sorted(antes.items())),
             **pin_summary(episodes)}
@@ -171,6 +178,21 @@ def main():
             for g in opt.param_groups:
                 g["lr"] = args.lr
         resumed = ck
+    elif args.warm_start:
+        # model v4c (docs/hypotheses-v4c.md): v4b's weights, a fresh optimizer, round 0, this run's own evals
+        ck = torch.load(args.warm_start, map_location=device, weights_only=False)
+        assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
+        arch = ck.get("arch", {})
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc),
+                     ("phase_split", bool(args.phase_split)), ("offer_values", bool(args.offer_values))):
+            assert arch.get(k) == v, f"warm-start checkpoint has {k}={arch.get(k)}, this run has {k}={v}"
+        have = arch.get("actions")
+        assert have == args.actions or (have, args.actions) == ("ordered-capped", "ordered-capped-swap"), \
+            f"warm-start checkpoint has actions={have}, this run has actions={args.actions}"
+        model.load_state_dict(warm_start_state(ck["model"], model.state_dict()))
+        alert(f"warm start from {args.warm_start} (its round {ck.get('iteration')}, its best eval "
+              f"{ck.get('best_eval', -1):.2f} blinds/game): fresh optimizer, round 0"
+              + ("; swap rows start as buy's" if have != args.actions else ""))
     elif args.init_weights:
         w = torch.load(args.init_weights, map_location=device, weights_only=True)
         arch = w.get("arch", {})

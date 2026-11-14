@@ -46,12 +46,14 @@ CHECKS = {
                ["tests/v4_phi_check.py", "{src}", "--routes", "3"], "", "ALL PASS"),
     "v4-curriculum": ("curriculum: starts at the first shop of ante 4-6, own starts exact",
                       ["tests/v4_curriculum_check.py", "{src}", "--routes", "3"], "", "ALL PASS"),
+    "v4c-swap": ("swap list: routes replay unchanged, swap = sell then buy, values = change, pool cards = shelf cards",
+                 ["tests/v4c_swap_check.py", "{src}", "--routes", "3", "--swaps", "4"], "", "ALL PASS"),
     "clock": ("blind clock: skips, shaping and returns", ["tests/v3_check.py", "{src}", "--routes", "12"], "",
               "ALL PASS"),
     "repo": ("the repo's indexes, configs and map are consistent", ["tools/check_repo.py"], "", "ALL PASS"),
 }
 # set by the launcher, never by a config
-OWNED = {"src", "run", "out", "hours", "workers", "resume", "init_weights", "mirror_dir", "spill_dir"}
+OWNED = {"src", "run", "out", "hours", "workers", "resume", "init_weights", "warm_start", "mirror_dir", "spill_dir"}
 # settings that only say where files go or how fast a machine is; ignored when comparing with a provenance
 MACHINE = OWNED | {"device", "gpu_mem_fraction", "worker_mem_gb", "min_mem_gb", "min_disk_gb", "spill_at_gb"}
 
@@ -120,8 +122,11 @@ def command(run, cfg, a, smoke):
     elif start.startswith("weights:"):
         argv += ["--init-weights", fill(start[8:])]
         how = f"from released weights {start[8:]}"
+    elif start.startswith("warm:"):
+        argv += ["--warm-start", fill(start[5:])]
+        how = f"warm start from checkpoint {fill(start[5:])} (fresh optimizer, round 0)"
     else:
-        raise SystemExit(f"[run] start = {start!r}: use scratch, resume:<checkpoint> or weights:<file>")
+        raise SystemExit(f"[run] start = {start!r}: use scratch, resume:<checkpoint>, weights:<file> or warm:<checkpoint>")
     return argv + to_argv(train), out, how, r
 
 
@@ -187,9 +192,12 @@ def publish(run, out, say):
 def check_provenance(argv, path):
     """Differences between the settings this config launches with and a run's provenance.json (machine and path
     settings ignored). Empty = the config reproduces that run."""
-    have = vars(build_parser().parse_args(argv[2:]))
+    parser = build_parser()
+    have = vars(parser.parse_args(argv[2:]))
     ran = json.load(open(path))["config"]
     keys = (set(have) | set(ran)) - MACHINE
+    # a setting added after that run (absent from its provenance) left at its default is the same run
+    keys = {k for k in keys if k in ran or have.get(k) != parser.get_default(k)}
     return {k: (ran.get(k, "(absent)"), have.get(k, "(absent)")) for k in sorted(keys) if ran.get(k) != have.get(k)}
 
 

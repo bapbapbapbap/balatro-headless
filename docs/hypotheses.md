@@ -28,6 +28,7 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [`hypotheses-v3.md`](hypotheses-v3.md) | Model v3 |
 | [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 |
 | [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (current) |
+| [`hypotheses-v4c.md`](hypotheses-v4c.md) | Model v4c (registered; not launched) |
 
 ## Every section, in the order it was added
 
@@ -83,3 +84,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-13 ~11:40 CST: whose the 11:40 sections are](hypotheses-v4b.md#added-2026-11-13-1140-cst-whose-the-1140-sections-are) | v4b |
 | [Added 2026-11-13 ~18:20 CST: why v4b hoards, the test's result](hypotheses-v4b.md#added-2026-11-13-1820-cst-why-v4b-hoards-the-tests-result) | v4b |
 | [Added 2026-11-13 ~18:20 CST: whose the 18:20 sections are](hypotheses-v4b.md#added-2026-11-13-1820-cst-whose-the-1820-sections-are) | v4b |
+| [Added 2026-11-13 ~18:45 CST: model v4c, registered before any of its code](hypotheses-v4c.md#added-2026-11-13-1845-cst-model-v4c-registered-before-any-of-its-code) | v4c |
+| [Added 2026-11-13 ~18:45 CST: whose the 18:45 sections are](hypotheses-v4c.md#added-2026-11-13-1845-cst-whose-the-1845-sections-are) | v4c |

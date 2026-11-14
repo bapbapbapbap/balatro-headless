@@ -31,14 +31,21 @@ def curriculum_entry(src, rec, ante, acts=None, desc=None):
     return e
 
 
+def replays_on(route_actions, run_actions):
+    """Can a route saved on one action list be replayed, move index for move index, on another? The same list,
+    or ordered-capped on ordered-capped-swap (model v4c): swaps are listed after every other move, so every
+    ordered-capped move keeps its index (harness/env.lua, H.swaps)."""
+    return route_actions == run_actions or (route_actions, run_actions) == ("ordered-capped", "ordered-capped-swap")
+
+
 def published_starts(args, n, banned):
-    """n published wins (wins/routes.jsonl) on this run's action list, Red Deck White Stake, no challenge,
-    none on a held-out seed, chosen by a fixed RNG: one start per ante each."""
+    """n published wins (wins/routes.jsonl) on this run's action list (or one that replays on it), Red Deck
+    White Stake, no challenge, none on a held-out seed, chosen by a fixed RNG: one start per ante each."""
     path = os.path.join(HERE, "..", "wins", "routes.jsonl")
     rs = []
     for line in open(path):
         r = json.loads(line)
-        if (r.get("actions") == args.actions and r.get("back", "b_red") == "b_red" and r.get("stake", 1) == 1
+        if (replays_on(r.get("actions"), args.actions) and r.get("back", "b_red") == "b_red" and r.get("stake", 1) == 1
                 and not r.get("challenge") and r["seed"] not in banned):
             rs.append(r)
     rs.sort(key=lambda r: r["seed"])
