@@ -28,6 +28,7 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [`hypotheses-v3.md`](hypotheses-v3.md) | Model v3 |
 | [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 |
 | [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (current) |
+| [`hypotheses-reproduce.md`](hypotheses-reproduce.md) | Reproducing other bots (Balatro Lab) |
 
 ## Every section, in the order it was added
 
@@ -76,3 +77,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-11 ~09:25 CST: why v4b's shop network sold, and what it cost (diagnosis after the stop)](hypotheses-v4b.md#added-2026-11-11-0925-cst-why-v4bs-shop-network-sold-and-what-it-cost-diagnosis-after-the-stop) | v4b |
 | [Added 2026-11-11 ~09:25 CST: v4b continues from round 280 with the sell stop off, registered before its config changes](hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-continues-from-round-280-with-the-sell-stop-off-registered-before-its-config-changes) | v4b |
 | [Added 2026-11-11 ~09:30 CST: whose the 09:25 sections are](hypotheses-v4b.md#added-2026-11-11-0930-cst-whose-the-0925-sections-are) | v4b |
+| [Added 2026-11-14 ~15:55 CST: Balatro Lab, what is already measured, and two tests registered before they run](hypotheses-reproduce.md#added-2026-11-14-1555-cst-balatro-lab-what-is-already-measured-and-two-tests-registered-before-they-run) | reproduce |
