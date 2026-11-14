@@ -572,10 +572,12 @@ local function pool_card(key)
   if c then return c end
   local center = G.P_CENTERS[key]
   c = setmetatable({ config = { center = center, card = {} }, params = {}, T = { x = 0, y = 0, w = 1, h = 1 },
-                     VT = { x = 0, y = 0, w = 1, h = 1, r = 0, scale = 1 }, children = {}, states = {},
+                     VT = { x = 0, y = 0, w = 1, h = 1, r = 0, scale = 1 }, children = {}, states = { focus = { is = false } },
                      base_cost = 0, extra_cost = 0, cost = 0, sell_cost = 0, debuff = false, facing = "front",
-                     sort_id = -1, ID = -1 }, { __index = Card })
-  for _, f in ipairs({ "juice_up", "start_dissolve", "remove", "set_sprites", "align", "hard_set_T" }) do c[f] = NOOP end
+                     sort_id = -1, ID = -1, sticker_run = "NONE" }, { __index = Card })
+  for _, f in ipairs({ "juice_up", "start_dissolve", "remove", "set_sprites", "align", "hard_set_T", "update_alert" }) do
+    c[f] = NOOP
+  end
   local g = G.GAME
   local scalars = {}
   for k, v in pairs(g) do if type(v) ~= "table" then scalars[k] = v end end
@@ -611,9 +613,13 @@ local function pool_card(key)
   return c
 end
 
-local function set_cost(c)
-  local ok, err = pcall(function() Card.set_cost(c) end)
-  if not ok then error("pool card cost: " .. tostring(err)) end
+-- Before each valuing: its cost, and the game's own Card:update, which a shelf card gets every frame and which
+-- fills in the values some jokers read from the board (Steel/Stone Joker's, Cloud 9's and Driver's License's
+-- tallies, Throwback's x_mult, ...). Without it Steel Joker's nil steel_tally crashed v4c smoke 2
+-- (card.lua:3929, 2026-11-13). Card:update changes only the card itself.
+local function refresh(c)
+  local ok, err = pcall(function() Card.set_cost(c); Card.update(c, 0) end)
+  if not ok then error("pool card " .. tostring(c.config.center.key) .. " refresh: " .. tostring(err)) end
 end
 
 local function str_seed(str)
@@ -640,7 +646,7 @@ end
 -- if there's room, else a swap against the weakest held joker; nil if it can't be afforded or placed.
 local function joker_gain(key, money, priced, base, now, weak)
   local c = pool_card(key)
-  set_cost(c)
+  refresh(c)
   local cost = priced and c.cost or 0
   if #G.jokers.cards < G.jokers.config.card_limit then
     if priced and cost > money - G.GAME.bankrupt_at and cost > 0 then return nil end
@@ -713,7 +719,7 @@ local function pool_value(kind, n, money, base, now)
   H._pool_vals[17] = nil
   return v
 end
-H.pool_value, H.pool_card = pool_value, pool_card
+H.pool_value, H.pool_card, H.pool_refresh = pool_value, pool_card, refresh
 
 -- The value of each encoded action (H._encoded_actions, as last encoded): phi_build after taking the
 -- offer minus phi_build now, for buying or picking a joker or a planet and redeeming a voucher (a planet

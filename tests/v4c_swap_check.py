@@ -16,6 +16,8 @@ Replays published ordered-capped wins on the real game and checks:
      and not all 0.
   6. The warm start (needs torch): a v4b-shaped model's weights load into the swap model, every weight unchanged,
      the swap row a copy of buy's, and on actions with no swap the two models give the same logits and values.
+  7. Every joker in the game can be a pool card (built, refreshed, valued) at one shop per ante, the game
+     unchanged; checked on the last route.
   Reports the sim cost per move against ordered-capped with the same values on (the registration's gate is
   read from the smoke run's own sim time).
 
@@ -157,7 +159,7 @@ for _, c in ipairs(G.shop_jokers and G.shop_jokers.cards or {}) do
   if c.ability.set == "Joker" and not c.edition and c.ability.name ~= "To Do List" then
     local real = H.build_power({ joker = c, cost = c.cost }, base) - now
     local p = H.pool_card(c.config.center.key)
-    Card.set_cost(p)
+    H.pool_refresh(p)
     local pool = H.build_power({ joker = p, cost = c.cost }, base) - now
     out[#out + 1] = { c.ability.name, real, pool }
   end
@@ -189,6 +191,56 @@ def check_pool_cards(src, r):
     if bad:
         fail(f"{r['seed']}: {len(bad)} of {n} pool cards differ from the shelf card: {bad[:3]}")
     print(f"{r['seed']}: {n} shelf jokers valued as pool cards, {n - len(bad)} equal", flush=True)
+
+
+ALL_JOKERS = r"""
+local H = ...
+-- every joker in the game as a pool card, refreshed and valued as a buy on this board: {n, errors}
+local keys = {}
+for k, v in pairs(G.P_CENTERS) do if v.set == "Joker" then keys[#keys + 1] = k end end
+table.sort(keys)
+local base = H.build_key_base()
+local now = H.build_power(nil, base)
+local errs = {}
+for _, k in ipairs(keys) do
+  local ok, err = pcall(function()
+    local p = H.pool_card(k)
+    H.pool_refresh(p)
+    local v = H.build_power({ joker = p, cost = 0 }, base) - now
+    if v ~= v then error("value is NaN") end
+  end)
+  if not ok then errs[#errs + 1] = k .. ": " .. tostring(err) end
+end
+return { #keys, errs }
+"""
+
+
+def check_all_jokers(src, r):
+    """7: every joker in the game can be a pool card: built, refreshed (Card:update) and valued without error
+    at the first shop of each ante, the game unchanged. (Smoke 2 crashed on Steel Joker, which no route's
+    shelf had; the shelf comparison in 4 only sees jokers a route happened to be offered.)"""
+    s = with_dump(Sim(src, mode=SWAP, enc=2, build_phi=True, offer_values=True))
+    s.reset(r["seed"], r["back"], r["stake"])
+    fn = s.env.lua.execute("return function(H) " + ALL_JOKERS.replace("local H = ...\n", "") + " end")
+    seen, states, n = set(), 0, 0
+    for k, act in enumerate(r["acts"]):
+        if s.H.state_name() == "SHOP":
+            ante = s.env.lua.eval("G.GAME.round_resets.ante")
+            if ante not in seen:
+                seen.add(ante)
+                before = s.H.state_dump()
+                res = fn(s.H)
+                n, errs = res[1], list(res[2].values())
+                states += 1
+                if errs:
+                    return fail(f"{r['seed']} move {k} (ante {ante}): {len(errs)} of {n} jokers fail as pool cards: {errs[:3]}")
+                if s.H.state_dump() != before:
+                    return fail(f"{r['seed']} move {k}: valuing every joker as a pool card changed the game")
+        s.observe()
+        _, _, done = s.step(act)
+        if done:
+            break
+    print(f"{r['seed']}: all {n} jokers valued as pool cards at {states} shops (one per ante), game unchanged", flush=True)
 
 
 def check_pool_values(src, r, pool_vals):
@@ -278,6 +330,7 @@ def main():
         check_swaps(a.src, r, swap_at, a.swaps)
         check_pool_cards(a.src, r)
         nonzero += check_pool_values(a.src, r, pool_vals)
+    check_all_jokers(a.src, rs[-1])
     if not nonzero:
         fail("no reroll or pack value was ever nonzero")
     check_warm_start()

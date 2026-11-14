@@ -120,3 +120,17 @@ Run on the pinned 1.0.1o source (3 routes, 4 swaps each): all four game checks p
 on the swap list, 12 of 12 swaps equal a sell then a buy, 78 of 78 shelf jokers equal their pool card, and
 346 of 606 reroll/pack values are nonzero (max 0.49). The warm-start check needs torch and runs in the launch's
 own pre-flight.
+
+## Added 2026-11-13 ~23:55 CST: smoke 2 crashed in training on Steel Joker; pool cards now get Card:update
+
+Claude's (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud. A code fix, no design change.
+
+Smoke 2 (launch 92b76f2) passed pre-flight, then its workers crashed twice in a row at a reroll value:
+`card.lua:3929`, Steel Joker comparing a nil `steel_tally`. The game fills that in `Card:update`, which a shelf
+card gets every frame. A pool card is registered nowhere, so it never got one; Stone Joker had the same fault.
+The pre-flight missed it because check 4 only compares jokers a route's shelves happened to offer.
+- `harness/build_phi.lua`: before each valuing, a pool card gets `Card.set_cost` and the game's own
+  `Card.update(c, 0)` (`refresh`, exported as `H.pool_refresh`); `update_alert` is stubbed, `sticker_run` preset.
+- `tests/v4c_swap_check.py` check 7: every joker in the game (150) is built, refreshed and valued as a pool card
+  at the first shop of each ante on one route, the game unchanged. Without the fix it fails on Steel and Stone
+  Joker; with it, all 150 pass at 8 shops. Checks 1–5 give the same results as the ~20:45 run.
