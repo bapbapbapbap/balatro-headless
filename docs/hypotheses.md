@@ -86,3 +86,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-13 ~18:20 CST: whose the 18:20 sections are](hypotheses-v4b.md#added-2026-11-13-1820-cst-whose-the-1820-sections-are) | v4b |
 | [Added 2026-11-13 ~18:45 CST: model v4c, registered before any of its code](hypotheses-v4c.md#added-2026-11-13-1845-cst-model-v4c-registered-before-any-of-its-code) | v4c |
 | [Added 2026-11-13 ~18:45 CST: whose the 18:45 sections are](hypotheses-v4c.md#added-2026-11-13-1845-cst-whose-the-1845-sections-are) | v4c |
+| [Added 2026-11-13 ~20:45 CST: smoke 1 stopped in pre-flight; two pool-card bugs fixed](hypotheses-v4c.md#added-2026-11-13-2045-cst-smoke-1-stopped-in-pre-flight-two-pool-card-bugs-fixed) | v4c |

@@ -101,3 +101,22 @@ Claude's (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud:
 - the pool-expectation offer values for rerolls and packs, and their budget;
 - the warm start and the pinned entropy;
 - the gate, and P1b with both sets of odds.
+
+## Added 2026-11-13 ~20:45 CST: smoke 1 stopped in pre-flight; two pool-card bugs fixed
+
+Claude's (model: Claude Opus 5.5, `claude-opus-5-5`), reviewed by chud. A code fix, no design change: the
+registration, the reward and the gate are unchanged.
+
+The first smoke (launch 96703f9, 2026-11-13 19:24) stopped in pre-flight: `v4c-swap` crashed at the first
+reroll value, `card.lua:981` indexing a nil `base`. This was the part flagged as least certain: pool cards are
+built with `set_ability` alone. Fixed in `harness/build_phi.lua` `pool_card`:
+1. **No base.** `Card:init` gives every shop joker `set_base(G.P_CARDS.empty, true)` (nominal 0) after
+   `set_ability`; `get_chip_bonus` reads it. The pool card now gets the same, plus init's other plain fields.
+2. **The game was changed.** With 1 fixed, the check then caught that `set_ability` sets
+   `G.GAME.used_jokers[key] = true`, which would have removed every sampled joker from the seed's later shops.
+   `pool_card` now lets it write to a throwaway table that reads through to the real one.
+
+Run on the pinned 1.0.1o source (3 routes, 4 swaps each): all four game checks pass. 776 moves replay unchanged
+on the swap list, 12 of 12 swaps equal a sell then a buy, 78 of 78 shelf jokers equal their pool card, and
+346 of 606 reroll/pack values are nonzero (max 0.49). The warm-start check needs torch and runs in the launch's
+own pre-flight.

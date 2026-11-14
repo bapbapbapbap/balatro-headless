@@ -588,7 +588,20 @@ local function pool_card(key)
     table.sort(ks, function(a, b) return tostring(a) < tostring(b) end); return t[ks[1]], ks[1] end
   local add_event = G.E_MANAGER.add_event
   G.E_MANAGER.add_event = NOOP
-  local ok, err = pcall(function() Card.set_ability(c, center, true, true) end)
+  -- Card:init's order for a shop joker: set_ability, then set_base(G.P_CARDS.empty, true), which gives it the
+  -- empty playing-card base (nominal 0) that get_chip_bonus and the like read (v4c smoke, 2026-11-13: without
+  -- it, card.lua:981 indexed a nil base). Plus init's other plain fields.
+  c.unique_val, c.sell_cost_label, c.back, c.highlighted, c.rank, c.added_to_deck = 1 - c.ID / 1603301, 0,
+    "selected_back", false, nil, nil
+  -- set_ability marks the joker used (card.lua: G.GAME.used_jokers[k] = true), which would take it out of the
+  -- game's pools: here it writes to a throwaway table that reads through to the real one (v4c smoke, 2026-11-13).
+  local used = g.used_jokers
+  g.used_jokers = setmetatable({}, { __index = used })
+  local ok, err = pcall(function()
+    Card.set_ability(c, center, true, true)
+    Card.set_base(c, G.P_CARDS.empty, true)
+  end)
+  g.used_jokers = used
   G.E_MANAGER.add_event = add_event
   pseudorandom_element, pseudoseed, pseudorandom = pe, ps, pr
   for _, k in ipairs(STUBS) do _G[k] = saved[k] end
