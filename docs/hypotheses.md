@@ -79,3 +79,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-11 ~09:30 CST: whose the 09:25 sections are](hypotheses-v4b.md#added-2026-11-11-0930-cst-whose-the-0925-sections-are) | v4b |
 | [Added 2026-11-14 ~15:55 CST: Balatro Lab, what is already measured, and two tests registered before they run](hypotheses-reproduce.md#added-2026-11-14-1555-cst-balatro-lab-what-is-already-measured-and-two-tests-registered-before-they-run) | reproduce |
 | [Added 2026-11-14 ~16:15 CST: T1 withdrawn; T2 replaced by ranking test R; how v5 is chosen](hypotheses-reproduce.md#added-2026-11-14-1615-cst-t1-withdrawn-t2-replaced-by-ranking-test-r-how-v5-is-chosen) | reproduce |
+| [Added 2026-11-14 ~16:50 CST: R's code, decided before R runs (two details beyond the 16:05 section); a time correction](hypotheses-reproduce.md#added-2026-11-14-1650-cst-rs-code-decided-before-r-runs-two-details-beyond-the-1605-section-a-time-correction) | reproduce |

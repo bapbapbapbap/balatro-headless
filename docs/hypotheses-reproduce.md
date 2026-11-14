@@ -95,3 +95,19 @@ discard's exact value from the game's own scoring as an action input; for the sh
 imitation of its moves (those would make the oughts its, not ours). If no arm gains with its interval above 0, v5
 is not built from R and the next step is reconsidered with chud. v5's design and predictions are registered after
 R and before v5's code.
+
+## Added 2026-11-14 ~16:50 CST: R's code, decided before R runs (two details beyond the 16:05 section); a time correction
+
+Claude's, reviewed by chud.
+- Time correction: the section above headed "~16:15 CST" was committed at 16:05 (commit 62eb5d7).
+- `reproduce/balatro_lab/rank.py`. Checked before this section: A0 reproduces v4b's own eval games (blinds beaten
+  and number of moves identical on 3 seeds). Smoke runs in the cloud (2-3 seeds, stock LuaJIT) are discarded; R's
+  result is the laptop run.
+- Detail 1, chance outcomes: where the twin rolled a chance effect its own way (Misprint's mult, a Wheel of
+  Fortune edition, Business Card money, The Hook's cards, a pack's contents...), the game's outcome is copied
+  into the twin and counted per field (`mirrored`, `resyncs`); the game is the truth. A twin that has already moved
+  past the game (it ended a round the game did not) can't be repaired and is lost.
+- Detail 2, after the twin is lost: in A1 and A5, hand play stays with Balatro Lab's bot, deciding on a Run built
+  from the game state (`state.py`, whose scoring matched the game on 4,143/4,143 hands), counted as
+  `theirs_no_twin`. Shop, pack and blind decisions after a loss go to v4b, counted by `lost_twin`.
+- Reported per arm with the result: moves decided by Balatro Lab's bot, unmapped ones, games that lost the twin.

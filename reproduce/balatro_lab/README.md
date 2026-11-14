@@ -18,7 +18,8 @@ Registrations and predictions: [`docs/hypotheses-reproduce.md`](../../docs/hypot
 | `twin.py` | lockstep twin: same seed and actions in the harness and in Balatro Lab's seeded run, compared at every decision | `Run` (seeded), `balatro.agent.Agent`, `balatro.bots.estimate` |
 | `mine.py` | our bot (a weights file) plays; the twin follows; at every decision point Balatro Lab's bot says what it would do | `Run` (seeded), `balatro.strategy.ValueBot` |
 | `mine_report.py` | mine.py's output summarized by decision type | none |
-| `eval_on_our_seeds.py` | Balatro Lab's bot on our 600 evaluation seeds (test T1: no seed tuning) | `Run`, `ValueBot` |
+| `eval_on_our_seeds.py` | Balatro Lab's bot on our 600 evaluation seeds (T1, withdrawn before it ran) | `Run`, `ValueBot` |
+| `rank.py` | ranking test R: v4b plays our eval seeds with one kind of decision (hand play, shop, packs, blinds, or all) made by Balatro Lab's bot | `Run` (seeded), `ValueBot` |
 | `results/2026-11-14/` | what has run: its own 480-seed eval, scoring check, twin, first mining | |
 
 Results so far are in the registration's "Already measured" list.
@@ -41,7 +42,13 @@ Our bot as a weights file (v4b best.pt, round 1840, 13.40 blinds/game):
     wsl bash -lc "cd ~/balatro/reproduce && source ~/balatro/venv/bin/activate && python3 train/export_weights.py /mnt/c/Users/Jacobi/balatro-work/runs/v4b/best.pt /mnt/c/Users/Jacobi/balatro-work/v4b_best_weights.pt --version v4b-best-r1840"
 
 ## Runs
-T1, Balatro Lab's bot on our 600 eval seeds (~190 s a game; 8 workers about 4 h):
+**R** (the ranking test; 300 eval seeds x 6 arms, roughly 4 h at 8 workers; re-running resumes):
+
+    wsl bash -lc "cd ~/balatro/reproduce/reproduce/balatro_lab && source ~/balatro/venv/bin/activate && python3 rank.py --weights /mnt/c/Users/Jacobi/balatro-work/v4b_best_weights.pt --lab ~/balatro/balatro-lab --src ~/balatro/local/source --seeds 300 --workers 8 --out /mnt/c/Users/Jacobi/balatro-work/rank_R.jsonl | tee /mnt/c/Users/Jacobi/balatro-work/rank_R.txt"
+
+Report at any point: `python3 rank.py --report /mnt/c/Users/Jacobi/balatro-work/rank_R.jsonl`.
+
+T1 (withdrawn), Balatro Lab's bot on our 600 eval seeds (~190 s a game; 8 workers about 4 h):
 
     wsl bash -lc "cd ~/balatro/reproduce/reproduce/balatro_lab && source ~/balatro/venv/bin/activate && python3 eval_on_our_seeds.py --lab ~/balatro/balatro-lab --games 600 --workers 8 --out /mnt/c/Users/Jacobi/balatro-work/lab_on_our_seeds.jsonl | tee /mnt/c/Users/Jacobi/balatro-work/lab_on_our_seeds.txt"
 
