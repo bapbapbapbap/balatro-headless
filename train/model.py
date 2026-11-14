@@ -8,6 +8,7 @@ import torch.nn as nn
 
 N_KINDS = 16       # token kinds (encode.lua KIND), 0 = padding
 N_ACT_TYPES = 19   # action types (encode.lua ACTION, reroll_boss = 18 in v2), 0 = padding
+SWAP, BUY = 19, 7  # model v4c's swap move (action list ordered-capped-swap): a 20th type row
 F = 32             # features per token
 ACT = 9            # v1 row: type, a, b, c1..c5, hand_type
 ACT_WIDTH = {1: 9, 2: 18, 3: 18}
@@ -18,7 +19,7 @@ ZERO_BY_WIDTH = {9: (0, 8), 18: (0, 8, 16, 17), 19: (0, 8, 16, 17, 18)}
 
 
 class Net(nn.Module):
-    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False):
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False, swaps=False):
         super().__init__()
         self.d, self.enc, self.offer = d, enc, offer
         self.feat = nn.Linear(F, d)
@@ -27,7 +28,7 @@ class Net(nn.Module):
         layer = nn.TransformerEncoderLayer(d, heads, 2 * d, dropout=0.0, batch_first=True, norm_first=True)
         self.encoder = nn.TransformerEncoder(layer, layers, enable_nested_tensor=False)
         self.norm = nn.LayerNorm(d)
-        self.type_emb = nn.Embedding(N_ACT_TYPES if enc >= 2 else 18, d)   # v1 checkpoints have 18
+        self.type_emb = nn.Embedding(N_ACT_TYPES + (1 if swaps else 0) if enc >= 2 else 18, d)   # v1 checkpoints have 18
         self.proj_a = nn.Linear(d, d)
         self.proj_b = nn.Linear(d, d)
         self.proj_c = nn.Linear(d, d)
@@ -164,9 +165,9 @@ class PhaseNet(nn.Module):
     decision names its member (collate's 7th tensor, `member`), as with MoE; no weights are shared, so a
     decision trains only its own network."""
 
-    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False):
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False, swaps=False):
         super().__init__()
-        self.nets = nn.ModuleList([Net(n_vocab, d, layers, heads, enc, offer) for _ in PHASE_NAMES])
+        self.nets = nn.ModuleList([Net(n_vocab, d, layers, heads, enc, offer, swaps) for _ in PHASE_NAMES])
 
     def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
         B, A = act.shape[0], act.shape[1]
@@ -180,11 +181,28 @@ class PhaseNet(nn.Module):
         return logits, value
 
 
+def warm_start_state(old_sd, new_sd):
+    """Model v4c's warm start: a v4/v4b PhaseNet state dict into a swap model's. Every weight loads as is; each
+    network's move-type embedding gains the swap row, a copy of its buy row."""
+    out = {}
+    for k, v in old_sd.items():
+        assert k in new_sd, f"warm start: {k} not in the new model"
+        if k.endswith("type_emb.weight") and v.shape[0] + 1 == new_sd[k].shape[0]:
+            assert v.shape[0] == SWAP, f"warm start: {k} has {v.shape[0]} rows"
+            v = torch.cat([v, v[BUY:BUY + 1]], 0)
+        assert v.shape == new_sd[k].shape, f"warm start: {k} is {tuple(v.shape)}, the model has {tuple(new_sd[k].shape)}"
+        out[k] = v
+    missing = set(new_sd) - set(out)
+    assert not missing, f"warm start: not in the checkpoint: {sorted(missing)[:5]}"
+    return out
+
+
 def make_model(cfg, n_vocab):
     """The network a run's settings (train.py args or a checkpoint's config) call for."""
     if getattr(cfg, "phase_split", False):
         return PhaseNet(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc,
-                        offer=bool(getattr(cfg, "offer_values", False)))
+                        offer=bool(getattr(cfg, "offer_values", False)),
+                        swaps=getattr(cfg, "actions", None) == "ordered-capped-swap")
     assert not getattr(cfg, "offer_values", False), "offer values are model v4's (with --phase-split)"
     cls = MoE if getattr(cfg, "moe", False) else Net
     return cls(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc)

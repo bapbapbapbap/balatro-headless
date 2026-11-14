@@ -1,0 +1,57 @@
+# Model v4c. Registered in docs/hypotheses-v4c.md (2026-11-13 ~18:45 CST); run page docs/runs/v4c.md.
+# v4b's settings (configs/v4b.toml) with what the registration changes: the swap action list, offer values for
+# swaps, rerolls and Buffoon/Celestial packs (pool_samples), a warm start from v4b's best.pt, and the shop
+# entropy pinned at v4b's floor (a warm start counts decisions from 0, which would put the schedule back at 0.02).
+#
+#   bash train/launch.sh v4c --work /mnt/c/Users/<you>/balatro-work [--smoke] [--hours H] [--workers N]
+
+[run]
+start = "warm:{work}/runs/v4b/best.pt"   # v4b's best eval, 13.40 blinds/game at round 1840
+hours = 168
+workers = 12
+checks = ["repo", "fixture-replay", "ordered", "diff", "v4-credit", "v4-phase", "v4-phi", "v4-curriculum", "v4c-swap"]
+mirror_dir = "/mnt/f/balatro data/{run}"   # every win copied here too (second drive)
+spill_dir = "/mnt/f/balatro data"          # checkpoints and games go here when the main drive is low
+publish_on_stop = false
+
+# train.py's settings (train/options.py); anything not listed keeps its default there.
+[train]
+# the model: v4b's two networks, encoding 2, ordered actions with the joker-drag cap, plus the swap move
+phase_split = true
+d = 192
+layers = 4
+heads = 6
+enc = 2
+actions = "ordered-capped-swap"
+offer_values = true
+pool_samples = 8             # the gate (hypotheses-v4c.md): 4 if the smoke's sim time is over 1.6x v4b's
+# what it wants, and how credit reaches its moves (v4b's)
+reward = "blinds"
+build_shaping = 1
+gamma_blind = 0.95
+lam_blind = 0.95
+lam_hand = 0.8
+shop_ent = "0.001"           # pinned at v4b's floor
+# training
+seed = 3
+lr = 1e-4
+curriculum = 0.3
+curriculum_published = 300
+curriculum_keep = 600
+# the game
+back = "b_red"
+stake = 1
+# evals and stops
+eval_games = 600
+eval_every = 20
+stall_evals = 25
+stop_sells = 0
+max_wins = 1000000
+
+# --smoke: runs/<run>-smoke, warm-started like the run, 3 rounds, then stop
+[smoke]
+iterations = 3
+eval_games = 12
+eval_every = 2
+games_per_worker = 2
+hours = 1

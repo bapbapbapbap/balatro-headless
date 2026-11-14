@@ -14,6 +14,7 @@ CHANGELOG, `wins/`), unedited.
 | [v3](v3.md) | – | 2026-11-05 | discount per blind passed | code built; replaced by v4 | – |
 | [v4](v4.md) | – | 2026-11-09 → 11-10 | shop and table networks, build potential, curriculum | stopped on the stall rule (best eval 4.68, round 120) | not yet published |
 | [**v4b**](v4b.md) | – | 2026-11-10 → | v4 + hand clock on the table's lambda, hand exploration off | stopped at round 280 on the sell stop (best eval 8.31, round 240); **continues with the stop off** | – |
+| [v4c](v4c.md) | – | 2026-11-13 → | v4b warm-started + swap move, offer values for swaps, rerolls and packs | built; not launched | – |
 
 Counts are of `wins/routes.jsonl` and `wins/near_misses.jsonl` on 2026-11-09, by each line's `source`
 (the run folder the win came from), with the corrected win test (2026-11-03). Every run so far is Red Deck,

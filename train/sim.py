@@ -74,23 +74,30 @@ def parse(buf, act_width=9):
 
 def sim_kwargs(cfg):
     """The Sim options a run's settings (train.py args or a checkpoint's config) call for (model v4)."""
-    return {"build_phi": bool(getattr(cfg, "build_shaping", 0)), "offer_values": bool(getattr(cfg, "offer_values", False))}
+    return {"build_phi": bool(getattr(cfg, "build_shaping", 0)), "offer_values": bool(getattr(cfg, "offer_values", False)),
+            "pool_samples": int(getattr(cfg, "pool_samples", 8) or 8)}
 
 
 class Sim:
     def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False, count_progress=False,
-                 build_phi=False, offer_values=False):
-        """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll), or
-        "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags).
+                 build_phi=False, offer_values=False, pool_samples=8):
+        """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll),
+        "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags), or "ordered-capped-swap"
+        (model v4c: ordered-capped plus the shop's swap move, listed last; env.lua H.swaps).
         enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards).
         build_phi: progress carries phi_build, model v4's build potential (harness/build_phi.lua).
         offer_values: each action row gets one more number, phi_build after taking that offer minus now
-        (buying or picking a joker or planet, redeeming a voucher; 0 elsewhere), as int x 10000."""
-        lua_mode = "ordered" if mode == "ordered-capped" else mode
+        (buying or picking a joker or planet, redeeming a voucher; 0 elsewhere), as int x 10000. With the
+        swap action list (v4c) also swaps, rerolls and Buffoon/Celestial packs, the last two as an expectation
+        over pool_samples draws from the game's public pools (build_phi.lua pool_value)."""
+        assert mode in ("subsets", "controls", "ordered", "ordered-capped", "ordered-capped-swap"), mode
+        lua_mode = "ordered" if mode.startswith("ordered-capped") else mode
         self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, save_mode=save_mode,
                               count_progress=count_progress)
         self.H = self.env.H
-        self.H.drag_cap = mode == "ordered-capped"
+        self.H.drag_cap = mode.startswith("ordered-capped")
+        self.H.swaps = mode == "ordered-capped-swap"           # set before build_phi.lua loads (its cache size)
+        self.H.pool_samples = int(pool_samples)
         self.H.enc = enc
         lua = self.env.lua
         lua.execute(open(os.path.join(HARNESS, "encode.lua")).read(), self.H)

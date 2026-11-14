@@ -47,7 +47,8 @@ local KIND = { GLOBAL = 1, DECK = 2, HANDTYPE = 3, BLIND = 4, SKIPTAG = 5, TARGE
 local ACTION = { play = 1, discard = 2, select_blind = 3, skip_blind = 4, end_shop = 5, reroll = 6,
                  buy = 7, buy_and_use = 8, redeem = 9, open_pack = 10, pick = 11, skip_pack = 12,
                  use_consumable = 13, sell_joker = 14, sell_consumable = 15, cash_out = 16,
-                 move_joker = 17, reroll_boss = 18 }
+                 move_joker = 17, reroll_boss = 18,
+                 swap = 19 }      -- model v4c (H.swaps): a = the held joker sold, b = the shop joker bought
 H.KIND, H.ACTION, H.FEATURES, H.ACT_WIDTH, H.ENC = KIND, ACTION, F, ACT, ENC
 
 -- v2 joker numbers: fixed slots for what actually changes during a run (v1 kept the first 8
@@ -264,6 +265,7 @@ function H.encode()
     elseif t == "use_consumable" or t == "sell_consumable" then A = cons_tok[a.i]; planet = planet_hand(G.consumeables.cards[a.i])
     elseif t == "sell_joker" then A = joker_tok[a.i]
     elseif t == "move_joker" then A, B = joker_tok[a.i], joker_tok[a.j]
+    elseif t == "swap" then A, B = joker_tok[a.i], shop_tok[a.j]
     elseif t == "skip_blind" then A = skip_tok[G.GAME.blind_on_deck] or -1 end
     local c = { -1, -1, -1, -1, -1 }
     for n, hi in ipairs(a.cards or {}) do if n <= 5 then c[n] = hand_tok[hi] end end
