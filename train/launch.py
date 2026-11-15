@@ -27,7 +27,7 @@ sys.path.insert(0, HERE)
 from options import build_parser  # noqa: E402
 
 # Pre-flight checks by name: (what it shows, command, working dir, text the last line must contain).
-# {src} is the game source; every command runs with this Python. A config can also give a check of its own as a
+# {src} is the game source ({work} the work folder); every command runs with this Python. A config can also give a check of its own as a
 # table: {what = "...", cmd = ["tests/pin_check.py", "{src}", ...], cwd = "", want = "PASS"} (e.g. a hand pin's or
 # a mixture of experts' check, which need the run's own weights and hand).
 CHECKS = {
@@ -46,12 +46,14 @@ CHECKS = {
                ["tests/v4_phi_check.py", "{src}", "--routes", "3"], "", "ALL PASS"),
     "v4-curriculum": ("curriculum: starts at the first shop of ante 4-6, own starts exact",
                       ["tests/v4_curriculum_check.py", "{src}", "--routes", "3"], "", "ALL PASS"),
+    "v5-play": ("play values: game unchanged, scores = the game's chips, warm start plays as best.pt",
+                ["tests/v5_play_check.py", "{src}", "--routes", "3", "--warm", "{work}/runs/v4b/best.pt"], "", "ALL PASS"),
     "clock": ("blind clock: skips, shaping and returns", ["tests/v3_check.py", "{src}", "--routes", "12"], "",
               "ALL PASS"),
     "repo": ("the repo's indexes, configs and map are consistent", ["tools/check_repo.py"], "", "ALL PASS"),
 }
 # set by the launcher, never by a config
-OWNED = {"src", "run", "out", "hours", "workers", "resume", "init_weights", "mirror_dir", "spill_dir"}
+OWNED = {"src", "run", "out", "hours", "workers", "resume", "init_weights", "warm_start", "mirror_dir", "spill_dir"}
 # settings that only say where files go or how fast a machine is; ignored when comparing with a provenance
 MACHINE = OWNED | {"device", "gpu_mem_fraction", "worker_mem_gb", "min_mem_gb", "min_disk_gb", "spill_at_gb"}
 
@@ -120,8 +122,12 @@ def command(run, cfg, a, smoke):
     elif start.startswith("weights:"):
         argv += ["--init-weights", fill(start[8:])]
         how = f"from released weights {start[8:]}"
+    elif start.startswith("warm:"):
+        # model v5 (ported from v4c's launcher, branch v4c commit 96703f9)
+        argv += ["--warm-start", fill(start[5:])]
+        how = f"warm start from checkpoint {fill(start[5:])} (fresh optimizer, round 0)"
     else:
-        raise SystemExit(f"[run] start = {start!r}: use scratch, resume:<checkpoint> or weights:<file>")
+        raise SystemExit(f"[run] start = {start!r}: use scratch, resume:<checkpoint>, weights:<file> or warm:<checkpoint>")
     return argv + to_argv(train), out, how, r
 
 
@@ -134,7 +140,7 @@ class Tee:
         self.f.write(msg + "\n")
 
 
-def preflight(names, src, log, say):
+def preflight(names, src, log, say, work=""):
     say("== pre-flight checks")
     with open(log, "w") as lf:
         for n in names:
@@ -145,7 +151,7 @@ def preflight(names, src, log, say):
                 what, cmd, cwd, want = CHECKS[n]
             else:
                 raise SystemExit(f"[run] checks: no check named '{n}' (launch.py CHECKS: {', '.join(CHECKS)})")
-            cmd = [c.format(src=src) for c in cmd]
+            cmd = [c.format(src=src, work=work) for c in cmd]
             wd = os.path.join(REPO, cwd)
             lf.write(f"== {n}: {' '.join(cmd)}\n")
             lf.flush()
@@ -230,7 +236,7 @@ def main():
     head = subprocess.run(["git", "-C", REPO, "log", "--oneline", "-1"], capture_output=True, text=True).stdout.strip()
     say(f"== launch {a.run}{' (smoke)' if a.smoke else ''} {time.strftime('%Y-%m-%d %H:%M:%S')}  {head}")
     if not a.skip_checks:
-        preflight(r.get("checks", []), a.src, os.path.join(out, "preflight.log"), say)
+        preflight(r.get("checks", []), a.src, os.path.join(out, "preflight.log"), say, work=a.work)
     say(f"== training {how}")
     say(" ".join(argv))
     # train.py's own output goes to train.log through this pipe, line by line

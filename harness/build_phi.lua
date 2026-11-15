@@ -215,7 +215,7 @@ end
 -- ---------------------------------------------------------------- scoring (G.FUNCS.evaluate_play's steps)
 local HELD_JOKERS = { ["Baron"] = true, ["Raised Fist"] = true, ["Shoot the Moon"] = true }
 -- cards: the played cards; held: the rest of the deal. Returns chips * mult and the hand's name.
-local function score(cards, held)
+local function score(cards, held, live)
   local text, _, poker_hands, scoring_hand = G.FUNCS.get_poker_hand_info(cards)
   local sh = {}
   for i, c in ipairs(scoring_hand) do sh[i] = c end
@@ -232,6 +232,9 @@ local function score(cards, held)
   scoring_hand = sh
   local hand = G.GAME.hands[text]
   local mult, hand_chips = mod_mult(hand.mult), mod_chips(hand.chips)
+  if live then      -- model v5: the blind being played (The Flint), as G.FUNCS.evaluate_play applies it
+    mult, hand_chips = G.GAME.blind:modify_hand(cards, poker_hands, text, mult, hand_chips)
+  end
   local function with(extra)
     local t = { full_hand = cards, scoring_hand = scoring_hand, scoring_name = text, poker_hands = poker_hands }
     for k, v in pairs(extra) do t[k] = v end
@@ -565,6 +568,134 @@ function H.offer_values()
       v = H.build_power(opts, base) - now
     end
     out[k] = math.floor(v * 10000 + 0.5)        -- to the nearest 1e-4
+  end
+  return table.concat(out, " ")
+end
+
+
+-- ---------------------------------------------------------------- model v5: play values
+-- docs/hypotheses-v5.md (2026-11-15). For every play in the action list (H._encoded_actions, as last encoded):
+-- S = what the play scores now, by score() above with the blind being played (its debuffs on cards as the game
+-- set them, debuff_hand with check = true, The Arm's level loss, modify_hand), the played cards in the order
+-- the move leaves them (the lead dragged to the first selected slot), the rest of the hand held, the hand counted
+-- as played (hands_left, the type's play counts), chance at its midpoint; left out: the play's own `before` effects, destruction, dollars. N = blind target - chips so far.
+-- Two numbers per move, as integers x 10000: clamp(log2((S + 1) / (N + 1)), -12, 3) / 4, and 1 if S >= N.
+-- Every other move: 0 0. Changes nothing in the game (tests/v5_play_check.py).
+local function play_order(a)
+  local pos = {}
+  for _, hi in ipairs(a.cards or {}) do pos[#pos + 1] = hi end
+  table.sort(pos)
+  if a.lead and a.lead ~= pos[1] then
+    local t = { a.lead }
+    for _, p in ipairs(pos) do if p ~= a.lead then t[#t + 1] = p end end
+    pos = t
+  end
+  return pos
+end
+H.play_order = play_order
+
+function H.play_scores()
+  local acts = H._encoded_actions or {}
+  local S = {}
+  local any = false
+  for _, a in ipairs(acts) do if a.type == "play" then any = true end end
+  if not any or not (G.hand and G.hand.cards and G.GAME.blind) then return S end
+  -- the game's tables this touches, saved (as build_power_fresh)
+  local touched = {}
+  for _, c in ipairs(G.hand.cards) do touched[#touched + 1] = c end
+  for _, c in ipairs(G.jokers.cards) do touched[#touched + 1] = c end
+  for _, c in ipairs(G.consumeables.cards) do touched[#touched + 1] = c end
+  local snaps = {}
+  for _, c in ipairs(touched) do snaps[c] = snap_card(c) end
+  local g = G.GAME
+  local s_hands, s_round = copy(g.hands), copy(g.current_round)
+  local s_scalars = {}
+  for k, v in pairs(g) do if type(v) ~= "table" then s_scalars[k] = v end end
+  local bl = g.blind
+  local s_blind = { triggered = bl.triggered }
+  local held0 = G.hand.cards
+  local saved = {}
+  for _, k in ipairs(STUBS) do saved[k] = _G[k]; _G[k] = NOOP end
+  local pr, ps, pe, mr = pseudorandom, pseudoseed, pseudorandom_element, math.random
+  local ctr = 0
+  pseudorandom = function(_, lo, hi) if lo and hi then return math.floor((lo + hi) / 2) end return 0.5 end
+  pseudoseed = function() return 0.5 end
+  pseudorandom_element = function(t) local ks = {}; for k in pairs(t) do ks[#ks + 1] = k end
+    table.sort(ks, function(a, b) return tostring(a) < tostring(b) end); return t[ks[1]], ks[1] end
+  math.random = function(lo, hi)
+    ctr = ctr + 1
+    if lo and hi then return lo + (ctr % (hi - lo + 1)) end
+    return 0.5
+  end
+  local add_event = G.E_MANAGER.add_event
+  G.E_MANAGER.add_event = NOOP
+  local ok, err = pcall(function()
+    local base = {}
+    for _, c in ipairs(touched) do base[c] = snap_card(c) end
+    local b_hands = copy(g.hands)
+    -- as the game has it when it scores: the hand already counted (play_cards_from_highlighted's
+    -- ease_hands_played(-1): Acrobat), the hand type's play counts raised (evaluate_play: Card Sharp, Supernova)
+    g.current_round.hands_left = g.current_round.hands_left - 1
+    for k, a in ipairs(acts) do
+      if a.type == "play" then
+        local cards, sel = {}, {}
+        for _, p in ipairs(play_order(a)) do
+          local c = held0[p]
+          cards[#cards + 1] = c
+          sel[c] = true
+        end
+        local held = {}
+        for _, c in ipairs(held0) do if not sel[c] then held[#held + 1] = c end end
+        local text, _, poker_hands = G.FUNCS.get_poker_hand_info(cards)
+        local v = 0
+        g.hands[text].played = g.hands[text].played + 1
+        g.hands[text].played_this_round = g.hands[text].played_this_round + 1
+        g.last_hand_played = text
+        if not bl:debuff_hand(cards, poker_hands, text, true) then
+          if bl.name == "The Arm" and not bl.disabled and g.hands[text].level > 1 then
+            level_up_hand(nil, text, true, -1)
+          end
+          v = score(cards, held, true)
+        end
+        S[k] = v
+        for _, c in ipairs(touched) do restore_card(c, base[c]) end
+        restore(g.hands, b_hands)
+        bl.triggered = s_blind.triggered
+        G.hand.cards = held0
+      end
+    end
+  end)
+  G.E_MANAGER.add_event = add_event
+  pseudorandom, pseudoseed, pseudorandom_element, math.random = pr, ps, pe, mr
+  for _, k in ipairs(STUBS) do _G[k] = saved[k] end
+  G.hand.cards = held0
+  for c, sn in pairs(snaps) do restore_card(c, sn) end
+  restore(g.hands, s_hands); restore(g.current_round, s_round)
+  bl.triggered = s_blind.triggered
+  for k, v in pairs(s_scalars) do g[k] = v end
+  for k, v in pairs(g) do if type(v) ~= "table" and s_scalars[k] == nil then g[k] = nil end end
+  if not ok then error("play_scores: " .. tostring(err)) end
+  return S
+end
+
+function H.play_values()
+  local acts = H._encoded_actions or {}
+  local S = H.play_scores()
+  local need = 0
+  if G.GAME.blind then need = math.max((G.GAME.blind.chips or 0) - (G.GAME.chips or 0), 0) end
+  local out = {}
+  for k = 1, #acts do
+    local s = S[k]
+    if s then
+      local x = math.log((s + 1) / (need + 1)) / math.log(2)
+      if x ~= x then x = -12 end
+      if x < -12 then x = -12 elseif x > 3 then x = 3 end
+      out[#out + 1] = math.floor(x / 4 * 10000 + 0.5)
+      out[#out + 1] = s >= need and 10000 or 0
+    else
+      out[#out + 1] = 0
+      out[#out + 1] = 0
+    end
   end
   return table.concat(out, " ")
 end

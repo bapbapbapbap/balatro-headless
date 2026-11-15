@@ -34,7 +34,7 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import EXPERT_HANDS, make_model, param_count  # noqa: E402
+from model import EXPERT_HANDS, make_model, param_count, warm_start_state  # noqa: E402
 from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402,F401
 # The trainer's parts, by capability. Imported here too so `import train` keeps exposing them (play.py,
 # analysis/, tests/ and tools/ use train.<name>).
@@ -145,6 +145,7 @@ def main():
     assert args.lam_hand == 1.0 or args.phase_split, "--lam-hand is model v4b's: it needs --phase-split"
     assert not (args.curriculum or args.offer_values or args.build_shaping) or args.phase_split, \
         "--curriculum, --offer-values and --build-shaping are model v4's: they need --phase-split"
+    assert not args.play_values or args.offer_values, "--play-values (model v5) comes after the offer value: it needs --offer-values"
     if args.phase_split:
         assert not (args.moe or args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--phase-split (v4) trains two networks from random weights on whole games; --moe, --stop-ante, --bc, " \
@@ -158,9 +159,9 @@ def main():
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         arch = ck.get("arch", {})
         for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe)), ("phase_split", bool(args.phase_split)),
-                     ("offer_values", bool(args.offer_values))):
+                     ("offer_values", bool(args.offer_values)), ("play_values", bool(args.play_values))):
             have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False, "phase_split": False,
-                                "offer_values": False}.get(k))
+                                "offer_values": False, "play_values": False}.get(k))
             if k == "actions" and (have, v) == ("ordered", "ordered-capped"):
                 # Same model and moves; only long chains of joker drags stop being offered.
                 alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
@@ -171,6 +172,20 @@ def main():
             for g in opt.param_groups:
                 g["lr"] = args.lr
         resumed = ck
+    elif args.warm_start:
+        # model v5 (docs/hypotheses-v5.md): v4b's weights, a fresh optimizer, round 0, this run's own evals.
+        # Ported from model v4c's warm start (branch v4c, commit 96703f9); v5's new weights are play values' columns.
+        ck = torch.load(args.warm_start, map_location=device, weights_only=False)
+        assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
+        arch = ck.get("arch", {})
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc),
+                     ("actions", args.actions), ("phase_split", bool(args.phase_split)),
+                     ("offer_values", bool(args.offer_values))):
+            assert arch.get(k) == v, f"warm-start checkpoint has {k}={arch.get(k)}, this run has {k}={v}"
+        model.load_state_dict(warm_start_state(ck["model"], model.state_dict()))
+        alert(f"warm start from {args.warm_start} (its round {ck.get('iteration')}, its best eval "
+              f"{ck.get('best_eval', -1):.2f} blinds/game): fresh optimizer, round 0"
+              + ("; play-value weights start at 0" if args.play_values and not arch.get("play_values") else ""))
     elif args.init_weights:
         w = torch.load(args.init_weights, map_location=device, weights_only=True)
         arch = w.get("arch", {})
@@ -223,7 +238,8 @@ def main():
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe),
-                       "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values)},
+                       "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values),
+                       "play_values": bool(args.play_values)},
               "best_eval": best_eval, "evals_since_best": evals_since_best, "games_total": games_total, "wins_total": wins_total,
               "decisions_total": decisions_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,

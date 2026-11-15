@@ -74,18 +74,21 @@ def parse(buf, act_width=9):
 
 def sim_kwargs(cfg):
     """The Sim options a run's settings (train.py args or a checkpoint's config) call for (model v4)."""
-    return {"build_phi": bool(getattr(cfg, "build_shaping", 0)), "offer_values": bool(getattr(cfg, "offer_values", False))}
+    return {"build_phi": bool(getattr(cfg, "build_shaping", 0)), "offer_values": bool(getattr(cfg, "offer_values", False)),
+            "play_values": bool(getattr(cfg, "play_values", False))}
 
 
 class Sim:
     def __init__(self, src, mods=None, fast=True, mode="subsets", enc=1, save_mode=False, count_progress=False,
-                 build_phi=False, offer_values=False):
+                 build_phi=False, offer_values=False, play_values=False):
         """mode: "subsets" (v1), "ordered" (v2: lead card, Death direction, boss reroll), or
         "ordered-capped" (ordered, plus env.lua's cap on consecutive joker drags).
         enc: encoding version, 1 (v1) or 2 (v2: fixed joker slots, hand table, scoring cards).
         build_phi: progress carries phi_build, model v4's build potential (harness/build_phi.lua).
         offer_values: each action row gets one more number, phi_build after taking that offer minus now
-        (buying or picking a joker or planet, redeeming a voucher; 0 elsewhere), as int x 10000."""
+        (buying or picking a joker or planet, redeeming a voucher; 0 elsewhere), as int x 10000.
+        play_values (model v5, docs/hypotheses-v5.md; needs offer_values): two more numbers per action row, what
+        a play scores against what the blind still needs (build_phi.lua H.play_values; 0 0 for other moves)."""
         lua_mode = "ordered" if mode == "ordered-capped" else mode
         self.env = BalatroEnv(src, mods=mods, fast=fast, mode=lua_mode, save_mode=save_mode,
                               count_progress=count_progress)
@@ -100,8 +103,9 @@ class Sim:
         assert self.act_width == ACT_WIDTH[enc], (enc, self.act_width)
         self.vocab = self.H.vocab().split("\n")
         # build_phi: computed into progress at every move (training's shaping; evals switch it off)
-        self.build_phi, self.offer_values = bool(build_phi), bool(offer_values)
-        self.phi_loaded = self.build_phi or self.offer_values
+        self.build_phi, self.offer_values, self.play_values = bool(build_phi), bool(offer_values), bool(play_values)
+        assert self.offer_values or not self.play_values, "play values come after the offer value (model v5 = v4b + them)"
+        self.phi_loaded = self.build_phi or self.offer_values or self.play_values
         if self.phi_loaded:
             lua.execute(open(os.path.join(HARNESS, "build_phi.lua")).read(), self.H)
         self.compare, self.mismatches = False, []     # tests/outcome_check.py: cross-check the old counters
@@ -129,8 +133,8 @@ class Sim:
         first move made in a SHOP at ante `ante` (None: after every move given). The game itself, replayed:
         nothing is loaded. phi_build and offer values are skipped while replaying and computed again at the
         start. Returns the observation there, or None if the moves ran out or differ before it."""
-        bp, ov = self.build_phi, self.offer_values
-        self.build_phi = self.offer_values = False
+        bp, ov, pv = self.build_phi, self.offer_values, self.play_values
+        self.build_phi = self.offer_values = self.play_values = False
         try:
             for k, a in enumerate(acts):
                 if ante is not None and self.H.state_name() == "SHOP" and self._prog["ante"] == ante:
@@ -145,7 +149,7 @@ class Sim:
                 if ante is not None and not (self.H.state_name() == "SHOP" and self._prog["ante"] == ante):
                     return None
         finally:
-            self.build_phi, self.offer_values = bp, ov
+            self.build_phi, self.offer_values, self.play_values = bp, ov, pv
         if self.phi_loaded:
             self.H._phi_cache = None
         if self.build_phi:
@@ -158,6 +162,10 @@ class Sim:
             v = np.array(self.H.offer_values().split(), dtype=np.int16).reshape(-1, 1)
             assert len(v) == len(o["act"]), (len(v), len(o["act"]))
             o["act"] = np.concatenate([o["act"], v], 1)
+        if self.play_values:
+            pv = np.array(self.H.play_values().split(), dtype=np.int16).reshape(-1, 2)
+            assert len(pv) == len(o["act"]), (len(pv), len(o["act"]))
+            o["act"] = np.concatenate([o["act"], pv], 1)
         return o
 
     def step(self, index):

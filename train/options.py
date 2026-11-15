@@ -128,6 +128,12 @@ def build_parser():
     ap.add_argument("--shop-ent", default=None,
                     help="v4: the shop network's entropy coefficient by training decisions (both networks), e.g. "
                          "'0.02,0.006@1.5M,0.001@4M' (linear between; default: --ent)")
+    ap.add_argument("--play-values", action="store_true",
+                    help="v5: each move row gets two more numbers, a play's score against what the blind still needs "
+                         "(log ratio) and whether it reaches it (harness/build_phi.lua H.play_values); needs --offer-values")
+    ap.add_argument("--warm-start",
+                    help="v5: start from a v4b training checkpoint's weights (fresh optimizer, round 0, this run's own "
+                         "best eval and stall clock); the play-value weights start at 0 (ported from v4c's warm start)")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
     ap.add_argument("--vf", type=float, default=0.5)

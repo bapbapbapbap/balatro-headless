@@ -51,3 +51,33 @@ games every 20 rounds, no sell stop.
 aligning our bot's behavior with its behavior more will increase our win rate, which [will] give the best win rate
 we've gotten so far." Scored on v5: its best eval win rate above every earlier model's. The record's best: v4b,
 22 of 600 (3.67%) at round 1780 (runs/v4b/metrics.jsonl); before that 0.3-beta's 7 of 200 (3.5%, docs/models.md).
+
+## 2026-11-15: implementation, checks and smoke (before launch)
+
+Code on branch `v5` (this commit). Claude's, reviewed by chud.
+
+- `harness/build_phi.lua`: `H.play_scores()` and `H.play_values()` as registered. Two details of "what the play
+  scores now", both the game's order of events and not a change of design: inside the sandbox the hand counts as
+  played before it is scored, as `play_cards_from_highlighted` and `G.FUNCS.evaluate_play` have it (hands left
+  minus 1, which Acrobat reads; the hand type's `played` and `played_this_round` plus 1, which Card Sharp and
+  Supernova read). The blind is applied with `debuff_hand(..., check = true)` (no state change), The Arm's level
+  loss by hand, then `modify_hand`.
+- `train/sim.py` (`play_values`, two int16 columns after the offer value; off during curriculum replay as offer
+  values are), `train/model.py` (`play`: the `num` layer reads 5 numbers, action rows 21 wide), `train/options.py`
+  (`--play-values`, `--warm-start`), `train/train.py` and `train/launch.py` (the warm start and `warm:` start,
+  ported from model v4c's, branch `v4c` commit 96703f9; v5's `warm_start_state` pads the `num` weights with zero
+  columns instead of adding a swap row). Pre-flight checks may now name `{work}` (check 3 needs best.pt).
+- `configs/v5.toml`: v4b's settings plus `play_values`, `start = "warm:{work}/runs/v4b/best.pt"`, `shop_ent = "0.001"`,
+  and the `v5-play` check.
+
+**Checks** (tests/v5_play_check.py, cloud, stock LuaJIT, v4b's exported best.pt rebuilt as a checkpoint):
+1. Game state and v4b's whole observation identical at every move: PASS (3 routes; also 10 routes).
+2. S = the game's chips: 60 of 60 plays exact on 3 routes; 192 of 192 on 10 routes. Plays outside the check
+   (a left-out joker or The Hook) on the 10 routes: Green Joker 209, Misprint 92, Spare Trousers 60, The Hook 10,
+   Obelisk 6, Space Joker 6. For those plays S leaves out what the registration says it leaves out; not measured.
+3. Warm-started v5 vs best.pt: largest probability difference 0.00e+00 over every move of the 3 routes: PASS.
+4. Sim time per move: v4b 35.7 ms, v5 48.5 ms (1.36x): under the 2x gate.
+
+**Smoke** (cloud, 1 worker, `launch.py v5 --smoke`): warm start loaded (best.pt's round 1840, 13.40), 3 rounds ran
+and stopped clean; eval 0 at 12.25 blinds/game on 12 games (noise-level sample of best.pt's play). chud's launch
+runs every check again in pre-flight on his machine, with LuaJIT 2.0.5.
