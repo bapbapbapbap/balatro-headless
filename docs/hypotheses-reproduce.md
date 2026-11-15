@@ -128,3 +128,27 @@ Claude's, reviewed by chud. Before R's laptop run:
   extinction rolled by Balatro Lab's own randomness. Detail 1 of the 16:24 section now covers whole jokers: the twin's
   jokers are rebuilt from the game's (its own objects kept where they match). After that the twin followed every arm
   but two past the first half (A1 to move 103, A5 to move 63); pre-flight passed in the cloud.
+
+## Added 2026-11-15, after chud's 09:56 CST message: R's result, scored
+
+Claude's, reviewed by chud. Run on chud's laptop overnight (LuaJIT 2.0.5; pre-flight passed), 300 eval seeds x 6
+arms, 0 errors. Data: `reproduce/balatro_lab/results/2026-11-15/`.
+
+| arm | wins | blinds/game | vs A0, paired (95% bootstrap) | wins vs A0 | their moves/game | games the twin was lost |
+|---|---|---|---|---|---|---|
+| A0 v4b alone | 7 | 13.33 | | | 0 | 0 |
+| A1 hand play theirs | 13 | 16.67 | **+3.34 [+2.56, +4.14]** | +6 | 35.0 | 199 |
+| A2 shop theirs | 9 | 12.44 | -0.89 [-1.71, -0.10] | +2 | 19.0 | 206 |
+| A3 packs theirs | 4 | 12.73 | -0.60 [-1.29, +0.07] | -3 | 8.3 | 124 |
+| A4 blinds theirs | 11 | 12.11 | -1.21 [-2.03, -0.36] | +4 | 6.9 | 148 |
+| A5 all theirs | 23 | 14.70 | +1.38 [+0.63, +2.15] | +16 | 71.8 | 252 |
+
+- A0 agrees with v4b's eval (13.33 on these 300 seeds; 13.40 on all 600).
+- Read with care: after the twin is lost, shop, pack and blind decisions go back to v4b (registered); in A2-A5 that
+  happened in 124-252 of 300 games. A1 doesn't have this problem (hand play stays theirs on the game state). A5 is
+  therefore not Balatro Lab's bot on our code, and R5 can't be read as a fidelity result.
+- Scored: R1 (A1 gains most; Claude 55%) yes. R2 (A1 >= 1.0 blind/game, interval above 0; 70%) yes. R3 (A2
+  gains, interval above 0; 60%) no: A2 loses, interval below 0. R4 (A4 within 0.3; 70%) no: A4 loses 1.21. R5
+  (A5 wins >= 60%; 75%) no: 23/300, with the caveat above.
+- By the rule fixed at 16:05: the arm with the largest blind gain is A1, interval above 0. v5 gets the computation
+  behind hand play (docs/hypotheses-v5.md).

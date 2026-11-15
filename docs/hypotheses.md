@@ -29,6 +29,7 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 |
 | [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (current) |
 | [`hypotheses-reproduce.md`](hypotheses-reproduce.md) | Reproducing other bots (Balatro Lab) |
+| [`hypotheses-v5.md`](hypotheses-v5.md) | Model v5 |
 
 ## Every section, in the order it was added
 
@@ -82,3 +83,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-14 ~16:50 CST: R's code, decided before R runs (two details beyond the 16:05 section); a time correction](hypotheses-reproduce.md#added-2026-11-14-1650-cst-rs-code-decided-before-r-runs-two-details-beyond-the-1605-section-a-time-correction) | reproduce |
 | [Added 2026-11-14 16:24 CST: time correction](hypotheses-reproduce.md#added-2026-11-14-1624-cst-time-correction) | reproduce |
 | [Added 2026-11-14, after chud's 16:48 CST message (the commit's time is the record): R's pre-flight, and jokers mirrored whole](hypotheses-reproduce.md#added-2026-11-14-after-chuds-1648-cst-message-the-commits-time-is-the-record-rs-pre-flight-and-jokers-mirrored-whole) | reproduce |
+| [Added 2026-11-15, after chud's 09:56 CST message: R's result, scored](hypotheses-reproduce.md#added-2026-11-15-after-chuds-0956-cst-message-rs-result-scored) | reproduce |
+| [Added 2026-11-15, after chud's 09:56 CST message: v5 registered before any of its code](hypotheses-v5.md#added-2026-11-15-after-chuds-0956-cst-message-v5-registered-before-any-of-its-code) | v5 |

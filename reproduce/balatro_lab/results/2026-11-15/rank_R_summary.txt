@@ -1,0 +1,16 @@
+smoke: LuaJIT 2.0.5
+smoke: A0 QUK5U5LR: 181 moves / 14 blinds; eval code: 181 / 14 -> same
+smoke: A0 L3NYAUTC: 88 moves / 8 blinds; eval code: 88 / 8 -> same
+smoke: A1 QUK5U5LR: 14 blinds, their moves 60, unmapped 0, lost twin at move 103, 164 s
+smoke: A2 QUK5U5LR: 3 blinds, their moves 7, unmapped 0, lost twin no, 1 s
+smoke: A3 QUK5U5LR: 13 blinds, their moves 11, unmapped 0, lost twin no, 3 s
+smoke: A4 QUK5U5LR: 5 blinds, their moves 5, unmapped 0, lost twin no, 1 s
+smoke: A5 QUK5U5LR: 12 blinds, their moves 75, unmapped 0, lost twin at move 63, 119 s
+SMOKE PASSED
+arm  games  wins  blinds/g         vs A0 (paired) blinds    wins  theirs/g unmapped/g lost twin
+A0     300     7     13.33                                                   0.0        0.0         0
+A1     300    13     16.67    +3.34 [+2.56, +4.14] n=300       +6      35.0        0.1       199
+A2     300     9     12.44    -0.89 [-1.71, -0.10] n=300       +2      19.0        0.0       206
+A3     300     4     12.73    -0.60 [-1.29, +0.07] n=300       -3       8.3        0.0       124
+A4     300    11     12.11    -1.21 [-2.03, -0.36] n=300       +4       6.9        0.0       148
+A5     300    23     14.70    +1.38 [+0.63, +2.15] n=300      +16      71.8        0.1       252
