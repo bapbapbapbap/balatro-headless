@@ -85,3 +85,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-14, after chud's 16:48 CST message (the commit's time is the record): R's pre-flight, and jokers mirrored whole](hypotheses-reproduce.md#added-2026-11-14-after-chuds-1648-cst-message-the-commits-time-is-the-record-rs-pre-flight-and-jokers-mirrored-whole) | reproduce |
 | [Added 2026-11-15, after chud's 09:56 CST message: R's result, scored](hypotheses-reproduce.md#added-2026-11-15-after-chuds-0956-cst-message-rs-result-scored) | reproduce |
 | [Added 2026-11-15, after chud's 09:56 CST message: v5 registered before any of its code](hypotheses-v5.md#added-2026-11-15-after-chuds-0956-cst-message-v5-registered-before-any-of-its-code) | v5 |
+| [2026-11-15: implementation, checks and smoke (before launch)](hypotheses-v5.md#2026-11-15-implementation-checks-and-smoke-before-launch) | v5 |
+| [2026-11-15: correction to the section above](hypotheses-v5.md#2026-11-15-correction-to-the-section-above) | v5 |

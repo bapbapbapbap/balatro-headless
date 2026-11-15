@@ -81,3 +81,8 @@ Code on branch `v5` (this commit). Claude's, reviewed by chud.
 **Smoke** (cloud, 1 worker, `launch.py v5 --smoke`): warm start loaded (best.pt's round 1840, 13.40), 3 rounds ran
 and stopped clean; eval 0 at 12.25 blinds/game on 12 games (noise-level sample of best.pt's play). chud's launch
 runs every check again in pre-flight on his machine, with LuaJIT 2.0.5.
+
+## 2026-11-15: correction to the section above
+
+Two of check 2's out-of-check tallies on 10 routes were summed wrong: Green Joker 161 (not 209), The Hook 9 (not
+10). Recounted from the check's per-route lines; the other tallies and every result stand.
