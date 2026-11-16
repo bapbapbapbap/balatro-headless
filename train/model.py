@@ -190,7 +190,7 @@ def warm_start_state(old_sd, new_sd):
     for k, v in old_sd.items():
         assert k in new_sd, f"warm start: {k} not in the new model"
         if k.endswith("num.weight") and v.shape[1] < new_sd[k].shape[1]:
-            v = _t.cat([v, _t.zeros(v.shape[0], new_sd[k].shape[1] - v.shape[1], dtype=v.dtype)], 1)
+            v = _t.cat([v, _t.zeros(v.shape[0], new_sd[k].shape[1] - v.shape[1], dtype=v.dtype, device=v.device)], 1)
         assert v.shape == new_sd[k].shape, f"warm start: {k} is {tuple(v.shape)}, the model has {tuple(new_sd[k].shape)}"
         out[k] = v
     missing = set(new_sd) - set(out)
