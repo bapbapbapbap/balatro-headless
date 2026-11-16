@@ -256,7 +256,7 @@ def report(d):
           f"blinds/game {sum(r['blinds'] for r in ok) / n:.2f}; mean s/game {sum(r['seconds'] for r in ok) / n:.0f}")
     print(f"decisions {moves}, labeled {lab} ({100 * lab / max(1, moves):.1f}%); unmapped/game "
           f"{sum(um.values()) / n:.2f}: {dict(um.most_common(8))}")
-    print(f"reorders asked (not carried over): {dict(ro)}; states with no teacher decision: {dict(nk)}")
+    print(f"reorders (joker ones played as drags): {dict(ro)}; states with no teacher decision: {dict(nk)}")
     if er:
         print(f"errors: {dict(er.most_common(8))}")
     if bu:

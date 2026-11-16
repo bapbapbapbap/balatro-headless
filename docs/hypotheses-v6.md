@@ -85,3 +85,26 @@ the cuts below; chud agreed (11:59 "Ok fine", 12:00 "Ok go start"). Everything n
 - **B2 (no deck-order leak) and B3 (unmapped under 1 per game) stay;** both run in the cloud.
 - **Stage 2 (DAgger) is not run up front.** After stage 1's student is scored on the 600 eval seeds, a new section
   decides whether DAgger is needed. W3 and W4 then score the best student before stage 3, with or without DAgger.
+
+## 2026-11-16: stage 0 built; the bridge's checks in the cloud (before the data run)
+
+Claude's, reviewed by chud. Code: `reproduce/balatro_lab/bridge.py`, `teach.py` (branch `v6`, commit ad33019).
+Cloud runs use pip lupa's stock LuaJIT (`ALLOW_STOCK_LUAJIT=1`), so they test the bridge, not win rates.
+
+- **Bridge vs twin** (`--check`, first 2 teacher seeds): while Balatro Lab's seeded twin stayed in sync, the
+  teacher's decision on the bridge's state was compared with its decision on the twin's. The first version agreed
+  on 67 of 73. The flip test (copy one twin attribute into the bridge's state, ask again) found three causes, all
+  fixed: (1) the game keeps draw-pile cards facing "back", which state.lab_card read as face down, hiding the deck
+  from the bot (it then played where it should discard); (2) Balatro Lab numbers cards in its standard deck order
+  and keeps its deck in that order, and its bot keys its samples on both, so the bridge now numbers and orders
+  cards the same way; (3) run totals the game shows (rerolls, cards played, discarded and bought, best hand, last
+  hand, bosses seen, The Pillar's cards, blinds beaten, the last round's counts) are now carried over. After: 49 of
+  50 agree; the one difference is an Arcana pick whose twin hand came from the twin's own randomness (the check
+  now re-syncs that hand, as rank.py does). The twin is lost by move 18-51 in both games, so this covers early
+  game states only; the data run's win rate checks the rest.
+- **Joker order:** the teacher reorders jokers through its own free action; the bridge plays each reorder that
+  changes the order as one of our drag moves (`move_joker i>j`), one per decision, and asks again after it.
+- **B2 (no deck-order leak):** every hand decision asked again with the draw pile shuffled: 151 of 151 unchanged
+  (2 games). Pass.
+- **B3 (unmapped):** 0 unmapped teacher moves in 4 games (884 decisions). Pass.
+- Teacher games so far (stock LuaJIT, not a rate): 2 wins in 4 (the same 2 seeds, before and after the fixes).
