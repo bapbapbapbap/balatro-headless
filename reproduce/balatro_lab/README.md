@@ -20,6 +20,8 @@ Registrations and predictions: [`docs/hypotheses-reproduce.md`](../../docs/hypot
 | `mine_report.py` | mine.py's output summarized by decision type | none |
 | `eval_on_our_seeds.py` | Balatro Lab's bot on our 600 evaluation seeds (T1, withdrawn before it ran) | `Run`, `ValueBot` |
 | `rank.py` | ranking test R: v4b plays our eval seeds with one kind of decision (hand play, shop, packs, blinds, or all) made by Balatro Lab's bot | `Run` (seeded), `ValueBot` |
+| `bridge.py` | model v6's bridge: Balatro Lab's state built from the game at every decision (round, shop, packs, blind choice, boss, cash out), and its bot's move on it | `Run`, `Shop`, `Offer`, `OpenPack`, `PACKS`, item registries, `ValueBot` (as the caller passes it) |
+| `teach.py` | model v6's teacher data: Balatro Lab's bot plays our game through the bridge on fresh seeds; every decision saved as the student sees it, with the teacher's move. `--check` compares with the seeded twin while in sync; `--leak` is B2 | `ValueBot`, and with `--check` the seeded `Run` (twin.py) |
 | `results/2026-11-14/` | what has run: its own 480-seed eval, scoring check, twin, first mining | |
 
 Results so far are in the registration's "Already measured" list.
@@ -40,6 +42,16 @@ The built LuaJIT 2.0.5 runtime is not in git (`harness/vendor/`); point the work
 Our bot as a weights file (v4b best.pt, round 1840, 13.40 blinds/game):
 
     wsl bash -lc "cd ~/balatro/reproduce && source ~/balatro/venv/bin/activate && python3 train/export_weights.py /mnt/c/Users/Jacobi/balatro-work/runs/v4b/best.pt /mnt/c/Users/Jacobi/balatro-work/v4b_best_weights.pt --version v4b-best-r1840"
+
+## Model v6's teacher data (docs/hypotheses-v6.md)
+Balatro Lab's bot plays our game through the bridge on fresh seeds (never the 600 eval seeds); its win rate there is
+the bridge's check (within 5 points of 70.8%), and the saved games are stage 1's training data. Re-running resumes.
+From the training clone on branch `v6` (no run trains now):
+
+    wsl bash -lc "cd ~/balatro/balatro-headless && git fetch && git checkout v6 && git pull && source ~/balatro/venv/bin/activate && cd reproduce/balatro_lab && python3 teach.py --lab ~/balatro/balatro-lab --src ~/balatro/local/source --games 600 --workers 12 --out /mnt/c/Users/Jacobi/balatro-work/teach_v6 | tee -a /mnt/c/Users/Jacobi/balatro-work/teach_v6.txt"
+
+Report at any point: `python3 teach.py --report /mnt/c/Users/Jacobi/balatro-work/teach_v6`. Output: `games_w*.jsonl`
+(one line per game: won, blinds, moves, unmapped, joker drags), `games/<seed>.pkl.gz` (the decisions).
 
 ## Runs
 **R** (the ranking test; 300 eval seeds x 6 arms, roughly 4 h at 8 workers; re-running resumes):
