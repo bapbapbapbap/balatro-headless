@@ -71,3 +71,17 @@ and starting with a much better strategy than one derived from random chance sta
 than one trained on a bot with a reproduced 70% wr." Scoring, as Claude reads it (chud to confirm before stage 1
 trains): v6's best eval win count, stage 2 or 3, above the best of every model whose strategy grew from random
 starting weights; the record is v4b's 22 of 600 (round 1780).
+
+## Added 2026-11-16, after chud's 12:00 CST message: v6 cut down before any of its code
+
+chud's decision, reviewed by Claude. chud asked (11:36) why all of the 11:32 section was needed; Claude proposed
+the cuts below; chud agreed (11:59 "Ok fine", 12:00 "Ok go start"). Everything not named here stands.
+
+- **B1 replaced.** No separate run of the teacher in its own simulator. The data run itself (the teacher on fresh
+  seeds, on our game, through the bridge) is the check: its win rate within 5 points of the teacher's reproduced
+  70.8% (set 90210). Below that, the bridge's loss is found and fixed before any training.
+- **W1 withdrawn** (it needed the own-simulator run). **W2 now reads:** the data run's win rate is within 5 points
+  of 70.8% on the first full bridge run. 50%, as before.
+- **B2 (no deck-order leak) and B3 (unmapped under 1 per game) stay;** both run in the cloud.
+- **Stage 2 (DAgger) is not run up front.** After stage 1's student is scored on the 600 eval seeds, a new section
+  decides whether DAgger is needed. W3 and W4 then score the best student before stage 3, with or without DAgger.

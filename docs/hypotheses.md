@@ -90,3 +90,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [2026-11-15: correction to the section above](hypotheses-v5.md#2026-11-15-correction-to-the-section-above) | v5 |
 | [Added 2026-11-16, after chud's 11:19 CST message: v5 stopped by chud; V1-V3 and chud's prediction scored](hypotheses-v5.md#added-2026-11-16-after-chuds-1119-cst-message-v5-stopped-by-chud-v1-v3-and-chuds-prediction-scored) | v5 |
 | [Added 2026-11-16, after chud's 11:30 CST message: v6 registered before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1130-cst-message-v6-registered-before-any-of-its-code) | v6 |
+| [Added 2026-11-16, after chud's 12:00 CST message: v6 cut down before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1200-cst-message-v6-cut-down-before-any-of-its-code) | v6 |
