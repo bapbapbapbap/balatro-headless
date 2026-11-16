@@ -86,3 +86,30 @@ runs every check again in pre-flight on his machine, with LuaJIT 2.0.5.
 
 Two of check 2's out-of-check tallies on 10 routes were summed wrong: Green Joker 161 (not 209), The Hook 9 (not
 10). Recounted from the check's per-route lines; the other tallies and every result stand.
+
+## Added 2026-11-16, after chud's 11:19 CST message: v5 stopped by chud; V1-V3 and chud's prediction scored
+
+Claude's record, reviewed by chud; the stop and its reason are chud's.
+
+**Stopped** by chud (Ctrl+C, 2026-11-16 11:18:40 CST) at round 278, 11.96 h, not to be restarted. His words
+(11:19): "running v5 will not get us there. I am pausing v5 without the intent to restart it." At the stop the
+stall clock stood at 13 of 25 evals; the best eval was still round 0's, which is v4b's best.pt unchanged.
+
+Evals (600 games: blinds/game, wins, deaths at ante <= 3), from runs/v5/train.log:
+r0 13.40/16/163; r20 12.92/17/156; r40 11.89/6/193; r60 11.88/5/188; r80 11.13/7/219; r100 11.23/5/207;
+r120 10.86/8/207; r140 10.99/9/230; r160 11.09/5/208; r180 11.21/6/214; r200 11.48/8/197; r220 12.31/11/187;
+r240 12.47/12/157; r260 12.23/11/168. One update rejected (round 121, KL 24.5 > 0.2): reverted, learning rate
+halved to 5e-5 (strike 1/3). 459 wins saved, all replayed exactly.
+
+**Scored:**
+- V1 (best eval above 13.40; Claude 70%): no. No eval after round 0 reached it.
+- V2 (best eval >= 15.0; 35%): no.
+- V3 (best eval wins above 22/600; 45%): no. Best 17, round 20.
+- chud's (2026-11-14 16:05; scored on v5 as its best eval win rate above every earlier model's, 22/600): not met
+  by v5 (17/600). v5 aligned only the inputs of hand play, not the behavior; the prediction's own claim, aligning
+  our bot's behavior with Balatro Lab's, is what model v6 tests (docs/hypotheses-v6.md).
+
+**What it shows (Claude's reading, not tested):** like v4c, v5 fell from its warm start in the first ~120 rounds,
+through more early deaths, and was climbing back when stopped. Both started from v4b's weights with a fresh
+optimizer at learning rate 1e-4; v5's recovery began after the halving. Whether the fall came from the restart or
+from what each run added was not separated (no control run of v4b restarted the same way).

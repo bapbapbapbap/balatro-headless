@@ -27,9 +27,10 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [`hypotheses-moe2.md`](hypotheses-moe2.md) | Run moe2 (moe2-pins0) |
 | [`hypotheses-v3.md`](hypotheses-v3.md) | Model v3 |
 | [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 |
-| [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (current) |
+| [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (last trained run) |
 | [`hypotheses-reproduce.md`](hypotheses-reproduce.md) | Reproducing other bots (Balatro Lab) |
 | [`hypotheses-v5.md`](hypotheses-v5.md) | Model v5 |
+| [`hypotheses-v6.md`](hypotheses-v6.md) | Model v6 (taught by Balatro Lab's bot; next) |
 
 ## Every section, in the order it was added
 
@@ -87,3 +88,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-15, after chud's 09:56 CST message: v5 registered before any of its code](hypotheses-v5.md#added-2026-11-15-after-chuds-0956-cst-message-v5-registered-before-any-of-its-code) | v5 |
 | [2026-11-15: implementation, checks and smoke (before launch)](hypotheses-v5.md#2026-11-15-implementation-checks-and-smoke-before-launch) | v5 |
 | [2026-11-15: correction to the section above](hypotheses-v5.md#2026-11-15-correction-to-the-section-above) | v5 |
+| [Added 2026-11-16, after chud's 11:19 CST message: v5 stopped by chud; V1-V3 and chud's prediction scored](hypotheses-v5.md#added-2026-11-16-after-chuds-1119-cst-message-v5-stopped-by-chud-v1-v3-and-chuds-prediction-scored) | v5 |
+| [Added 2026-11-16, after chud's 11:30 CST message: v6 registered before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1130-cst-message-v6-registered-before-any-of-its-code) | v6 |
