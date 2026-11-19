@@ -108,3 +108,58 @@ Cloud runs use pip lupa's stock LuaJIT (`ALLOW_STOCK_LUAJIT=1`), so they test th
   (2 games). Pass.
 - **B3 (unmapped):** 0 unmapped teacher moves in 4 games (884 decisions). Pass.
 - Teacher games so far (stock LuaJIT, not a rate): 2 wins in 4 (the same 2 seeds, before and after the fixes).
+
+## Added 2026-11-18, after chud's 23:15 CST message: the data run's result, more teacher games, and stage 1 registered before its code
+
+Sources marked per item. Nothing here edits a committed section.
+
+**The data run, as measured** (chud's laptop, LuaJIT 2.0.5, 2026-11-17 ~23:00 to 11-18 morning, 12 workers;
+`balatro-work/teach_v6/`, read by `teach.py --report`): 600 games on teacher seeds 0-599, 0 errors. Teacher wins
+397 of 600 = 66.2% (±3.8, 95%); 19.32 blinds per game; ~215 s a game. 135,517 decisions, 135,282 labeled (99.8%).
+Unmapped teacher moves 0.39 per game, all in a round: play 102, use 84, discard 49 (87 of 600 games had any; at
+most 8 in one game). 4,608 joker reorders played as drags.
+- **Gate (within 5 points of 70.8%): pass,** by 0.4 points. **W2: hit** (50%). **B3 (< 1 unmapped a game): pass.**
+- 66.2% vs the 70.8% reproduction (480 games, Balatro Lab's own simulator, other seeds): z ≈ 1.6, not a
+  significant difference, but the point estimate is 4.6 points low. If stage 1's gap needs explaining, the
+  unmapped round moves are where the bridge is known to lose the teacher.
+
+**More teacher games** (Claude's proposal, chud's go at 23:15): seeds 600-1799 of the same generator
+(`teach.py --first 600 --games 1200`, same folder; `teach_seeds` still skips the 600 eval seeds), running from
+2026-11-18 ~23:15. Stage 1 trains on every teacher game in `teach_v6/` when it starts, minus the held-out games.
+
+**Stage 1's reading** (chud's, 2026-11-17 17:38, in his words' sense; reviewed by Claude): graded, not pass/fail.
+Stage 1 may land below the teacher; the closer to it, the more merit this line of research has. The readout is the
+gap to the teacher's win rate. Floor for chud's hypothesis: more than 22 of 600 (the best of any model grown from
+random weights). Beyond-teacher work happens only on the student.
+- Diagnostic with it (Claude's): top-1 agreement with the teacher on a fixed set of held-out states. High agreement
+  with a big win gap = drift into states the teacher never showed (DAgger's job); low agreement = what the network
+  can't represent without the teacher's computation (search, computed features).
+- **The teacher's rate on the eval seeds is not measured** (B1 was cut 11-16). Until it is, the gap is read
+  against 66.2% on teacher seeds, which is a different seed set. Claude proposed (11-18 09:11) running the teacher
+  on the 600 eval seeds as a reference only, never training data; open, chud's call.
+
+**Stage 1's design** (Claude's; chud to review). Replaces "2,000 states from B1's teacher games", since B1's games
+don't exist:
+- **Held-out games:** a teacher game is held out when sha256("v6-holdout:" + seed) mod 20 = 0 (about 5%). Held-out
+  games are never trained on. **The agreement set** is 2,000 labeled decisions drawn from them with
+  random.Random("v6-agreement"), fixed for every later stage (saved with the run as `agreement_set.json`, by seed
+  and move number).
+- **Loss:** cross-entropy to the teacher's move over the legal moves, on labeled decisions only; the value head
+  regresses (weight 0.5, as `--vf`) on every decision's discounted return to the game's end under v4b's reward
+  (blinds, chip shaping 1, build shaping 1, blind clock gamma 0.95): the lambda = 1 form of the routed returns
+  PPO uses, so the critic starts on our reward. Each decision trains only its own network (table or shop), by the
+  member the game's state gives it. The first decision's "before" progress is not saved by teach.py; it is taken
+  as the first after-state with blinds and phi at 0, which can only move decision 0's return.
+- **Training procedure** (not part of the ought): Adam, learning rate 3e-4, minibatch 64, gradient clip 0.5,
+  games streamed in shuffled chunks of 32. Up to 8 passes over the training games; after each, held-out
+  cross-entropy and agreement; the weights with the lowest held-out cross-entropy are kept (`imitate.pt`), and
+  training stops after 2 passes without a new lowest.
+- **Then one eval** of 600 games on the eval seeds, exactly as every run's eval (sampling at `--eval-temp` 1, as
+  every run), with agreement on the agreement set; then the run stops. Network: v5's (configs/v5.toml's model
+  settings), randomly initialized.
+
+**Predictions (Claude's), scored on that eval:**
+- S1: the student wins more than 22 of 600. 65%.
+- S2: the student wins at least 60 of 600 (10%). 40%.
+- S3: top-1 agreement on the agreement set at least 75%. 45%.
+- S4: within 10 points of 66.2% (at least 337 wins). 5%.

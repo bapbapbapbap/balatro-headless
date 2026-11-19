@@ -92,3 +92,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-16, after chud's 11:30 CST message: v6 registered before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1130-cst-message-v6-registered-before-any-of-its-code) | v6 |
 | [Added 2026-11-16, after chud's 12:00 CST message: v6 cut down before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1200-cst-message-v6-cut-down-before-any-of-its-code) | v6 |
 | [2026-11-16: stage 0 built; the bridge's checks in the cloud (before the data run)](hypotheses-v6.md#2026-11-16-stage-0-built-the-bridges-checks-in-the-cloud-before-the-data-run) | v6 |
+| [Added 2026-11-18, after chud's 23:15 CST message: the data run's result, more teacher games, and stage 1 registered before its code](hypotheses-v6.md#added-2026-11-18-after-chuds-2315-cst-message-the-data-runs-result-more-teacher-games-and-stage-1-registered-before-its-code) | v6 |
