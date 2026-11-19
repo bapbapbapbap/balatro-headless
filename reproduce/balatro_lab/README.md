@@ -66,6 +66,10 @@ T1 (withdrawn), Balatro Lab's bot on our 600 eval seeds (~190 s a game; 8 worker
 
 Re-running the same command resumes: seeds already in the output file are skipped.
 
+Both measurements below, one after the other, with a paired summary at the end (`gap_tests.sh`, `gap_summary.py`):
+
+    wsl bash -lc "cd ~/balatro/reproduce && git fetch origin && git checkout gap-check && git pull && bash reproduce/balatro_lab/gap_tests.sh"
+
 F1c (docs/hypotheses-v6.md, 2026-11-19), the 244 teacher games with unmapped moves (Cerulean Bell) rerun with
 fixes F1 and F1b, into their own folder (not training data):
 
