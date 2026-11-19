@@ -89,7 +89,39 @@ def to_desc(G, a, run, descs):
     return rank.to_desc(G, a, run, None, descs)
 
 
-def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False):
+class Student:
+    """Stage 2 (DAgger, docs/hypotheses-v6.md 2026-11-19): a v6 checkpoint that plays the moves while the teacher only
+    labels them. Samples at temperature 1 like the trainer's evals, with a fixed RNG per seed."""
+
+    def __init__(self, path, sim):
+        import torch
+        import types
+        sys.path.insert(0, os.path.join(HERE, "..", "..", "train"))
+        from model import make_model
+        ck = torch.load(path, map_location="cpu", weights_only=False)
+        if ck["vocab"] != sim.vocab:
+            raise SystemExit(f"{path}: trained on a different game vocabulary")
+        self.model = make_model(types.SimpleNamespace(**ck["arch"]), len(ck["vocab"]))
+        self.model.load_state_dict(ck["model"])
+        self.model.eval()
+        torch.set_num_threads(1)
+        self.path, self.iteration = path, ck.get("iteration")
+
+    def reset(self, seed):
+        self.rng = random.Random(f"dagger-{seed}")
+
+    def move(self, o, member):
+        import numpy as np
+        import torch
+        from common import collate
+        o = dict(o, member=member)
+        with torch.no_grad():
+            logits, _ = self.model(*collate([o]))
+        p = torch.softmax(logits[0].double(), -1).numpy()
+        return min(int(np.searchsorted(np.cumsum(p), self.rng.random() * p.sum())), len(p) - 1)
+
+
+def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False, student=None):
     import mine as M
     from model import phase_member
     o = sim.reset(seed, "b_red", 1)
@@ -103,6 +135,8 @@ def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False):
     tw = TW.Twin(seed) if check else None
     tbot = bot_factory() if check else None
     held = None
+    if student is not None:
+        student.reset(seed)
     st = {"unmapped": Counter(), "reorders": Counter(), "agree": 0, "disagree": [], "lost_twin": None,
           "no_kind": Counter(), "errors": Counter()}
     decisions = []
@@ -162,7 +196,10 @@ def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False):
             except (RuntimeError, queue.Empty) as e:
                 st["lost_twin"] = {"move": sim.steps, "why": str(e)[:200]}
                 tw = None
-        if a is None:
+        label = a if labeled else None
+        if student is not None:
+            a = student.move(o, phase_member(sname))       # DAgger: the student plays; the teacher's move is the label
+        elif a is None:
             a = next((n for n, d in enumerate(descs) if d.split()[0] in FALLBACK), 0)
         dk, di, dj, dc, dl = M.parse_desc(descs[a])
         sh.after(dk, len(dc))
@@ -196,8 +233,10 @@ def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False):
             except (StopIteration, queue.Empty, RuntimeError) as e:
                 st["lost_twin"] = {"move": sim.steps, "why": f"passing {descs[a]}: {str(e)[:150]}"}
                 tw = None
-        rec = {"obs": o, "member": phase_member(sname), "a": int(a), "labeled": labeled, "kind": kind,
-               "desc": descs[a]}
+        # "a" is what imitation trains on: the teacher's move when labeled. "played" is the move made (the
+        # student's in DAgger, else the teacher's or the fallback), which the game's progress follows.
+        rec = {"obs": o, "member": phase_member(sname), "a": int(label if labeled else a), "labeled": labeled,
+               "kind": kind, "desc": descs[a], "played": int(a)}
         _, prog, done = sim.step(a)
         rec["progress"] = prog
         decisions.append(rec)
@@ -209,6 +248,9 @@ def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False):
            "moves": sim.steps, "labeled": sum(d["labeled"] for d in decisions),
            "unmapped": dict(st["unmapped"]), "reorders": dict(st["reorders"]), "no_kind": dict(st["no_kind"]),
            "errors": dict(st["errors"]), "bridge_unmapped": dict(sh.unmapped)}
+    if student is not None:
+        out.update(student=student.path, student_iteration=student.iteration,
+                   played_teacher=sum(1 for d in decisions if d["labeled"] and d["a"] == d["played"]))
     if leak:
         out.update(leak_same=st.get("leak_same", 0), leak_diff=st.get("leak_diff", 0))
     if check:
@@ -223,6 +265,7 @@ def worker(a):
     TW.load_lab(a.lab)
     from balatro.strategy import ValueBot
     sim = make_sim(a.src)
+    student = Student(a.student, sim) if a.student else None
     os.makedirs(os.path.join(a.out, "games"), exist_ok=True)
     log = os.path.join(a.out, f"games_w{a.first}.jsonl")
     done = set()
@@ -236,7 +279,7 @@ def worker(a):
                 continue
             t = time.time()
             try:
-                rec, decisions = play_game(sim, seed, ValueBot, a.check, a.max_steps, a.leak)
+                rec, decisions = play_game(sim, seed, ValueBot, a.check, a.max_steps, a.leak, student)
                 with gzip.open(os.path.join(a.out, "games", f"{seed}.pkl.gz"), "wb") as f:
                     pickle.dump(decisions, f, protocol=4)
             except Exception:
@@ -300,6 +343,7 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="compare with Balatro Lab's seeded twin while in sync")
     ap.add_argument("--leak", action="store_true", help="B2: every hand decision again with the draw pile shuffled")
     ap.add_argument("--report")
+    ap.add_argument("--student", help="stage 2 (DAgger): a v6 checkpoint plays; the teacher labels every state it reaches")
     ap.add_argument("--seed-file", help="play these seeds (one per line) instead of the teacher seeds; --first/--games "
                                         "index into it (re-measuring chosen games, e.g. after a bridge fix)")
     a = ap.parse_args()
@@ -319,6 +363,7 @@ def main() -> int:
             procs.append(subprocess.Popen([sys.executable, __file__, "--lab", a.lab, "--src", a.src, "--games", str(n),
                                            "--first", str(a.first + k * per), "--max-steps", str(a.max_steps),
                                            "--out", a.out] + (["--seed-file", a.seed_file] if a.seed_file else [])
+                                          + (["--student", a.student] if a.student else [])
                                           + (["--check"] if a.check else []) + (["--leak"] if a.leak else [])))
         for p in procs:
             p.wait()

@@ -308,3 +308,16 @@ Outcome per arm: wins lost against the full bot, paired (McNemar).
   agreement set stays stage 1's. Then the 600-game eval with agreement.
 - Stop: when eval wins fail to rise for two rounds in a row (11-16). The best round's student goes to stage 3.
 - D1: round 1 raises eval wins over stage 1's. 70%. D2: agreement on the agreement set rises in round 1. 60%.
+
+## Added 2026-11-19: test K and stage 2 built, checked in the cloud (no results)
+
+Claude's, reviewed by chud. Code, as registered in the roadmap section above; nothing about the design changed.
+- Test K: `reproduce/balatro_lab/ablate.py` (arms by subclassing Balatro Lab's bot; settings checked per arm).
+  Cloud, one seed per arm: every arm finishes a game. Part 3 of `gap_tests.sh`.
+- Stage 2: `teach.py --student` (the checkpoint plays, sampling at temperature 1 with a per-seed RNG; the teacher's
+  move is the label, the student's is `played`), `--imitate` takes several folders and globs, `configs/v6d.toml`,
+  `train/dagger_round.sh <k>`. Cloud, end to end on a cloud-trained checkpoint (2 student games, 9 teacher games):
+  the student plays, every decision is labeled, imitation warm-starts from the student on both folders with stage
+  1's agreement set, the 600-game eval runs with agreement, and the round's run folder is kept as runs/v6d-r1.
+- Stage 2 must run on the fixed bridge: `gap-check` is merged into `v6` before round 1.
+- `docs/proposals/v6-student-search.md`: options for rule 3 (not registered; chud decides).

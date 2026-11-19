@@ -66,7 +66,8 @@ T1 (withdrawn), Balatro Lab's bot on our 600 eval seeds (~190 s a game; 8 worker
 
 Re-running the same command resumes: seeds already in the output file are skipped.
 
-Both measurements below, one after the other, with a paired summary at the end (`gap_tests.sh`, `gap_summary.py`):
+F1c, test P and test K below, one after the other, with the summaries at the end (`gap_tests.sh`,
+`gap_summary.py`, `ablate.py --summary`; ~8-9 h at 12 workers; `SKIP_K=1` stops after test P):
 
     wsl bash -lc "cd ~/balatro/reproduce && git fetch origin && git checkout gap-check && git pull && bash reproduce/balatro_lab/gap_tests.sh"
 
@@ -92,3 +93,9 @@ Notes:
   The scripts now refuse any LuaJIT but 2.0.5 unless `ALLOW_STOCK_LUAJIT=1`; the laptop's `vendor/lupa` is 2.0.5.
 - Memory: each process holds a game runtime, torch and Balatro Lab; keep workers at 8 or fewer next to anything
   else running.
+
+Test K (docs/hypotheses-v6.md, 2026-11-19, chud's idea): Balatro Lab's bot with one heuristic switched off per arm
+(boss-round search, power's sample hands, discard draws, the hand-set bonuses), in its own simulator on teacher
+seeds 0-299, paired with test P's full bot (`ablate.py`; part 3 of `gap_tests.sh`):
+
+    wsl bash -lc "cd ~/balatro/reproduce/reproduce/balatro_lab && source ~/balatro/venv/bin/activate && python3 ablate.py --lab ~/balatro/balatro-lab --games 300 --workers 12 --out /mnt/c/Users/Jacobi/balatro-work/ablate_k.jsonl"

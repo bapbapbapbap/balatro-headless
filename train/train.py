@@ -660,9 +660,9 @@ def main():
         ref = os.path.join(out, "agreement_set.json")
         if not args.imitate or not os.path.exists(ref):
             return None
-        from imitate import decisions_of, score
+        from imitate import decisions_of, score, where
         if agree_decs is None:
-            agree_decs = decisions_of(args.imitate, [tuple(r) for r in json.load(open(ref))])
+            agree_decs = decisions_of(where(args.imitate), [tuple(r) for r in json.load(open(ref))])
         r = score(model, agree_decs, device, args.minibatch)
         return {"agreement": round(r["agree"], 4), "agreement_table": round(r["agree_table"], 4),
                 "agreement_shop": round(r["agree_shop"], 4), "agreement_n": r["n"]}

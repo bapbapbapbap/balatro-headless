@@ -14,6 +14,7 @@ What this module does, without torch where it can (tests/v6_imitate_check.py):
   score(model, ...)       cross-entropy and top-1 agreement with the teacher on a set of decisions
 """
 import collections
+import glob
 import gzip
 import hashlib
 import json
@@ -37,6 +38,17 @@ def held_out(seed):
     return int(hashlib.sha256(f"v6-holdout:{seed}".encode()).hexdigest(), 16) % HOLDOUT_MOD == 0
 
 
+def where(spec):
+    """{seed: folder} over every teacher-data folder in spec: comma-separated, each a folder or a glob of folders
+    (stage 2: "{work}/teach_v6,{work}/dagger/d*"). A seed in two folders is taken from the first."""
+    out = {}
+    for part in [p for p in spec.split(",") if p]:
+        for d in sorted(glob.glob(part)) if any(ch in part for ch in "*?[") else [part]:
+            for s in games(d):
+                out.setdefault(s, d)
+    return out
+
+
 def games(d):
     """Seeds of the games teach.py finished without an error and saved, in a fixed order."""
     seeds = set()
@@ -53,6 +65,9 @@ def games(d):
 
 
 def load(d, seed):
+    """One game's decisions; d is its folder, or a where() index."""
+    if isinstance(d, dict):
+        d = d[seed]
     with gzip.open(os.path.join(d, "games", f"{seed}.pkl.gz"), "rb") as f:
         return pickle.load(f)
 
@@ -151,13 +166,13 @@ def train_imitation(model, args, device, out, log, stop=lambda: None):
     in out/imitate.pt (weights only; train.py's save() writes the full checkpoint after)."""
     import torch
     from common import collate
-    d = args.imitate
-    seeds = games(d)
+    d = where(args.imitate)
+    seeds = sorted(d)
     train_s = [s for s in seeds if not held_out(s)]
     hold_s = [s for s in seeds if held_out(s)]
     if args.imitate_max_games:
         train_s, hold_s = train_s[:args.imitate_max_games], hold_s[:max(2, args.imitate_max_games // 10)]
-    assert train_s and hold_s, f"imitation: {len(seeds)} usable games in {d}; need training and held-out games"
+    assert train_s and hold_s, f"imitation: {len(seeds)} usable games in {args.imitate}; need training and held-out games"
     ref_path = os.path.join(out, "agreement_set.json")
     if os.path.exists(ref_path):
         refs = [tuple(r) for r in json.load(open(ref_path))]
@@ -170,7 +185,7 @@ def train_imitation(model, args, device, out, log, stop=lambda: None):
         for x in load(d, s):
             x["obs"]["member"] = x["member"]
             hold_decs.append(x)
-    log(f"imitation: {len(train_s):,} training games, {len(hold_s):,} held out ({len(hold_decs):,} decisions); "
+    log(f"imitation: data {args.imitate} ({len(set(d.values()))} folders); {len(train_s):,} training games, {len(hold_s):,} held out ({len(hold_decs):,} decisions); "
         f"agreement set {len(agree_decs):,} decisions; up to {args.imitate_epochs} passes, lr {args.imitate_lr}")
     opt = torch.optim.Adam(model.parameters(), lr=args.imitate_lr)
     rng = random.Random(f"imitate-{args.seed}")
