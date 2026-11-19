@@ -94,3 +94,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [2026-11-16: stage 0 built; the bridge's checks in the cloud (before the data run)](hypotheses-v6.md#2026-11-16-stage-0-built-the-bridges-checks-in-the-cloud-before-the-data-run) | v6 |
 | [Added 2026-11-18, after chud's 23:15 CST message: the data run's result, more teacher games, and stage 1 registered before its code](hypotheses-v6.md#added-2026-11-18-after-chuds-2315-cst-message-the-data-runs-result-more-teacher-games-and-stage-1-registered-before-its-code) | v6 |
 | [Added 2026-11-19, after chud's 11:28 CST message: the second teacher run's result](hypotheses-v6.md#added-2026-11-19-after-chuds-1128-cst-message-the-second-teacher-runs-result) | v6 |
+| [Added 2026-11-19, after chud's 11:47 CST message: stage 1 code fix (GPU memory), no design change](hypotheses-v6.md#added-2026-11-19-after-chuds-1147-cst-message-stage-1-code-fix-gpu-memory-no-design-change) | v6 |

@@ -13,6 +13,7 @@ What this module does, without torch where it can (tests/v6_imitate_check.py):
   train_imitation(...)    the passes, keeping the weights with the lowest held-out cross-entropy
   score(model, ...)       cross-entropy and top-1 agreement with the teacher on a set of decisions
 """
+import collections
 import gzip
 import hashlib
 import json
@@ -112,12 +113,25 @@ def score(model, decs, device, minibatch=64):
     model.eval()
     idx = np.argsort([len(x["obs"]["act"]) for x in decs])
     tot = {"ce": 0.0, "agree": 0, "n": 0, "by": {0: [0, 0], 1: [0, 0]}}
+    def logits_of(b):
+        try:
+            return model(*collate([x["obs"] for x in b], device))[0]
+        except torch.cuda.OutOfMemoryError:
+            if len(b) == 1:
+                raise
+        torch.cuda.empty_cache()
+        h = len(b) // 2
+        x, y = logits_of(b[:h]), logits_of(b[h:])
+        w = max(x.shape[1], y.shape[1])                  # each half is padded to its own longest action list
+        pad = lambda t: torch.nn.functional.pad(t, (0, w - t.shape[1]), value=float("-inf"))  # noqa: E731
+        return torch.cat([pad(x), pad(y)])
+
     with torch.no_grad():
         for i in range(0, len(idx), minibatch):
             b = [decs[j] for j in idx[i:i + minibatch] if decs[j]["labeled"]]
             if not b:
                 continue
-            logits, _ = model(*collate([x["obs"] for x in b], device))
+            logits = logits_of(b)
             a = torch.tensor([x["a"] for x in b], device=device)
             tot["ce"] += torch.nn.functional.cross_entropy(logits, a, reduction="sum").item()
             hit = (logits.argmax(-1) == a).cpu().numpy()
@@ -165,7 +179,7 @@ def train_imitation(model, args, device, out, log, stop=lambda: None):
         order = list(train_s)
         rng.shuffle(order)
         model.train()
-        st = {"ce": 0.0, "acc": 0.0, "v": 0.0, "n": 0, "decisions": 0}
+        st = {"ce": 0.0, "acc": 0.0, "v": 0.0, "n": 0, "decisions": 0, "oom_splits": 0, "oom_skipped": 0}
         for c in range(0, len(order), args.imitate_chunk):
             if stop():
                 raise KeyboardInterrupt(stop())
@@ -179,23 +193,39 @@ def train_imitation(model, args, device, out, log, stop=lambda: None):
             idx = np.argsort([len(o["act"]) for o in obs])
             batches = [idx[i:i + args.minibatch] for i in range(0, len(idx), args.minibatch)]
             rng.shuffle(batches)
-            for b in batches:
-                logits, value = model(*collate([obs[i] for i in b], device))
-                a = torch.tensor([act[i] for i in b], device=device)
-                m = torch.tensor([lab[i] for i in b], device=device, dtype=torch.bool)
-                R = torch.tensor([ret[i] for i in b], device=device)
-                ce = (torch.nn.functional.cross_entropy(logits[m], a[m]) if m.any()
-                      else torch.zeros((), device=device))
-                v_loss = 0.5 * (value - R).pow(2).mean()
-                loss = ce + args.vf * v_loss
-                opt.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-                opt.step()
-                with torch.no_grad():
-                    st["ce"] += ce.item(); st["v"] += v_loss.item(); st["n"] += 1
-                    if m.any():
-                        st["acc"] += (logits[m].argmax(-1) == a[m]).float().mean().item()
+            todo = collections.deque(batches)
+            while todo:
+                b = todo.popleft()
+                try:
+                    logits, value = model(*collate([obs[i] for i in b], device))
+                    a = torch.tensor([act[i] for i in b], device=device)
+                    m = torch.tensor([lab[i] for i in b], device=device, dtype=torch.bool)
+                    R = torch.tensor([ret[i] for i in b], device=device)
+                    ce = (torch.nn.functional.cross_entropy(logits[m], a[m]) if m.any()
+                          else torch.zeros((), device=device))
+                    v_loss = 0.5 * (value - R).pow(2).mean()
+                    loss = ce + args.vf * v_loss
+                    opt.zero_grad()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+                    opt.step()
+                    with torch.no_grad():
+                        st["ce"] += ce.item(); st["v"] += v_loss.item(); st["n"] += 1
+                        if m.any():
+                            st["acc"] += (logits[m].argmax(-1) == a[m]).float().mean().item()
+                except torch.cuda.OutOfMemoryError:
+                    # as ppo.py: the largest action lists (up to ~1,100 rows) don't fit 64 at a time on a 6 GB
+                    # GPU; free it and do the same decisions as two half minibatches; one that still doesn't fit
+                    # is skipped and counted
+                    logits = value = loss = ce = v_loss = None
+                    opt.zero_grad(set_to_none=True)
+                    torch.cuda.empty_cache()
+                    if len(b) > 1:
+                        todo.appendleft(b[len(b) // 2:])
+                        todo.appendleft(b[:len(b) // 2])
+                        st["oom_splits"] += 1
+                    else:
+                        st["oom_skipped"] += 1
             st["decisions"] += len(obs)
             done = min(c + args.imitate_chunk, len(order))
             if (c // args.imitate_chunk) % 10 == 0 and st["n"]:
@@ -207,6 +237,7 @@ def train_imitation(model, args, device, out, log, stop=lambda: None):
         rec = {"pass": ep + 1, "train_ce": st["ce"] / max(st["n"], 1), "train_agree": st["acc"] / max(st["n"], 1),
                "value_loss": st["v"] / max(st["n"], 1), "heldout_ce": h["ce"], "heldout_agree": h["agree"],
                "agreement": ag["agree"], "agreement_table": ag["agree_table"], "agreement_shop": ag["agree_shop"],
+               "oom_splits": st["oom_splits"], "oom_skipped": st["oom_skipped"],
                "minutes": round((time.time() - t0) / 60, 1)}
         hist.append(rec)
         kept = best is None or h["ce"] < best["heldout_ce"]

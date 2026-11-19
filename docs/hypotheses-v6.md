@@ -177,3 +177,12 @@ teacher seeds 600-1799, 1,200 games, 0 games with errors, 0 duplicate seeds acro
   points less than in its own simulator. Not separated yet: the bridge's losses (unmapped and fallback moves)
   vs. what their simulator gets wrong about the game. Stage 1's reading uses 66.5% on teacher seeds until the
   teacher's rate on the eval seeds is measured (open, chud's call).
+
+## Added 2026-11-19, after chud's 11:47 CST message: stage 1 code fix (GPU memory), no design change
+
+Claude's, reviewed by chud. The first stage 1 run (11:46) stopped in pass 1 with CUDA out of memory: a minibatch
+of 64 decisions with the longest action lists (up to ~1,100 rows) needs more than the 6 GB GPU has; the smoke's 40
+games had none that long. Fix (train/imitate.py), as ppo.py already does for PPO: a minibatch that doesn't fit is
+freed and done as two halves, each its own step; a single decision that still doesn't fit is skipped and counted
+(`oom_splits`, `oom_skipped` in each pass's metrics line). Held-out scoring splits the same way (no gradients).
+Nothing trained before the crash is kept: the run restarts from scratch (no checkpoint was written).
