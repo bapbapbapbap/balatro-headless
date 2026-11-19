@@ -59,6 +59,10 @@ def teach_seeds(n, first=0):
     return out[first:]
 
 
+def seeds_from(path):
+    return [l.strip() for l in open(path) if l.strip()]
+
+
 def make_sim(src):
     from sim import Sim
     return Sim(src, fast=True, mode="ordered-capped", enc=2, build_phi=True, offer_values=True, play_values=True)
@@ -226,7 +230,8 @@ def worker(a):
         if f.startswith("games_w") and f.endswith(".jsonl"):
             done |= {json.loads(l)["seed"] for l in open(os.path.join(a.out, f))}
     with open(log, "a") as out:
-        for seed in teach_seeds(a.games, a.first):
+        seeds = seeds_from(a.seed_file)[a.first:a.first + a.games] if a.seed_file else teach_seeds(a.games, a.first)
+        for seed in seeds:
             if seed in done:
                 continue
             t = time.time()
@@ -295,7 +300,11 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="compare with Balatro Lab's seeded twin while in sync")
     ap.add_argument("--leak", action="store_true", help="B2: every hand decision again with the draw pile shuffled")
     ap.add_argument("--report")
+    ap.add_argument("--seed-file", help="play these seeds (one per line) instead of the teacher seeds; --first/--games "
+                                        "index into it (re-measuring chosen games, e.g. after a bridge fix)")
     a = ap.parse_args()
+    if a.seed_file and a.workers > 1:
+        a.games = min(a.games, len(seeds_from(a.seed_file)) - a.first)
     if a.report:
         report(a.report)
         return 0
@@ -309,7 +318,8 @@ def main() -> int:
                 break
             procs.append(subprocess.Popen([sys.executable, __file__, "--lab", a.lab, "--src", a.src, "--games", str(n),
                                            "--first", str(a.first + k * per), "--max-steps", str(a.max_steps),
-                                           "--out", a.out] + (["--check"] if a.check else []) + (["--leak"] if a.leak else [])))
+                                           "--out", a.out] + (["--seed-file", a.seed_file] if a.seed_file else [])
+                                          + (["--check"] if a.check else []) + (["--leak"] if a.leak else [])))
         for p in procs:
             p.wait()
         report(a.out)

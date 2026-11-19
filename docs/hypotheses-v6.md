@@ -234,3 +234,21 @@ game never allows. That part is their simulator's rule, not the bridge.
   the targets become the teacher's first targets with the forced card in place of the last, the rule Balatro Lab's
   `Run.selection` applies to plays. The move is labeled as the teacher's.
 - F1b-a: DNM59TTX's last round has 0 unmapped moves after F1b. 80%.
+
+## Added 2026-11-19: F1 and F1b's cloud results so far, and measurement F1c (registered before it runs)
+
+Claude's, reviewed by chud. **F1b-a: hit** (DNM59TTX: 8 unmapped -> 0, and it won; it had lost). The Bell games
+of runs 1-2 are being rerun in the cloud with F1 + F1b (stock LuaJIT, one process a game): of the 45 that were
+lost, the first 6 rerun all won, with 0 unmapped moves. Up to the Bell round the games are the same (the fixes
+act only on a Cerulean Bell round, which is only ever the ante 8 boss), so a flip is the fix's doing.
+- So the ~0.7 points estimated above was low: the Bell games did not lose more because the Bell is a hard boss,
+  but because the teacher could not play it.
+
+**F1c** (laptop, LuaJIT 2.0.5): all 244 games of runs 1-2 that had unmapped moves
+(`reproduce/balatro_lab/results/2026-11-19/bell_seeds.txt`), rerun with F1 + F1b (`teach.py --seed-file`,
+output in its own folder, never training data). Before: 199/244 won (81.6%), 0.35 unmapped moves a game over
+all 1,800.
+- F1c-a: unmapped moves 0 in all 244. 85%.
+- F1c-b: at least 225/244 won (92%). 70%.
+- The teacher's rate over the 1,800 games, recounted with the reruns in place of the originals, is the bridge's
+  teacher rate after F1; it goes into test P's reading in place of 66.5%.
