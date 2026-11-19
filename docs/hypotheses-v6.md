@@ -178,6 +178,41 @@ teacher seeds 600-1799, 1,200 games, 0 games with errors, 0 duplicate seeds acro
   vs. what their simulator gets wrong about the game. Stage 1's reading uses 66.5% on teacher seeds until the
   teacher's rate on the eval seeds is measured (open, chud's call).
 
+## Added 2026-11-19, after chud's 11:42 CST message: where the teacher's ~4 points go (registered before the fix and the run)
+
+chud asked whether the gap (66.5% in our game, 1,800 games, vs 70.8% in Balatro Lab's own simulator, 480 games)
+is fixable on our side or comes from theirs. Claude's, reviewed by chud.
+
+**Already measured** (from `teach_v6/games_w*.jsonl` and four saved games, before this section):
+- Every one of the 244 games with an unmapped move reached ante 8, and in the four games read move by move every
+  unmapped move is in the game's last round, where every hand-phase decision is unmapped. Their plays all hold
+  the same card. **Cause, from the code:** Cerulean Bell (an ante 8 boss) forces one card into every play and
+  discard (`blind.lua`: `ability.forced_selection`); the harness only offers plays that hold it. Balatro Lab
+  models the Bell (`bosses.py` `CeruleanBell.forced`, `Run.selection` adds the forced card), but the bridge builds
+  the boss without setting `forced`, so the teacher picks a hand without the card, nothing matches, and teach.py
+  plays its fallback (the first legal play) for the rest of the round. The bridge's fault, not theirs.
+- What it costs, roughly: games that reached ante 8 won 86.6% (998/1,152) without unmapped moves and 81.6%
+  (199/244) with them; about 12 games of 1,800, **~0.7 points**. Not separated from the Bell being a hard boss.
+- For stage 1's data: the Bell rounds' decisions are unlabeled, so the student never trains on the fallback
+  moves; only the value head sees those states. Stage 1 is not rerun for this.
+
+**Fix F1** (bridge.py): in a round against Cerulean Bell, set the boss's forced card to the hand card the game
+marks `forced_selection`, so the teacher's plays and discards include it as in its own simulator.
+- F1a: on teacher games whose last round is against the Bell (cloud, stock LuaJIT), unmapped moves in that round
+  go from all of them to 0. 85%.
+
+**Test P (paired, same seeds):** Balatro Lab's bot in its own simulator (`eval_on_our_seeds.py --seed-set teach`,
+`VALUEBOT_WEIGHTS=hand`, as the bridge's teacher) on teacher seeds 0-599, the seeds of the first data run, which
+its run is seed-exact with at the opening. Each seed then has two outcomes: their simulator, and our game through
+the bridge (already measured, before F1). Reading:
+- If their simulator wins about as often on these seeds as the bridge did (397/600), the 4 points were the seed
+  set (their 70.8% is on set 90210, which their bot was tuned on), not a loss.
+- If it wins clearly more, the loss is real on the same seeds; the seeds won there and lost here are where to look,
+  with `teach.py --check` (the twin) on them, and each is put down to the bridge (its state or its moves) or to
+  their simulator (a rule it plays differently).
+- P1: their simulator wins at least 414 of 600 (69%): the gap is real on the same seeds. 55%.
+- P2: seeds won in their simulator and lost here outnumber the reverse by at least 15. 50%.
+- P3: of the bridge's Bell-round losses among these seeds, at least half are won in their simulator. 60%.
 ## Added 2026-11-19, after chud's 11:47 CST message: stage 1 code fix (GPU memory), no design change
 
 Claude's, reviewed by chud. The first stage 1 run (11:46) stopped in pass 1 with CUDA out of memory: a minibatch
