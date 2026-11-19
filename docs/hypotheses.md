@@ -98,3 +98,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-19, after chud's 11:47 CST message: stage 1 code fix (GPU memory), no design change](hypotheses-v6.md#added-2026-11-19-after-chuds-1147-cst-message-stage-1-code-fix-gpu-memory-no-design-change) | v6 |
 | [Added 2026-11-19: fix F1's first cloud check, and F1b (registered before its code)](hypotheses-v6.md#added-2026-11-19-fix-f1s-first-cloud-check-and-f1b-registered-before-its-code) | v6 |
 | [Added 2026-11-19: F1 and F1b's cloud results so far, and measurement F1c (registered before it runs)](hypotheses-v6.md#added-2026-11-19-f1-and-f1bs-cloud-results-so-far-and-measurement-f1c-registered-before-it-runs) | v6 |
+| [Added 2026-11-19: the cloud Bell reruns, stopped at 23 (the laptop's F1c will measure all 244)](hypotheses-v6.md#added-2026-11-19-the-cloud-bell-reruns-stopped-at-23-the-laptops-f1c-will-measure-all-244) | v6 |

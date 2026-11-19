@@ -252,3 +252,19 @@ all 1,800.
 - F1c-b: at least 225/244 won (92%). 70%.
 - The teacher's rate over the 1,800 games, recounted with the reruns in place of the originals, is the bridge's
   teacher rate after F1; it goes into test P's reading in place of 66.5%.
+
+## Added 2026-11-19: the cloud Bell reruns, stopped at 23 (the laptop's F1c will measure all 244)
+
+Claude's, reviewed by chud. Measured, cloud, stock LuaJIT, one fresh process a game
+(`reproduce/balatro_lab/results/2026-11-19/bell_cloud_23lost.jsonl`): 23 of the 45 lost Bell games rerun with F1 +
+F1b. **20 of the 23 now win**; the 3 still lost (G8CDAHJR, A38E825K, FNCQF6SM) have no unmapped moves, so they lose
+on play. One unmapped move is left in the 23 (F2BUH5E2, won anyway): two identical Aces of Spades, one forced; the
+mapping matches cards by what they are, takes the other Ace, and that play is illegal. Rare (a duplicate of the
+forced card); not fixed, counted in F1c. The won Bell games were not rerun in the cloud (stopped for time); F1c
+reruns all 244.
+- Estimate, until F1c measures it: 45 x 20/23 ≈ 39 more wins, so the teacher's rate in our game would be about
+  1,236/1,800 = 68.7%, against 70.8% in its own simulator on its tuning seeds: z ≈ 0.9, no longer a significant
+  gap. About half of the ~4 points was the bridge's Bell bug; what is left is within noise of the seed-set
+  difference. Test P (same seeds, paired) is still the clean answer.
+- For v6: stage 1's data was taught by the pre-fix bridge, but the Bell rounds' decisions were unlabeled, so the
+  student never copied a fallback move. Any new teacher data (DAgger, more games) uses the fixed bridge.
