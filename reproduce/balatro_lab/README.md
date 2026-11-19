@@ -66,6 +66,11 @@ T1 (withdrawn), Balatro Lab's bot on our 600 eval seeds (~190 s a game; 8 worker
 
 Re-running the same command resumes: seeds already in the output file are skipped.
 
+F1c (docs/hypotheses-v6.md, 2026-11-19), the 244 teacher games with unmapped moves (Cerulean Bell) rerun with
+fixes F1 and F1b, into their own folder (not training data):
+
+    wsl bash -lc "cd ~/balatro/reproduce && git fetch && git checkout gap-check && git pull && source ~/balatro/venv/bin/activate && cd reproduce/balatro_lab && python3 teach.py --lab ~/balatro/balatro-lab --src ~/balatro/local/source --seed-file results/2026-11-19/bell_seeds.txt --games 244 --workers 12 --out /mnt/c/Users/Jacobi/balatro-work/bell_f1c | tee -a /mnt/c/Users/Jacobi/balatro-work/bell_f1c.txt"
+
 Test P (docs/hypotheses-v6.md, 2026-11-19), Balatro Lab's bot in its own simulator on model v6's teacher seeds 0-599,
 the seeds the bridge already played (paired, seed by seed):
 
