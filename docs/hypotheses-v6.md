@@ -221,3 +221,16 @@ games had none that long. Fix (train/imitate.py), as ppo.py already does for PPO
 freed and done as two halves, each its own step; a single decision that still doesn't fit is skipped and counted
 (`oom_splits`, `oom_skipped` in each pass's metrics line). Held-out scoring splits the same way (no gradients).
 Nothing trained before the crash is kept: the run restarts from scratch (no checkpoint was written).
+
+## Added 2026-11-19: fix F1's first cloud check, and F1b (registered before its code)
+
+Claude's, reviewed by chud. F1 in the cloud (stock LuaJIT) on the two Bell seeds of teacher run 1 it was checked
+on: VGV5MD36 went from 5 unmapped moves to 0 (and won, as before). DNM59TTX still has 8, all `round:use`: the
+teacher wants to use The Empress on two cards that leave out the Bell's forced card. In the game the forced card
+is always selected, so every legal use of a targeting consumable includes it; Balatro Lab's simulator applies the
+Bell to plays and discards (`Run.selection`) but not to a consumable's targets, so its bot picks targets the real
+game never allows. That part is their simulator's rule, not the bridge.
+- **F1b** (teach.py's move mapping): when the Bell forces a card and the teacher's consumable targets leave it out,
+  the targets become the teacher's first targets with the forced card in place of the last, the rule Balatro Lab's
+  `Run.selection` applies to plays. The move is labeled as the teacher's.
+- F1b-a: DNM59TTX's last round has 0 unmapped moves after F1b. 80%.

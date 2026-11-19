@@ -96,3 +96,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-19, after chud's 11:28 CST message: the second teacher run's result](hypotheses-v6.md#added-2026-11-19-after-chuds-1128-cst-message-the-second-teacher-runs-result) | v6 |
 | [Added 2026-11-19, after chud's 11:42 CST message: where the teacher's ~4 points go (registered before the fix and the run)](hypotheses-v6.md#added-2026-11-19-after-chuds-1142-cst-message-where-the-teachers-4-points-go-registered-before-the-fix-and-the-run) | v6 |
 | [Added 2026-11-19, after chud's 11:47 CST message: stage 1 code fix (GPU memory), no design change](hypotheses-v6.md#added-2026-11-19-after-chuds-1147-cst-message-stage-1-code-fix-gpu-memory-no-design-change) | v6 |
+| [Added 2026-11-19: fix F1's first cloud check, and F1b (registered before its code)](hypotheses-v6.md#added-2026-11-19-fix-f1s-first-cloud-check-and-f1b-registered-before-its-code) | v6 |
