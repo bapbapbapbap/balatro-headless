@@ -163,3 +163,17 @@ don't exist:
 - S2: the student wins at least 60 of 600 (10%). 40%.
 - S3: top-1 agreement on the agreement set at least 75%. 45%.
 - S4: within 10 points of 66.2% (at least 337 wins). 5%.
+
+## Added 2026-11-19, after chud's 11:28 CST message: the second teacher run's result
+
+As measured (chud's laptop, LuaJIT 2.0.5, 12 workers; `balatro-work/teach_v6/games_w600.jsonl` to `w1700`):
+teacher seeds 600-1799, 1,200 games, 0 games with errors, 0 duplicate seeds across both runs.
+- Teacher wins 800 of 1,200 = 66.7% (±2.7); 19.35 blinds per game; ~216 s a game. 271,590 decisions, 271,194
+  labeled. Unmapped 0.33 a game (play 212, use 125, discard 59).
+- Same as the first run (66.2%; z ≈ 0.2). **Both runs: 1,197 of 1,800 = 66.5% (±2.2)**, 407,107 decisions,
+  406,476 labeled (99.8%), unmapped 0.35 a game.
+- Against the 70.8% reproduction in Balatro Lab's own simulator (480 games): z ≈ 1.8; 70.8% is above the
+  1,800-game interval's top (68.7%). The teacher through the bridge, in the real game, most likely wins about 4
+  points less than in its own simulator. Not separated yet: the bridge's losses (unmapped and fallback moves)
+  vs. what their simulator gets wrong about the game. Stage 1's reading uses 66.5% on teacher seeds until the
+  teacher's rate on the eval seeds is measured (open, chud's call).
