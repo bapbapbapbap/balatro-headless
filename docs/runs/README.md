@@ -15,7 +15,7 @@ CHANGELOG, `wins/`), unedited.
 | [v4](v4.md) | – | 2026-11-09 → 11-10 | shop and table networks, build potential, curriculum | stopped on the stall rule (best eval 4.68, round 120) | not yet published |
 | [v4b](v4b.md) | – | 2026-11-10 → | v4 + hand clock on the table's lambda, hand exploration off | stopped at round 280 on the sell stop (best eval 8.31, round 240); **continues with the stop off** | – |
 | [v5](v5.md) | – | 2026-11-15 → 11-16 | v4b warm start + play values | stopped by chud at round 278 (best eval stayed round 0's, 13.40) | – |
-| [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | registered; bridge being built | – |
+| [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | teacher data done (66.2%); stage 1 built | – |
 | [v5](v5.md) | – | 2026-11-15 → | v4b warm start + play values (each play's score vs what the blind needs) | registered | – |
 
 Counts are of `wins/routes.jsonl` and `wins/near_misses.jsonl` on 2026-11-09, by each line's `source`

@@ -48,6 +48,8 @@ CHECKS = {
                       ["tests/v4_curriculum_check.py", "{src}", "--routes", "3"], "", "ALL PASS"),
     "v5-play": ("play values: game unchanged, scores = the game's chips, warm start plays as best.pt",
                 ["tests/v5_play_check.py", "{src}", "--routes", "3", "--warm", "{work}/runs/v4b/best.pt"], "", "ALL PASS"),
+    "v6-imitate": ("imitation: teacher games load, held-out split, returns = the trainer's reward, loss falls",
+                   ["tests/v6_imitate_check.py", "{work}/teach_v6", "--games", "12"], "", "ALL PASS"),
     "clock": ("blind clock: skips, shaping and returns", ["tests/v3_check.py", "{src}", "--routes", "12"], "",
               "ALL PASS"),
     "repo": ("the repo's indexes, configs and map are consistent", ["tools/check_repo.py"], "", "ALL PASS"),
@@ -103,6 +105,7 @@ def command(run, cfg, a, smoke):
     name = run + ("-smoke" if smoke else "")
     out = os.path.join(a.work, "runs", name)
     fill = lambda s: s.format(run=name, work=a.work)
+    train = {k: fill(v) if isinstance(v, str) else v for k, v in train.items()}    # v6: --imitate {work}/teach_v6
     argv = [sys.executable, os.path.join(HERE, "train.py"), "--src", os.path.expanduser(a.src), "--run", name,
             "--out", out, "--hours", str(hours), "--workers", str(workers)]
     if r.get("mirror_dir"):

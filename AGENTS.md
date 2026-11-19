@@ -11,7 +11,8 @@ gap (facts fixed, only the reward varied); 2. prove a naneinf seed; 3. 100% a fr
 
 ## Now
 - **No run training.** v5 stopped 2026-11-16 (`docs/runs/v5.md`). **Next: model v6** (branch `v6`; `docs/hypotheses-v6.md`):
-  our network taught by Balatro Lab's bot through a bridge to our game, then our reward alone. Last trained run: v4b.
+  our network taught by Balatro Lab's bot through a bridge to our game, then our reward alone. Stage 1 (imitation)
+  is `train/imitate.py` + `configs/v6.toml`. Last trained run: v4b.
 - **Don't push to the branch a run trains from** while it trains: a watcher restart runs `git pull` and would
   launch the new code mid-run. Work on another branch and merge after.
 

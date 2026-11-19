@@ -168,6 +168,18 @@ def build_parser():
     ap.add_argument("--bc-epochs", type=float, default=2.0, help="passes over the --bc games")
     ap.add_argument("--bc-chunk", type=int, default=0, help="games replayed per step (default: 4 per worker)")
     # saved games and self-imitation
+    # model v6, stage 1 (docs/hypotheses-v6.md, 2026-11-18): imitate the teacher's recorded games before RL
+    ap.add_argument("--imitate", help="v6: teach.py's output folder (games/<seed>.pkl.gz); imitate it before RL starts")
+    ap.add_argument("--imitate-epochs", type=int, default=8, help="v6: most passes over the teacher's games")
+    ap.add_argument("--imitate-patience", type=int, default=2,
+                    help="v6: stop after this many passes without a lower held-out move loss")
+    ap.add_argument("--imitate-lr", type=float, default=3e-4, help="v6: imitation's learning rate (its own optimizer)")
+    ap.add_argument("--imitate-chunk", type=int, default=32, help="v6: games loaded at a time")
+    ap.add_argument("--imitate-agreement", type=int, default=2000, help="v6: held-out decisions in the agreement set")
+    ap.add_argument("--imitate-max-games", type=int, default=0,
+                    help="v6: use at most this many training games (and a tenth as many held out); 0 = all (smoke)")
+    ap.add_argument("--imitate-only", type=int, default=0,
+                    help="v6 stage 1: 1 = after imitation, one eval (with agreement), then stop")
     ap.add_argument("--save-games", choices=["all", "wins", "none"], default="all",
                     help="write every game exactly (seed + actions) to <out>/games/; wins also go to wins.jsonl")
     ap.add_argument("--sil-buffer", type=int, default=0,

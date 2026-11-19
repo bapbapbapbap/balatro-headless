@@ -146,6 +146,8 @@ def main():
     assert not (args.curriculum or args.offer_values or args.build_shaping) or args.phase_split, \
         "--curriculum, --offer-values and --build-shaping are model v4's: they need --phase-split"
     assert not args.play_values or args.offer_values, "--play-values (model v5) comes after the offer value: it needs --offer-values"
+    assert not args.imitate or args.phase_split, "--imitate is model v6's: it trains v5's phase-split networks"
+    assert not args.imitate_only or args.imitate, "--imitate-only needs --imitate"
     if args.phase_split:
         assert not (args.moe or args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--phase-split (v4) trains two networks from random weights on whole games; --moe, --stop-ante, --bc, " \
@@ -626,7 +628,47 @@ def main():
         model.eval()
         save(-1, "bc")
         alert(f"behavior cloning done: {total:,} game replays in {(time.time() - t0) / 60:.1f} min; saved bc.pt")
+    agree_decs = None
+
+    def imitate_phase():
+        """Model v6, stage 1 (train/imitate.py): passes over the teacher's games, keeping the weights with the lowest
+        held-out move loss; the agreement set is fixed in the run folder for every later eval."""
+        from imitate import train_imitation
+
+        def log(line, metric=None, health=None):
+            print(line, flush=True)
+            if metric:
+                metrics.write(json.dumps(metric) + "\n")
+                metrics.flush()
+            if health:
+                write_health(status="running: imitation", **health)
+        try:
+            summary = train_imitation(model, args, device, out, log,
+                                      lambda: stop_requested[0] if stop_requested else None)
+        except KeyboardInterrupt as e:
+            raise Stop(str(e) or "interrupted during imitation")
+        k = summary["kept"]
+        alert(f"imitation done: kept pass {k['pass']} (held-out move loss {k['heldout_ce']:.3f}, agreement "
+              f"{k['agreement']:.1%}) of {len(summary['passes'])}; {summary['train_games']:,} games trained on, "
+              f"{summary['held_out_games']:,} held out")
+        save(-1, "imitate_ckpt")
+        return summary
+
+    def agreement_now():
+        """Top-1 agreement with the teacher on the run's fixed agreement set (v6), or None."""
+        nonlocal agree_decs
+        ref = os.path.join(out, "agreement_set.json")
+        if not args.imitate or not os.path.exists(ref):
+            return None
+        from imitate import decisions_of, score
+        if agree_decs is None:
+            agree_decs = decisions_of(args.imitate, [tuple(r) for r in json.load(open(ref))])
+        r = score(model, agree_decs, device, args.minibatch)
+        return {"agreement": round(r["agree"], 4), "agreement_table": round(r["agree_table"], 4),
+                "agreement_shop": round(r["agree_shop"], 4), "agreement_n": r["n"]}
     try:
+        if args.imitate and resumed is None:
+            imitate_phase()
         if args.bc and resumed is None:
             bc_phase()
         pending = None
@@ -658,6 +700,9 @@ def main():
                 ev = summarize(eval_eps)
                 record(it, "eval", eval_eps)
                 beaten.update(e["seed"] for e in eval_eps if e["progress"]["won"])
+                ag = agreement_now()
+                if ag:
+                    ev.update(ag)
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
@@ -690,6 +735,10 @@ def main():
                                                 "last_moves": e["tail"]}) + "\n")
                 health["last_eval"] = ev
                 health["best_eval_blinds"] = best_eval
+                if args.imitate_only:
+                    save(it, "latest")
+                    raise Stop(f"stage 1 scored: eval {it} won {ev['wins']}/{ev['games']}, {ev['blinds_mean']:.2f} "
+                               f"blinds/game" + (f", agreement {ev['agreement']:.1%}" if "agreement" in ev else ""))
 
             t0 = time.time()
             if pending is None:
