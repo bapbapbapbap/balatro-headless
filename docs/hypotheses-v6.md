@@ -268,3 +268,43 @@ reruns all 244.
   difference. Test P (same seeds, paired) is still the clean answer.
 - For v6: stage 1's data was taught by the pre-fix bridge, but the Bell rounds' decisions were unlabeled, so the
   student never copied a fallback move. Any new teacher data (DAgger, more games) uses the fixed bridge.
+
+## Added 2026-11-19, after chud's 15:37 CST message: the roadmap after the pending laptop runs, test K, and stage 2's details (registered before their code)
+
+chud's direction (15:35-15:37): keep running what is planned; Claude writes down what comes after and builds it
+now, so it is ready when the laptop is free. Test K is chud's idea (find which of the teacher's programmed
+heuristics carry its play, as competing claims), made concrete by Claude; the rest is Claude's, reviewed by chud.
+
+**Queue on the laptop:** stage 1 (running) → `gap_tests.sh` (F1c, then test P) → test K (below). Then the rule.
+
+**The rule after stage 1 and the gap tests** (T = the teacher's rate in our game after F1, from F1c; S = the
+student's eval wins / 600; table agreement = agreement on the agreement set's hand decisions):
+1. S within 5 points of T → stage 3 (PPO, our reward alone; KL anchor: chud's call before it starts).
+2. Else, table agreement at least 65% → stage 2, DAgger rounds (below).
+3. Else → the student can't copy hand play from moves alone. Claude brings chud a design for decision-time
+   search at hand play for the student (public information only), shaped by test K; DAgger may run meanwhile.
+
+**Test K: which heuristics carry the teacher** (`reproduce/balatro_lab/ablate.py`). Balatro Lab's bot in its own
+simulator, teacher seeds 0-299, paired seed by seed with the full bot (test P's run on the same seeds), one switch
+changed per arm, by subclassing its bot (its code untouched). Its switches exist for measuring (strategy.py).
+Outcome per arm: wins lost against the full bot, paired (McNemar).
+- K1 `ROUND_SEARCH` off (no playing a boss round out before a play or discard in doubt): costs at least 3 points. 70%.
+- K2 `HANDS` 1 (power, behind every valuation, from 1 sample hand instead of 12): costs at least 5 points. 55%.
+- K3 `DRAWS` 1, `RERANK` 0 (a discard scored on 1 possible draw): costs at least 3 points. 50%.
+- K4 the hand-set bonuses in `Weights` at 0 (purchases valued by the build's power alone; thresholds kept): costs
+  at least 10 points. 45%.
+- Reading for aim 1: K1-K3 switch off computations (facts about the game the bot works out); K4 switches off the
+  values someone set by hand. Whatever K4 costs is how much of the teacher's strategy is chosen values, i.e. what
+  the student inherits as oughts from imitation and what stage 3's reward gets the chance to move.
+- Cost: ~1,200 games in their simulator, ~5 h at 12 workers.
+
+**Stage 2's details (DAgger, as registered 11-16, made concrete):**
+- Round k: the student (round 1: stage 1's best.pt; then the last round's) plays 300 fresh teacher seeds
+  (indices 1,800 + 300(k-1) onward), sampling its moves at temperature 1 as in evals, with a fixed RNG per seed.
+  At every decision the fixed bridge (F1, F1b) records the teacher's move for the state the student is in; the
+  student's own move is what is played (`teach.py --student`). Data in `balatro-work/dagger/d<k>/`.
+- Then imitation as stage 1 (same loss, procedure, held-out rule by seed hash) on every teacher game so far
+  (teach_v6 and every dagger round), starting from the student's weights (warm start, fresh optimizer); the
+  agreement set stays stage 1's. Then the 600-game eval with agreement.
+- Stop: when eval wins fail to rise for two rounds in a row (11-16). The best round's student goes to stage 3.
+- D1: round 1 raises eval wins over stage 1's. 70%. D2: agreement on the agreement set rises in round 1. 60%.
