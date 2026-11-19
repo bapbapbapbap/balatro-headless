@@ -66,6 +66,11 @@ T1 (withdrawn), Balatro Lab's bot on our 600 eval seeds (~190 s a game; 8 worker
 
 Re-running the same command resumes: seeds already in the output file are skipped.
 
+Test P (docs/hypotheses-v6.md, 2026-11-19), Balatro Lab's bot in its own simulator on model v6's teacher seeds 0-599,
+the seeds the bridge already played (paired, seed by seed):
+
+    wsl bash -lc "cd ~/balatro/reproduce && git fetch && git checkout gap-check && git pull && source ~/balatro/venv/bin/activate && cd reproduce/balatro_lab && python3 eval_on_our_seeds.py --lab ~/balatro/balatro-lab --seed-set teach --games 600 --workers 12 --out /mnt/c/Users/Jacobi/balatro-work/lab_on_teach600.jsonl | tee -a /mnt/c/Users/Jacobi/balatro-work/lab_on_teach600.txt"
+
 Mining step 1 (T2's points), seeds 1-100 of set 90210 (a few minutes a seed per worker):
 
     wsl bash -lc "cd ~/balatro/reproduce/reproduce/balatro_lab && source ~/balatro/venv/bin/activate && python3 mine.py --weights /mnt/c/Users/Jacobi/balatro-work/v4b_best_weights.pt --lab ~/balatro/balatro-lab --src ~/balatro/local/source --seeds 100 --workers 8 --out /mnt/c/Users/Jacobi/balatro-work/mine_100.jsonl"

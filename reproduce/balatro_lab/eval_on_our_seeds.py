@@ -47,8 +47,15 @@ def main() -> int:
     ap.add_argument("--games", type=int, default=600)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--out", default="lab_on_ours.jsonl")
+    ap.add_argument("--seed-set", choices=("eval", "teach"), default="eval",
+                    help="eval: our 600 eval seeds (T1); teach: model v6's teacher seeds (test P, docs/hypotheses-v6.md)")
+    ap.add_argument("--first", type=int, default=0, help="with --seed-set teach: the first teacher seed's index")
     a = ap.parse_args()
-    seeds = eval_seeds(600)[:a.games]
+    if a.seed_set == "teach":
+        from teach import teach_seeds
+        seeds = teach_seeds(a.games, a.first)
+    else:
+        seeds = eval_seeds(600)[:a.games]
     done = set()
     if os.path.exists(a.out):
         done = {json.loads(l)["seed"] for l in open(a.out)}

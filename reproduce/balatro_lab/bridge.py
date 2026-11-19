@@ -117,6 +117,14 @@ class Shadow:
             for c, u in zip(run.deck, self.uids(G)):    # lab_run builds the deck in G.playing_cards' order
                 c.uid = u
             run.next_uid = self.next_uid
+            # Cerulean Bell (fix F1, docs/hypotheses-v6.md 2026-11-19): the game marks the card it forces into every
+            # play and discard (ability.forced_selection); Balatro Lab's CeruleanBell keeps it as `forced`, which its
+            # Run.selection adds to the bot's picks. Without it the teacher's hands leave the card out and none match.
+            boss = run.blind.boss if run.blind is not None else None
+            if boss is not None and boss.name == "Cerulean Bell" and not boss.disabled:
+                hand = lua_list(G.hand.cards)
+                boss.forced = next((run.hand[i] for i, c in enumerate(hand)
+                                    if c.ability and c.ability.forced_selection), None)
         else:
             run = LAB["Run"](None, deck="Red Deck")
             run.unmapped = []

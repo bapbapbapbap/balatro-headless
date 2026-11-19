@@ -73,6 +73,15 @@ def to_desc(G, a, run, descs):
     if a and a[0] == "move_joker":
         want = f"move_joker {a[1]}>{a[2]}"
         return next((n for n, d in enumerate(descs) if d.split()[:2] == want.split()), None)
+    if a and a[0] == "use" and len(a) > 2 and a[2]:
+        # F1b (docs/hypotheses-v6.md, 2026-11-19): the game always selects Cerulean Bell's forced card, so a targeting
+        # consumable's legal targets include it; Balatro Lab applies the Bell to plays and discards only. Put the
+        # forced card in place of the last target, as its Run.selection does for plays.
+        boss = run.blind.boss if run.blind is not None else None
+        forced = getattr(boss, "forced", None) if boss is not None and not boss.disabled else None
+        fi = next((i for i, c in enumerate(run.hand) if c is forced), None) if forced is not None else None
+        if fi is not None and fi not in a[2]:
+            a = (a[0], a[1], sorted(list(a[2])[:-1] + [fi]))
     return rank.to_desc(G, a, run, None, descs)
 
 
