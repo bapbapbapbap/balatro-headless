@@ -321,3 +321,55 @@ Claude's, reviewed by chud. Code, as registered in the roadmap section above; no
   1's agreement set, the 600-game eval runs with agreement, and the round's run folder is kept as runs/v6d-r1.
 - Stage 2 must run on the fixed bridge: `gap-check` is merged into `v6` before round 1.
 - `docs/proposals/v6-student-search.md`: options for rule 3 (not registered; chud decides).
+
+## Added 2026-11-20, after chud's 11:06 CST message: stage 1's result, the gap tests' results, and the rule
+
+Measured on chud's laptop (LuaJIT 2.0.5); scored by Claude. Nothing here edits a committed section.
+
+**Stage 1** (`v6` 8a11d21, 2026-11-19 15:27-16:05; `balatro-work/runs/v6/`): imitation ran all 8 passes; every
+pass set a new lowest held-out cross-entropy, so the patience stop never fired and the loss was still falling at
+the cap (pass 7 1.233, pass 8 1.205). Kept pass 8. Agreement on the 2,000-decision set **68.0%** (hand decisions
+**40.7%**, shop 78.1%). Eval, 600 eval seeds, temperature 1: **78/600 won (13.0%)**, 10.88 blinds/game; deaths by
+ante {1: 101, 2: 62, 3: 43, 4: 64, 5: 77, 6: 79, 7: 58, 8: 38}.
+- **S1 hit** (78 > 22). **S2 hit** (78 >= 60). **S3 miss** (68.0% < 75%). **S4 miss** (78 < 337).
+- chud's floor for his hypothesis (more than 22, the best grown from random weights): passed, 3.5x. His graded
+  reading, the gap to the teacher: 55.7 points (T below).
+- Where the student loses: 101 of 600 games (16.8%) die in ante 1, 163 (27%) by ante 2. The teacher in our game
+  died in ante 1 in 12 of 1,800 (0.7%), by ante 2 in 32 (1.8%) (`teach_v6/`). The early antes are where the hand
+  decisions are cheap and the student's 40.7% hand agreement, sampled at temperature 1, costs most.
+
+**F1c** (`balatro-work/bell_f1c/`): 238/244 won (97.5%), was 199/244; lost -> won 40, won -> lost 1. Unmapped moves
+11, one each in 11 games (play 7, discard 2, use 2), all 11 games won; every loss had none.
+- **F1c-a miss** (11, not 0; the duplicate-forced-card case recorded 11-19 is one of them). **F1c-b hit.**
+- **T = 1,236/1,800 = 68.7%** (+-2.1), the teacher's rate in our game after F1, equal to the cloud estimate.
+
+**Test P** (`lab_on_teach600.jsonl`): Balatro Lab's bot in its own simulator, teacher seeds 0-599: 436/600 (72.7%).
+Our game before F1 397/600: both won 333, theirs only 103, ours only 64 (McNemar z 3.02). After F1 (F1c reruns in
+place) 416/600 (69.3%): theirs only 90, ours only 70 (z 1.58).
+- **P1 hit** (436 >= 414). **P2 hit** (net 39 on the registered pre-F1 pairing; 20 after F1). **P3 hit** (13 of 20).
+- Reading: their bot wins 72.7% on seeds it was never tuned on, vs 70.8% on its tuning set: no sign of
+  cherry-picked seeds (chud's 11-14 question). After F1 the gap on the same seeds is 3.4 points, not significant.
+  The 90 seeds won only there are listed in `balatro-work/gap_tests.txt` for `teach.py --check`.
+
+**Test K** (`ablate_k.jsonl`; seeds 0-299; full bot 223/300 = 74.3%):
+
+| Arm | Won | Cost (points) | Lost / gained | McNemar z | s/game |
+|---|---|---|---|---|---|
+| K1 round search off | 214 | 3.0 (+-2.5) | 12 / 3 | 2.32 | 46 |
+| K2 power from 1 hand | 162 | 20.3 (+-6.6) | 82 / 21 | 6.01 | 188 |
+| K3 discard on 1 draw | 200 | 7.7 (+-5.3) | 45 / 22 | 2.81 | 111 |
+| K4 hand-set bonuses 0 | 29 | 64.7 (+-9.1) | 195 / 1 | 13.86 | 283 |
+
+- **K1 hit** (exactly at 3.0). **K2 hit. K3 hit. K4 hit.** No arm is net-negative.
+- Reading for aim 1: the hand-set bonuses carry 64.7 of the teacher's 74.3 points; without them it wins 9.7%,
+  near the 8.5% its own ladder starts from. The computations (facts it works out) are worth 20.3 (power), 7.7
+  (draws), 3.0 (search), not additive. The teacher is mostly chosen values sitting on a fact-computing machine.
+
+**The rule** (registered 11-19 15:37): S is 13.0%, T 68.7%, not within 5 points (rule 1 no); hand agreement 40.7%,
+below 65% (rule 2 no). **Rule 3 fires:** Claude brings chud the student-search design, shaped by test K
+(`docs/proposals/v6-student-search.md`); DAgger may run meanwhile. Test K puts power and draws (K2, K3) well above
+search (K1), which in the proposal's own terms points to S1 (discard values from sampled draws, an input) before
+S2 (round search). Power also sits behind the teacher's shop valuations, so not all of K2's 20 points are hand play.
+- Two things the rule's reading doesn't separate: imitation stopped at its pass cap while still improving, and the
+  eval samples at temperature 1. Whether the 40.7% is the network's limit or the run's is open; any measurement of
+  it is registered before it runs.
