@@ -445,3 +445,50 @@ decisions at least ~10 points below other rounds, or more of the student's losse
 share (83% in Balatro Lab's own report). It is not needed to close the gap if the student comes within 5 points of
 the teacher, or reaches 65% hand agreement with wins following (then DAgger, for drift). As the main route past
 the teacher (search plus distillation) it stays on the roadmap either way.
+
+## Added 2026-11-20, after chud's 15:13 CST message: step 1 scored, the delivery score, the single-card finding, and more teacher games registered before they run
+
+Scores and the finding are Claude's, reviewed by chud; the data run follows the reading registered in 788c324
+(chud's direction, reviewed by Claude). All evals: the 600 eval seeds, Red deck, White stake.
+Files: `balatro-work/step1.txt`, `balatro-work/step1/m1_t*.jsonl`, `m2_t0.jsonl`.
+
+**Step 1, scored.**
+- **M1** (stage 1 `best.pt`): temperature 1 = 78 (13.0%), **0 = 182 (30.3%, 95% 26.8-34.1)**, 0.5 = 163 (27.2%).
+  Ante-1 losses 101 / 39 / 54. **M1a hit, M1b hit, M1c hit** (39 <= 50). Paired with temperature 1: 51 seeds won
+  at both, 27 only at 1, 131 only at 0.
+- **M2** (warm start, kept pass 7; pass 8 fell to 66.6%): 119 (19.8%); agreement 71.0% (hand 45.7%, shop 80.3%).
+  **M2a hit** (45.7 >= 43.7), **M2b miss** (< 50), **M2c hit**.
+- **Scaling curve** (temperature 1): 450 = 17 (2.8%), 900 = 55 (9.2%), 1,800 = 78. Hand agreement 30.9 / 34.4 /
+  40.7. **C1 hit, C2 hit** (78 - 55 = 23), **C3 hit** (6.3 points).
+- **Reading (as registered): steep → more teacher games.** The confound registered with it stands: the smaller
+  runs also had fewer steps, and M2's extra passes on the same data gained more (+41 wins) than the step from 900 to
+  1,800 games (+23). But M2 peaked at pass 7 and fell at pass 8, so the same data's headroom looks mostly spent.
+
+**Delivery score (chud's two-score rule; not compared with earlier runs).** M2's `best.pt` at temperature 0:
+**206/600 = 34.3% (±3.8)**. Paired with stage 1 at temperature 0: 95 seeds won only by M2, 71 only by stage 1,
+111 by both (z = 1.86). Losses by ante 1:40, 2:28, 3:26, 4:32, 5:62, 6:68, 7:69, 8:69. Ante-1 losses did not move
+(39 → 40); the gain is in antes 2-4 (107 → 86).
+
+**Finding (Claude's, measured in the cloud after the evals, not a registered test): unsafe single-card plays.**
+- Stage 1's temperature-0 losses replayed in the harness (50 of 418; the rest owed) and 40 of the teacher's saved
+  games (`teach_v6/games`, per-round from the saved move text).
+- The teacher plays one card in 21.7% of its plays (the student 16.7%) and two or more single cards in ~9.5% of its
+  rounds; it lost **1 of 72** such rounds. The student, in its losing games, lost **14 of 51**.
+- The pattern: with scaling jokers held (Ride the Bus, Obelisk, Supernova, Scary Face, Spare Trousers), the student
+  plays four single cards with every discard left and a pair or two pair in hand: RGCEV1TD (Big Blind, 61/450,
+  holding 6-6-4-4), JDJCEA1D (Big Blind, 175/450), LWPD9VF1 (The Manacle, 360/600). Before it has jokers it plays
+  five-card hands.
+- Reading: the student copied the teacher's farming move without its condition (the round is safe anyway).
+  `play_values` gives each play's score against what is still needed, not whether the hands left can still clear
+  the blind. Candidate input for S1: the round's margin (best play's score × hands left against the need).
+  Search judged by the value head (S2) would cover it as well. Not built; any fix is registered before its code.
+- The repeated "discard the lowest four" is the teacher's own pattern too: not the defect.
+
+**Registered now, before it runs: teacher games 1,800 → 3,600** (step 2's steep branch).
+- `reproduce/balatro_lab/teach.py --first 1800 --games 1800 --workers 12 --out balatro-work/teach_v6`: the next
+  1,800 teacher seeds (same generator, never an eval seed), same code and bridge as the second run (F1 in), Red
+  deck, White stake. No option scores recorded (not built; partial anyway).
+- D1: the teacher wins 64-72% of the new 1,800. 85%.
+- D2: unmapped moves at most 0.5% of decisions. 80%.
+- The student run on 3,600 games gets its own section before its config (whether it starts from M2 or from
+  scratch, and the bigger-network arm, decided then).
