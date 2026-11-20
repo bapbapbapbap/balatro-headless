@@ -1,0 +1,53 @@
+# Model v6, M2 (docs/hypotheses-v6.md, 2026-11-20 12:38 section; run page docs/runs/v6m2.md): stage 1's
+# imitation continued from its best.pt (warm start, fresh optimizer), same teacher games, held-out games and
+# agreement set (train/step1.sh copies runs/v6/agreement_set.json in first), up to 8 more passes, then the eval.
+
+[run]
+start = "warm:{work}/runs/v6/best.pt"
+hours = 24
+workers = 12
+checks = ["repo", "fixture-replay", "ordered", "diff", "v4-credit", "v4-phase", "v4-phi", "v5-play", "v6-imitate"]
+mirror_dir = "/mnt/f/balatro data/{run}"
+spill_dir = "/mnt/f/balatro data"
+publish_on_stop = false
+
+# train.py's settings (train/options.py); anything not listed keeps its default there.
+[train]
+# the model: v5's (two networks, encoding 2, ordered actions with the joker-drag cap, offer and play values)
+phase_split = true
+d = 192
+layers = 4
+heads = 6
+enc = 2
+actions = "ordered-capped"
+offer_values = true
+play_values = true
+# the reward the value head learns (v4b's), and its credit settings (used again from stage 3)
+reward = "blinds"
+build_shaping = 1
+gamma_blind = 0.95
+lam_blind = 0.95
+lam_hand = 0.8
+shop_ent = "0.001"
+# stage 1: imitation (train/imitate.py), then one eval, then stop
+imitate = "{work}/teach_v6"
+imitate_epochs = 8
+imitate_patience = 2
+imitate_lr = 3e-4
+imitate_only = 1
+seed = 3
+lr = 1e-4
+# the game
+back = "b_red"
+stake = 1
+# the eval
+eval_games = 600
+eval_every = 1
+max_wins = 1000000
+
+# --smoke: runs/v6-smoke, 40 teacher games, one pass, a 12-game eval, then stop
+[smoke]
+imitate_max_games = 40
+imitate_epochs = 1
+eval_games = 12
+hours = 1

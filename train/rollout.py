@@ -131,10 +131,12 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                     logits, v = model(*collate([o]))
                 t_model += time.time() - tm
                 temp = getattr(args, "eval_temp", 1.0) if mode == "eval" else 1.0
-                p = torch.softmax(logits[0] / temp if temp != 1.0 else logits[0], -1).numpy().astype(np.float64)
+                # eval temperature 0 = the most likely move (M1, docs/hypotheses-v6.md 2026-11-20); its probabilities
+                # stay the policy's own, so logp is still the move's log-probability at temperature 1
+                p = torch.softmax(logits[0] / temp if temp not in (0.0, 1.0) else logits[0], -1).numpy().astype(np.float64)
                 if not np.isfinite(p).all():
                     raise FloatingPointError("non-finite action probabilities")
-                if greedy:
+                if greedy or (mode == "eval" and temp == 0.0):
                     a = int(p.argmax())
                     logp = float(math.log(max(p[a], 1e-30)))
                 elif mode == "train" and args.explore_hands > 0:

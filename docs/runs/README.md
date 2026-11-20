@@ -15,8 +15,11 @@ CHANGELOG, `wins/`), unedited.
 | [v4](v4.md) | – | 2026-11-09 → 11-10 | shop and table networks, build potential, curriculum | stopped on the stall rule (best eval 4.68, round 120) | not yet published |
 | [v4b](v4b.md) | – | 2026-11-10 → | v4 + hand clock on the table's lambda, hand exploration off | stopped at round 280 on the sell stop (best eval 8.31, round 240); **continues with the stop off** | – |
 | [v5](v5.md) | – | 2026-11-15 → 11-16 | v4b warm start + play values | stopped by chud at round 278 (best eval stayed round 0's, 13.40) | – |
-| [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | teacher data done (66.2%); stage 1 built | – |
+| [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | stage 1: 78/600, agreement 68.0% | – |
 | [v6d](v6d.md) | – | 2026-11-19 → | model v6 stage 2: DAgger rounds (student plays, teacher labels) | built, not run | – |
+| [v6m2](v6m2.md) | – | 2026-11-20 → | model v6 step 1, M2: stage 1's imitation continued | built, not run | – |
+| [v6c450](v6c450.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 450 teacher games | built, not run | – |
+| [v6c900](v6c900.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 900 teacher games | built, not run | – |
 | [v5](v5.md) | – | 2026-11-15 → | v4b warm start + play values (each play's score vs what the blind needs) | registered | – |
 
 Counts are of `wins/routes.jsonl` and `wins/near_misses.jsonl` on 2026-11-09, by each line's `source`
