@@ -373,3 +373,75 @@ S2 (round search). Power also sits behind the teacher's shop valuations, so not 
 - Two things the rule's reading doesn't separate: imitation stopped at its pass cap while still improving, and the
   eval samples at temperature 1. Whether the 40.7% is the network's limit or the run's is open; any measurement of
   it is registered before it runs.
+
+## Added 2026-11-20, after chud's 12:38 CST message: the new direction, step 0's findings, and step 1 registered before its code
+
+The roadmap agreed with chud 11:06-12:38 (full text in the Project doc `claude/ROADMAP.md`). Decisions are chud's,
+reviewed by Claude; measurements, predictions and designs are Claude's, reviewed by chud.
+
+**chud's decisions (11-20).**
+- Goals, in order: the strongest bot (working target **5% wins at Gold stake**, Red deck first); one win per deck
+  per stake; 100% of a fresh save (`tools/save_progress.py`'s definition) in as few seeds and runs as possible. The
+  is-ought work moves to the backlog: its questions read cleanly only on a strong agent.
+- **Reverses the 11-16 rule** ("Balatro Lab's bot stays only a teacher"): the teacher may be the base that is
+  improved. Every file that imports it keeps its credit (KvashaIhor/balatro-lab, MIT, 3e09d47).
+- **Ownership test:** the bot is chud's when removing his parts costs more win rate than removing Balatro Lab's,
+  measured as test K measured theirs.
+- The student may search, with rollouts judged by its own value head (deliberation toward the reward adds no
+  second ought).
+- Two scores per model from here: the registered one (eval temperature 1, as every run) and a delivery one (the
+  best settings found). Only the first is ever compared with earlier runs.
+- The real save is touched only after the headless proof exists (roadmap step 7).
+- First actionable: finish teaching the student, measuring what limits it before spending days of teacher games.
+
+**Step 0's findings (read or measured 11-20, after 12:38 and before any of step 1's code).**
+- Code paths: `--eval-temp 0` divides the logits by zero (non-finite probabilities, the game stops with an error);
+  imitation from stage 1's weights works through `start = "warm:..."` (same architecture: every weight loads as
+  it is; fresh optimizer); `imitate_max_games N` takes the first N training seeds in sorted order (fixed, and
+  nested: 450 is inside 900) and cuts the held-out games to N/10, so a run on a subset needs stage 1's
+  `agreement_set.json` copied into its folder first (as `dagger_round.sh` does) to be scored on the same set.
+- **Replay (S1's data path):** 3 saved teacher games (11EVA2HX, 11MKTA84, 11WHX9KR; 723 decisions) replayed from
+  their seeds in our harness alone (cloud, stock LuaJIT): every observation and every move's text equal to the
+  saved ones, to the end of each game. New inputs can be computed on the 1,800 teacher games by replay, without
+  the teacher.
+- **Balatro Lab's code (3e09d47):** its simulator has all 15 decks, the 8 stakes' rules (`data/stakes.json`: blind
+  scaling, small blind reward, discards, sticker chances) and the stickers. Its bot accounts for Eternal (can't
+  sell) and a joker already perished; nothing in `strategy.py` reads Rental or a Perishable's coming debuff, and its
+  survival constants were fitted at White stake.
+- **A bridge gap (found by reading, like the Bell):** `bridge.py` builds the teacher's run as
+  `Run(None, deck="Red Deck")`, so at any stake the teacher reasons with White stake's rules and blind scaling, and
+  on any deck as if it were Red. Every teacher measurement so far was Red/White, where this is right.
+- **Option scores (soft targets):** the bot values each shop and pack option and ranks discards, so scores exist
+  there; its plays come mostly from rules (hand plans), not one score per legal play. Soft targets would be
+  partial.
+
+**Fix F2 (bridge.py), registered before its code:** the teacher's run is built with the game's own deck
+(`G.GAME.selected_back`) and stake (`G.GAME.stake`), mapped to Balatro Lab's names.
+- F2a: on 20 teacher seeds at Red/White, the teacher's moves are identical with and without F2. 90%.
+- F2 runs before any teacher game above White (roadmap step 3; its Gold gate is registered when it is built).
+
+**Step 1 (laptop, one queue), on stage 1's data and network; all evals on the 600 eval seeds:**
+- **M1** (`tools/eval_ladder.py`, new): stage 1's `best.pt` at eval temperature 0 (the most likely move; a game
+  over the step cap counts as a loss and is reported) and 0.5. Temperature 1 is the registered 78/600.
+  - M1a: temperature 0 wins more than 78. 75%. M1b: at least 120. 35%.
+  - M1c: temperature 0 loses at most 50 games in ante 1 (temperature 1: 101). 55%.
+- **M2** (`configs/v6m2.toml`): imitation continued from stage 1's `best.pt` (warm start, fresh optimizer), same
+  data, held-out games and agreement set, up to 8 more passes with the same stop rule; then the eval.
+  - M2a: hand agreement rises at least 3 points (to 43.7% or more). 60%. M2b: it reaches 50%. 20%.
+  - M2c: eval wins more than 78. 55%.
+- **Scaling curve** (`configs/v6c450.toml`, `configs/v6c900.toml`): stage 1 again from random weights on the first
+  450 and 900 training games (stage 1 = 1,707), same procedure (up to 8 passes, so fewer steps on less data);
+  stage 1's agreement set.
+  - C1: wins rise with data, W450 < W900 < 78. 60%.
+  - C2: steep at the top, 78 - W900 at least 20. 40%.
+  - C3: hand agreement at 900 at least 3 points below stage 1's 40.7%. 50%.
+- **Reading (registered):** steep (C2 hit) → more teacher games are worth their ~9 h per 1,800. Flat (78 - W900
+  under 10) and M2a missed → the student lacks inputs, not data: S1 first. Between → both. S1's data costs no
+  teacher time either way (replay, above).
+
+**S2's criteria (registered before S1 exists):** after S1, round search for the student (judged by its value head)
+is built if hand agreement stays under 65% **and** the gap sits in boss rounds: hand agreement on boss-round
+decisions at least ~10 points below other rounds, or more of the student's losses at bosses than the teacher's
+share (83% in Balatro Lab's own report). It is not needed to close the gap if the student comes within 5 points of
+the teacher, or reaches 65% hand agreement with wins following (then DAgger, for drift). As the main route past
+the teacher (search plus distillation) it stays on the roadmap either way.
