@@ -7,7 +7,7 @@
 
 **Result (2026-11-21):** kept pass 16 of 16 (held-out loss still falling); 125/600 at temperature 1, 245/600 (40.8%) at temperature 0; agreement 74.7%. B1 miss. Scored in docs/hypotheses-v6.md (2026-11-21, after chud's 16:09 CST message).
 
-It was started by Started by `train/step2.sh` with the other step 2 jobs:
+Started by `train/step2.sh` with the other step 2 jobs:
 
     wsl bash -lc "cd ~/balatro/balatro-headless && git checkout v6 && git pull && bash train/step2.sh"
 

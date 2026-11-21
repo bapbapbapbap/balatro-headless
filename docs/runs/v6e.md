@@ -7,7 +7,7 @@
 
 **Result (2026-11-21):** kept pass 15 of 16; 132/600 at temperature 1, **254/600 (42.3%) at temperature 0**; agreement 74.1% (hand 54.3%, shop 81.4%). Scored in docs/hypotheses-v6.md (2026-11-21, after chud's 16:09 CST message).
 
-It was started by Started by `train/step2.sh` with the other step 2 jobs:
+Started by `train/step2.sh` with the other step 2 jobs:
 
     wsl bash -lc "cd ~/balatro/balatro-headless && git checkout v6 && git pull && bash train/step2.sh"
 
