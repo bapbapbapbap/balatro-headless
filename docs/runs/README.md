@@ -20,8 +20,8 @@ CHANGELOG, `wins/`), unedited.
 | [v6m2](v6m2.md) | – | 2026-11-20 → | model v6 step 1, M2: stage 1's imitation continued | built, not run | – |
 | [v6c450](v6c450.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 450 teacher games | built, not run | – |
 | [v6c900](v6c900.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 900 teacher games | built, not run | – |
-| [v6e](v6e.md) | – | 2026-11-21 → | model v6 step 2: stage 1 on all 3,599 teacher games, up to 16 passes | built, not run | – |
-| [v6eb](v6eb.md) | – | 2026-11-21 → | model v6 step 2: v6e with a bigger network (d 256, 6 layers, 8 heads) | built, not run | – |
+| [v6e](v6e.md) | – | 2026-11-21 → | model v6 step 2: stage 1 on all 3,599 teacher games, up to 16 passes | 132/600 (t0: 254); agreement 74.1% | – |
+| [v6eb](v6eb.md) | – | 2026-11-21 → | model v6 step 2: v6e with a bigger network (d 256, 6 layers, 8 heads) | 125/600 (t0: 245); agreement 74.7% | – |
 | [v5](v5.md) | – | 2026-11-15 → | v4b warm start + play values (each play's score vs what the blind needs) | registered | – |
 
 Counts are of `wins/routes.jsonl` and `wins/near_misses.jsonl` on 2026-11-09, by each line's `source`

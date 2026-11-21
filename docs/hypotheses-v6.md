@@ -522,3 +522,51 @@ agreement set copied in, as in step 1.
 - Reading: E1 and a gain >= 20 wins → data still limits: another teacher run (3,600 → 7,200) overnight. E1 miss or
   a gain < 10 → stop adding data; S1 (the round-margin input and draw-based discard values) next. E4 hit → the
   round-margin input is built either way, registered before its code. B1 hit → later runs use v6eb's size.
+
+## Added 2026-11-21, after chud's 16:09 CST message: step 2 scored; the round-margin input and a fourth teacher run registered before their code and data
+
+Scores, designs and predictions are Claude's, reviewed by chud. Files: `balatro-work/step2.txt`,
+`runs/v6e/train.log`, `runs/v6eb/train.log`, `step2/v6e_t0.jsonl`, `step2/v6eb_t0.jsonl`.
+
+**Step 2, scored** (3,388 training games, 211 held out, stage 1's agreement set).
+- **v6e:** kept pass 15 of 16 (held-out loss 0.918; pass 16 rose to 0.951). Temperature 1: **132/600 (22.0%)**;
+  agreement 74.1% (hand 54.3%, shop 81.4%). Temperature 0: **254/600 (42.3%, 95% 38.4-46.3)**; losses by ante
+  1:29, 2:27, 3:25, 4:25, 5:42, 6:52, 7:69, 8:77.
+- **v6eb:** kept pass 16 of 16, held-out loss still falling (0.882). Temperature 1: 125 (20.8%); agreement 74.7%
+  (hand 54.3%, shop 82.2%). Temperature 0: 245 (40.8%); ante-1 losses 29.
+- **E1 hit** (132 > 119). **E2 miss** (132 < 140). **E3 hit** (hand 54.3% >= 47.7%). **E4 hit** (29 >= 25).
+  **B1 miss** (v6eb 7 wins below v6e at temperature 1; at temperature 0, 99 seeds won only by v6e and 90 only by
+  v6eb, z = 0.65: no difference).
+- Delivery, paired on the 600 seeds: v6e at temperature 0 against M2 at temperature 0: 115 seeds won only by v6e,
+  67 only by M2, **z = 3.56**. 382 of the 600 seeds are won by at least one of M2, v6e, v6eb at temperature 0.
+- **Reading.** The registered reading left a gap: E1 hit with a gain of 13 at temperature 1 is neither ">= 20" (more
+  data) nor "< 10" (stop adding data). Stated now, before anything runs: the delivery score moved by 48 wins with
+  z = 3.56, so data still pays; and E4 hit, so the round-margin input is built. Both go ahead: the teacher runs on
+  the laptop overnight while the input is built in the cloud. B1 miss: stage 1's size stays. Both runs ended at or
+  near the 16-pass cap with held-out loss still falling (v6eb kept its last pass): the next student run gets more
+  passes.
+
+**Registered now, before it runs: teacher run 4, games 3,600 → 5,400.** Same command form as run 3
+(`--first 3600 --games 1800`), same code, Red deck, White stake. ~9 h at run 3's rate.
+- D3: the teacher wins 64-72% of the new 1,800. 85%.
+- D4: unmapped moves at most 0.5% of decisions. 85%.
+
+**Registered now, before its code: the round-margin input (S1, part 1).** The 15:13 finding (2026-11-20): the
+student plays single cards to grow its jokers when the hands left can't clear the blind; `play_values` gives each
+play's score against what's still needed but not whether the round stays winnable after it.
+- Two more numbers per play in `H.play_values` (each play's row; new setting `play_margin`, off by default so every
+  earlier run replays unchanged): with `need` the chips still needed, `s` this play's score, `best` the highest
+  score among this state's plays and `h` the hands left including this one:
+  (1) margin = log2((s + best × (h - 1) + 1) / (need + 1)), clipped and scaled like the existing value;
+  (2) safe = 1 when s + best × (h - 1) >= need, else 0.
+  This is an estimate (the next hands' best is taken to equal this hand's), not a lookahead.
+- The teacher's saved observations predate it, so the inputs are rebuilt for every teacher game by replay (exact
+  from the seed: step 0's finding) before training. A check: the rebuilt observations match the saved ones in
+  every other number, on all games.
+- The student run on it (v6f, own config and run page, built after this commit): v6e's recipe on every teacher game
+  then in `teach_v6`, up to 24 passes, patience 3, `play_margin` on; scored at temperature 1 and 0 as before.
+- R1: v6f at temperature 0 loses at most 18 games in ante 1 (v6e: 29). 60%.
+- R2: v6f at temperature 0 wins at least 15 more than v6e (269+), counted on the same data size if run 4 is not done
+  (then against a v6e-recipe twin without the input, trained alongside). 55%.
+- R3: in v6f's temperature-0 losses, rounds with two or more single-card plays are lost at most half as often as
+  v6e's (replay count, as in the 15:13 finding). 60%.
