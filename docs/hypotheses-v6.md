@@ -492,3 +492,33 @@ Files: `balatro-work/step1.txt`, `balatro-work/step1/m1_t*.jsonl`, `m2_t0.jsonl`
 - D2: unmapped moves at most 0.5% of decisions. 80%.
 - The student run on 3,600 games gets its own section before its config (whether it starts from M2 or from
   scratch, and the bigger-network arm, decided then).
+
+## Added 2026-11-21, after chud's 09:38 CST message: the third teacher run's result, and step 2 (the student on 3,600 games) registered before its code
+
+Measurements, predictions and designs are Claude's, reviewed by chud; the direction (steep → more data) is the
+reading registered in 788c324 and f7293c9.
+
+**Teacher games 1,800 → 3,600, scored** (`balatro-work/teach_v6/games_w1800.jsonl` to `w3450`, chud's laptop,
+12 workers, overnight 11-20 → 11-21).
+- 1,800 seeds played, 1 error (IndexError in `parse_desc`: the teacher's move index past the legal list; one game,
+  logged, no decisions saved for it). **1,249 of 1,799 won = 69.4% (±2.1). D1 hit** (64-72%).
+- 411,409 decisions, 411,401 labeled; **8 unmapped = 0.002%** (round:play 4, round:use 3, round:discard 1). **D2 hit.**
+- Ante-1 losses 10 of 1,799. Mean 223 s per game.
+- With the second run (after F1): 2,485 of 3,599 = 69.0%.
+
+**Step 2, registered now: the student on all 3,599 games.** Two runs, both from random weights, same data, same
+held-out rule (sha256 of the seed, 1 in 20; unchanged, so stage 1's held-out games stay held out) and stage 1's
+agreement set copied in, as in step 1.
+- **v6e:** stage 1's network and settings, up to 16 passes (patience 2). 16 passes on 2x the data puts it at
+  roughly M2's step budget (8 + 7 passes on 1,800), so v6e against M2 is mostly data, not steps.
+- **v6eb (bigger network arm):** the same with d 256, 6 layers, 8 heads (v6e: 192, 4, 6), run after v6e.
+- Each: the registered score (eval temperature 1, 600 seeds) and the delivery score (temperature 0, `eval_ladder`).
+- E1: v6e beats M2 at temperature 1 (> 119 wins). 75%.
+- E2: v6e reaches 140 wins (23.3%) at temperature 1. 50%.
+- E3: v6e's hand agreement >= 47.7% (M2 + 2). 65%.
+- E4: v6e at temperature 0 still loses >= 25 games in ante 1 (data alone doesn't remove the single-card deaths of
+  the 15:13 finding). 70%.
+- B1: v6eb beats v6e by >= 12 wins at temperature 1. 45%.
+- Reading: E1 and a gain >= 20 wins → data still limits: another teacher run (3,600 → 7,200) overnight. E1 miss or
+  a gain < 10 → stop adding data; S1 (the round-margin input and draw-based discard values) next. E4 hit → the
+  round-margin input is built either way, registered before its code. B1 hit → later runs use v6eb's size.
