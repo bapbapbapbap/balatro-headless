@@ -653,3 +653,12 @@ constraint off, the cloud reproduced the laptop's v6e temperature-0 games move f
 - Reading: causal confusion is confirmed where farming occurs, and it is narrow (Ride the Bus at ante 1). Most early
   deaths, and the 252 losses in antes 5-8, are something else. DAgger stays next: it addresses every state the
   student reaches that the teacher never did, not only this one.
+
+## Added 2026-11-22, after chud's 09:45 CST message: teacher run 4 scored
+
+Claude's, reviewed by chud. `balatro-work/teach_v6/games_w3600.jsonl` to `w5250` (seeds 3,600-5,399, laptop,
+12 workers, 11-21 → 11-22).
+- 1,800 played, 0 errors. **1,265 won = 70.3% (±2.1). D3 hit** (64-72%).
+- 405,492 decisions; **13 unmapped = 0.003%** (pack:skip 8, round:use 4, round:discard 1). **D4 hit.**
+- Ante-1 losses 12. `teach.py --report` over the whole folder: 5,399 games, 1 error, 3,711 won = 68.7% (±1.2).
+- DAgger round 1 and its twin (`train/step3.sh`, registered in the 2026-11-21 23:42 section) train on all of these.
