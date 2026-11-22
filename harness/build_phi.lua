@@ -678,6 +678,30 @@ function H.play_scores()
   return S
 end
 
+-- Test G (docs/hypotheses-v6.md, 2026-11-21 23:42 section): the game's rule that a run ends when a blind is not
+-- beaten, as a filter at move choice (setting `survive`, eval only, off by default). One flag per encoded action:
+-- "0" = a play that leaves the round unwinnable (its score + best * (hands left - 1) < chips still needed) while
+-- some other play keeps it winnable; "1" otherwise (every non-play, and every play when none is safe).
+function H.survive_flags()
+  local acts = H._encoded_actions or {}
+  local S = H.play_scores()
+  local need = 0
+  if G.GAME.blind then need = math.max((G.GAME.blind.chips or 0) - (G.GAME.chips or 0), 0) end
+  local h = (G.GAME.current_round and G.GAME.current_round.hands_left) or 1
+  local best = 0
+  for k = 1, #acts do if S[k] and S[k] > best then best = S[k] end end
+  local any_safe, safe = false, {}
+  for k = 1, #acts do
+    if S[k] then
+      safe[k] = S[k] + best * math.max(h - 1, 0) >= need
+      if safe[k] then any_safe = true end
+    end
+  end
+  local out = {}
+  for k = 1, #acts do out[k] = (S[k] and any_safe and not safe[k]) and "0" or "1" end
+  return table.concat(out, " ")
+end
+
 function H.play_values()
   local acts = H._encoded_actions or {}
   local S = H.play_scores()

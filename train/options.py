@@ -60,6 +60,9 @@ def build_parser():
                     help="stop at the first eval averaging more than this many joker sells per game (0 = off; v4b: 1.5)")
     ap.add_argument("--eval-temp", type=float, default=1.0,
                     help="sampling temperature for eval games only (1 = the policy as trained)")
+    ap.add_argument("--survive", type=int, default=0,
+                    help="eval games only: remove plays that leave the round unwinnable when a safe play exists "
+                         "(harness/build_phi.lua H.survive_flags; test G, docs/hypotheses-v6.md 2026-11-21 23:42)")
     ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--minibatch", type=int, default=64)
