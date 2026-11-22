@@ -626,3 +626,30 @@ with the student's.
 - D5: round 1 at temperature 0 beats v6dt at temperature 0. 75%.
 - D6: round 1's temperature-0 ante-1 losses <= 15. 60%.
 - D7: round 1 at temperature 0 wins >= 290 (48.3%). 50%.
+
+## Added 2026-11-22, after chud's 23:42 CST message (11-21): tests G and T scored
+
+Claude's, reviewed by chud. Both ran in the cloud (2 cores) from v6e's `best.pt` (staged from the laptop); with the
+constraint off, the cloud reproduced the laptop's v6e temperature-0 games move for move (4 seeds checked).
+
+**Test G, the game-rule constraint** (v6e, temperature 0, 600 eval seeds, `--survive 1`; b819d47):
+- **263/600 (43.8%, 95% 39.9-47.8)** against v6e's 254. Paired: 10 seeds won only with the constraint, 1 only
+  without; z = 2.71. Losses by ante 1:22, 2:20, 3:18, 4:25, 5:41, 6:60, 7:67, 8:84 (v6e: 1:29, 2:27, 3:25, 4:25,
+  5:42, 6:52, 7:69, 8:77). Blinds per game 17.33 (v6e 16.73).
+- The constraint removed plays at 2,609 decisions and changed the model's move 199 times, in 102 games; 496 games
+  were identical to v6e's.
+- **G1 hit** (263 > 254). **G2 miss** (+9, not +20). **G3 miss** (ante-1 losses 22, not <= 15). **G4 hit** (1 seed lost).
+- Reading: the single-card failure is real (z = 2.71) and **small: about 9 games of the ~160-game gap**. In most of
+  the 102 changed games the student survived the round and died later. Per the registered reading (G2 miss), the
+  constraint does not join the delivery score by default; it remains a setting (chud's call whether to use it).
+
+**Test T, the teacher on the student's death rounds** (v6e's first 12 temperature-0 ante-1 losses by seed;
+`analysis/test_t_teacher_on_deaths.py`):
+- 6 of 12 death rounds began with a single-card play; **all 6 held Ride the Bus**. In 4 of the 6 the hand had a pair
+  or better; there the teacher's move differed in 3 (it discarded first; the student played the single card at once)
+  and matched in 1 (D8EIKW46: the teacher also played the single card). **T1 hit** (3 of 4 >= 2/3; n is small).
+- The other 6 deaths were five-card plays the teacher mostly agreed with (agreement 4-6 of 8 moves per round):
+  weak hands at a 600-chip boss (Chaos the Clown, The Trio, Astronomer) or the Big Blind, not farming.
+- Reading: causal confusion is confirmed where farming occurs, and it is narrow (Ride the Bus at ante 1). Most early
+  deaths, and the 252 losses in antes 5-8, are something else. DAgger stays next: it addresses every state the
+  student reaches that the teacher never did, not only this one.
