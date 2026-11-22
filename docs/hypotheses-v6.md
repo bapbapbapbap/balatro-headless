@@ -570,3 +570,59 @@ play's score against what's still needed but not whether the round stays winnabl
   (then against a v6e-recipe twin without the input, trained alongside). 55%.
 - R3: in v6f's temperature-0 losses, rounds with two or more single-card plays are lost at most half as often as
   v6e's (replay count, as in the 15:13 finding). 60%.
+
+## Added 2026-11-21, after chud's 23:42 CST message: the score check, causal confusion, and three tests registered before their code (the game-rule constraint, the teacher on the student's death rounds, DAgger re-registered)
+
+Readings, designs and predictions are Claude's, reviewed by chud. The constraint applies the game's own rule
+(a run ends when a blind is not beaten), pointed out by chud.
+
+**The score check (done before this section, in the cloud).** Is the single-card failure a bug between our harness
+and the game? The harness's predicted score (`H.play_scores`, behind `play_values`) against the chips the game
+actually added, for every play in three stage 1 temperature-0 death games (RGCEV1TD, JDJCEA1D, LWPD9VF1):
+five-card plays exact; single-card plays 14/18/15/15 predicted vs 16/15/15/15 (Spare Trousers, Obelisk), 14/26/36/48
+vs 28/39/48/60 (Smeared Joker, Ride the Bus), and exact under The Manacle (Supernova, Juggler, Scary Face).
+**Not an interface bug:** the student was shown a single card scores ~15 against 450 needed and played it. A small
+real bug found on the way: predictions miss a scaling joker's increase on the hand being played (Ride the Bus ~12
+low); it errs low, so it does not cause farming. Backlog.
+
+**The reading: causal confusion** (de Haan, Jayaraman & Levine 2019). In the teacher's games, farming with single
+cards almost always comes with a safe round (1 of 72 such rounds lost), so "scaling joker held → farm" predicts the
+teacher's move as well as "farm only if the round survives" does; imitation learns the cue that is easier to read.
+No input says whether the round survives a play (that needs the best other play and the hands left), and the
+student never sees an outcome. DAgger (Ross, Gordon & Bagnell 2011) supplies exactly the missing examples.
+The 11-20 plan put DAgger after more data and new inputs; stage 1's ante-1 deaths (101 vs the teacher's 12 in
+1,800) already pointed at it. Ordering error, Claude's.
+
+**Test G, the game-rule constraint (eval only; new setting `survive`, off by default).** At a hand decision, with
+`need` the chips still needed, `h` the hands left (this one included) and `best` the highest predicted score among
+the plays: a play is *safe* if its score + best × (h - 1) >= need. When at least one play is safe, unsafe plays are
+removed before the move is chosen; when none is, nothing is removed. Discards and other moves are never removed.
+Run: v6e's `best.pt`, temperature 0, the 600 eval seeds, Red, White; paired with v6e's own temperature-0 run (254).
+Each game also counts how often the constraint changed the model's move.
+- G1: v6e + constraint wins more than 254. 80%.
+- G2: it wins at least 274 (+20). 50%.
+- G3: ante-1 losses fall from 29 to at most 15. 65%.
+- G4: seeds lost with the constraint that v6e won without it: at most 25. 75%.
+- Reading: the gain is how much of the 160-game gap this one failure is. G2 hit → the constraint stays on in the
+  delivery score until a student no longer needs it (its move-change count near 0).
+
+**Test T, the teacher on the student's death rounds.** v6e's temperature-0 ante-1 losses (up to 12, by seed order),
+replayed move for move through `teach.py`'s game loop with a replaying student, so the teacher labels every state
+the student reached (the shadow state stays in step). At each death round's first play, compare the teacher's move
+with the student's.
+- T1: in at least 2/3 of the death rounds where the student's first play was a single card with a pair or better in
+  hand, the teacher plays a different move. 80%. (Hit = the teacher would not have farmed there: causal confusion,
+  not a teacher habit.)
+
+**DAgger, re-registered (v6d; built 11-19, not run).** Two fixes before any round runs:
+- Seeds: rounds took seeds from index 1,800 + 300(k-1), which teacher runs 3 and 4 have used since; a seed in two
+  folders is taken from the first (`teach_v6`), so round 1's labels would have been dropped without an error.
+  Rounds now take indices from 100,000 + GAMES × (k-1) (the same generator, never an eval seed).
+- Round 1's student: v6e's `best.pt` (was stage 1's).
+- Round 1: 600 games (was 300), so its states are ~10% of the data after run 4. Training: from the student's weights
+  on teach_v6 + dagger/d*, up to 8 passes (as built). After training, a temperature-0 eval of the round's model.
+- An attribution twin (v6dt): the same training from v6e on teach_v6 alone (no DAgger folders), so a round's gain
+  is not read off the extra passes or run 4's data.
+- D5: round 1 at temperature 0 beats v6dt at temperature 0. 75%.
+- D6: round 1's temperature-0 ante-1 losses <= 15. 60%.
+- D7: round 1 at temperature 0 wins >= 290 (48.3%). 50%.
