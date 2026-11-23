@@ -702,6 +702,25 @@ function H.survive_flags()
   return table.concat(out, " ")
 end
 
+-- Test X (docs/hypotheses-v6.md, 2026-11-22 19:15 section): keep the student off jokers carrying a Perishable or
+-- Rental sticker (setting `shun_stickers`, eval only, off by default). One flag per encoded action: "0" = buying
+-- (buy, buy_and_use) or picking (pack) such a joker; "1" otherwise. Eternal is not flagged.
+function H.sticker_flags()
+  local acts = H._encoded_actions or {}
+  local function stickered(card)
+    local ab = card and card.ability
+    return (ab and (ab.perishable or ab.rental)) and true or false
+  end
+  local out = {}
+  for k, a in ipairs(acts) do
+    local bad = false
+    if a.type == "buy" or a.type == "buy_and_use" then bad = stickered(G.shop_jokers and G.shop_jokers.cards[a.i])
+    elseif a.type == "pick" then bad = stickered(G.pack_cards and G.pack_cards.cards[a.i]) end
+    out[k] = bad and "0" or "1"
+  end
+  return table.concat(out, " ")
+end
+
 function H.play_values()
   local acts = H._encoded_actions or {}
   local S = H.play_scores()

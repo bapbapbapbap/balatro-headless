@@ -26,6 +26,7 @@ from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402
 # ---------------- workers ----------------
 
 SURVIVE = {"filtered": 0, "changed": 0}   # test G counts (eval with --survive), per process
+STICKERS = {"filtered": 0, "changed": 0}  # test X counts (eval with --shun-stickers), per process
 
 def inject_at(args, kind):
     """Iterations where a fault is injected (testing the safety checks), e.g. --inject nan:3,crash:5"""
@@ -143,6 +144,17 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                         logits[0][torch.tensor([not x for x in ok])] = float("-inf")
                         SURVIVE["filtered"] += 1
                         SURVIVE["changed"] += int(not ok[before])
+                if mode == "eval" and getattr(args, "shun_stickers", 0):
+                    # test X: never buy or pick a joker with a Perishable or Rental sticker
+                    ok = [f == "1" for f in str(sim.H.sticker_flags()).split()]
+                    if len(ok) != logits.shape[-1]:
+                        raise RuntimeError(f"shun_stickers: {len(ok)} flags for {logits.shape[-1]} moves")
+                    if any(ok) and not all(ok):
+                        before = int(logits[0].argmax())
+                        logits = logits.clone()
+                        logits[0][torch.tensor([not x for x in ok])] = float("-inf")
+                        STICKERS["filtered"] += 1
+                        STICKERS["changed"] += int(not ok[before])
                 temp = getattr(args, "eval_temp", 1.0) if mode == "eval" else 1.0
                 # eval temperature 0 = the most likely move (M1, docs/hypotheses-v6.md 2026-11-20); its probabilities
                 # stay the policy's own, so logp is still the move's log-probability at temperature 1

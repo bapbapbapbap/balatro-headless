@@ -780,3 +780,13 @@ at those stakes and stays until a student trained with stickers no longer needs 
 If they miss, the loss is in living with stickers or in the economy, not in the buying, and only training at those
 stakes addresses it. Either way the lasting fix is training where the stickers appear (the from-scratch run); this
 test measures how much of the gap is one avoidable choice.
+
+## Added 2026-11-22: test X built (no results)
+
+Claude's, reviewed by chud. As registered (2026-11-22 19:15 section): `H.sticker_flags()` (build_phi.lua, beside
+`H.survive_flags`) flags buy, buy_and_use and pick of a joker whose `ability` has `perishable` or `rental`; the
+filter in `rollout.py` (eval only, setting `shun_stickers`) removes flagged moves unless every move is flagged, and
+counts filtered decisions and removed model moves; `tools/eval_ladder.py --shun-stickers 1` sets it, records the
+counts per game and prints them in the summary. Checked in the cloud without the game (its source is only on the
+laptop): the Lua parses, and on a stub shop and pack the flags come out as designed (perishable buy, rental pick and
+rental buy_and_use flagged; eternal buy, end_shop and an unstickered pick not). Off by default: no earlier run changes.

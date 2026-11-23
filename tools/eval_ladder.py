@@ -36,7 +36,7 @@ def build(a):
     from sim import Sim, sim_kwargs
     ck = torch.load(a.weights, map_location="cpu", weights_only=False)
     cfg = dict(ck["provenance"]["config"])
-    cfg.update(src=a.src, verify_wins=False, save_games="none", eval_temp=a.temp, survive=a.survive, back=a.back, stake=a.stake,
+    cfg.update(src=a.src, verify_wins=False, save_games="none", eval_temp=a.temp, survive=a.survive, shun_stickers=a.shun_stickers, back=a.back, stake=a.stake,
                backs=[], stakes=[], challenges=[])
     args = Namespace(**cfg)
     sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc, **sim_kwargs(args))
@@ -79,13 +79,15 @@ def one_seed(seed):
         t0 = time.time()
         import rollout
         rollout.SURVIVE.update(filtered=0, changed=0)
+        rollout.STICKERS.update(filtered=0, changed=0)
         ep = T.play_games(m["sim"], m["model"], G["R"][m["args"].reward], random.Random(0), m["args"], 0,
                           (m["state"], [seed], "eval", m["it"], 0), set())[0]
         p = ep["progress"]
         return {"seed": seed, "won": bool(p["won"]), "near_win": bool(p.get("near_win")),
                 "blinds": p["blinds_beaten"], "ante": p["ante"], "capped": bool(ep["capped"]),
                 "seconds": round(time.time() - t0, 2), "acts": ep["acts"],
-                **({"survive": dict(rollout.SURVIVE)} if m["args"].survive else {})}
+                **({"survive": dict(rollout.SURVIVE)} if m["args"].survive else {}),
+                **({"stickers": dict(rollout.STICKERS)} if getattr(m["args"], "shun_stickers", 0) else {})}
     except Exception:
         return {"seed": seed, "error": traceback.format_exc()[-3000:]}
 
@@ -110,6 +112,10 @@ def summarize(path):
           f"{sum(r['blinds'] for r in games) / n:.2f} blinds/game, near wins {sum(r['near_win'] for r in games)}, "
           f"capped {sum(r['capped'] for r in games)}, {sum(r['seconds'] for r in games) / n:.1f} s/game")
     print("  losses by ante: " + ", ".join(f"{k}:{ends[k]}" for k in sorted(ends)))
+    st = [r["stickers"] for r in games if "stickers" in r]
+    if st:      # test X: how often the filter acted, and in how many games it removed the model's own move
+        print(f"  stickers: {sum(s['filtered'] for s in st)} decisions filtered, model's move removed "
+              f"{sum(s['changed'] for s in st)} times in {sum(1 for s in st if s['changed'])} games")
     if w == 0:
         print(f"  no win: the win rate is below {3 / n:.2%} (95%, rule of three)")
 
@@ -130,6 +136,8 @@ def main():
     ap.add_argument("--temp", type=float, default=1.0, help="eval temperature; 0 = the most likely move")
     ap.add_argument("--survive", type=int, default=0, help="test G: remove plays that leave the round unwinnable "
                     "when a safe play exists (docs/hypotheses-v6.md, 2026-11-21 23:42)")
+    ap.add_argument("--shun-stickers", type=int, default=0, help="test X: never buy or pick a joker with a "
+                    "Perishable or Rental sticker (eval only)")
     ap.add_argument("--back", default="b_red")
     ap.add_argument("--stake", type=int, default=1, help="1 White ... 8 Gold")
     ap.add_argument("--games", type=int, default=600)
@@ -144,7 +152,7 @@ def main():
         ap.error("--src, --weights and --out are needed to play")
     from common import eval_seeds
     seeds = eval_seeds(a.games)
-    run = {"weights": os.path.abspath(a.weights), "policy": a.policy, "temp": a.temp, "survive": a.survive, "back": a.back,
+    run = {"weights": os.path.abspath(a.weights), "policy": a.policy, "temp": a.temp, "survive": a.survive, "shun_stickers": a.shun_stickers, "back": a.back,
            "stake": a.stake, "games": a.games, "init_seed": a.init_seed if a.policy == "untrained" else None}
     done = set()
     if os.path.exists(a.out):
