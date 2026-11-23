@@ -1,11 +1,11 @@
 # Beaten seeds
 
 <!-- tally:start -->
-**Seeds proven beatable: 1,225** (24 by model 0.1, 179 by model 0.2, 232 by model 0.3, 790 by model moe2; 1,225 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
+**Seeds proven beatable: 1,229** (24 by model 0.1, 179 by model 0.2, 232 by model 0.3, 790 by model moe2, 4 by model v6dt; 4 on Red Deck, Purple Stake, 1,225 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
 
 **naneinf seeds proven: 0.** A seed counts once its route in [`../naneinf/proven.jsonl`](../naneinf/proven.jsonl) replays move for move to a played hand with non-finite chips (see `naneinf/README.md`).
 
-**Highest stake beaten: 1 of 8 (White Stake).**
+**Highest stake beaten: 6 of 8 (Purple Stake).**
 
 **Final-boss near misses: 1,500.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`near_misses.jsonl`](near_misses.jsonl): median 62% of the boss's target scored, 226 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG, 0.13.2).
 <!-- tally:end -->
