@@ -989,3 +989,12 @@ Laptop, 54f2371, 12:24-12:55 CST; `balatro-work/gold/v6g_t0_s8_blue.jsonl`, `v6g
   0.17%; 11 near wins; 10.95 blinds/game: **MET** (55%).
 - None of the six counts as beaten until its route replays on the fast sim and the untouched game to the game's own
   win (`tools/ladder_to_routes.py`, brought over from branch purple-wins, a525fbb, unchanged).
+
+## Added 2026-11-23, after chud's 13:16 CST message: the six Blue Deck Gold routes replay
+
+Laptop, ec0c051, `tools/ladder_to_routes.py`, 13:05-13:06 CST. Each route was replayed on the fast sim and on the
+untouched game; all six won with the same final state and move count on both, 0 mismatches:
+XX1IAKXP (t0, 286 moves), 6YVBLGC3 (318), G4K8XTZL (267), 257HLXF1 (338), UT5JR15B (303), ILVQPF1D (318).
+Routes: `balatro-work/v6g/blue_gold_t0_routes.jsonl`, `blue_gold_t1_routes.jsonl`; log `v6g/blue_gold_verify.txt`
+(the t1 file's; the t0 file passed first, as its routes file is written only on PASS and the command chained on it).
+Blue Deck at Gold Stake is beaten (repo rule: a route that replays to the game's own win). Not yet published to wins/.
