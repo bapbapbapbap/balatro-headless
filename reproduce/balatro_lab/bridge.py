@@ -126,7 +126,7 @@ class Shadow:
                 boss.forced = next((run.hand[i] for i, c in enumerate(hand)
                                     if c.ability and c.ability.forced_selection), None)
         else:
-            run = LAB["Run"](None, deck="Red Deck")
+            run = LAB["Run"](None, **S.run_args(G))     # F2: the game's deck and stake
             run.unmapped = []
             by_id = {}
             for card, u in zip(lua_list(G.playing_cards), self.uids(G)):

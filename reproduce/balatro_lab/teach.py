@@ -21,6 +21,8 @@ For each seed (fresh seeds from random.Random("v6-teach"), never one of the 600 
     python3 teach.py --lab <balatro-lab> --src <source> --games 600 --workers 12 --out <dir> [--check]
     python3 teach.py --report <dir>
     --leak (B2): every hand decision is asked again with the draw pile shuffled; an honest teacher answers the same.
+    --back/--stake (fix F2): the game's deck and stake; the teacher's Run follows them (state.run_args).
+    --eval-seeds: the 600 eval seeds, to score the teacher where the student is scored (never a training folder).
 """
 from __future__ import annotations
 
@@ -121,10 +123,10 @@ class Student:
         return min(int(np.searchsorted(np.cumsum(p), self.rng.random() * p.sum())), len(p) - 1)
 
 
-def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False, student=None):
+def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False, student=None, back="b_red", stake=1):
     import mine as M
     from model import phase_member
-    o = sim.reset(seed, "b_red", 1)
+    o = sim.reset(seed, back, stake)
     G = sim.env.lua.globals().G
     if not TW.LOC:
         L = G.localization.descriptions
@@ -244,7 +246,7 @@ def play_game(sim, seed, bot_factory, check=False, max_steps=1500, leak=False, s
             o = sim.observe()
     prog = sim.progress
     out = {"seed": seed, "teacher": "Balatro Lab ValueBot (KvashaIhor/balatro-lab 3e09d47, VALUEBOT_WEIGHTS=hand)",
-           "won": bool(prog["won"]), "blinds": int(prog["blinds_beaten"]), "ante": int(prog["ante"]),
+           "back": back, "stake": stake, "won": bool(prog["won"]), "blinds": int(prog["blinds_beaten"]), "ante": int(prog["ante"]),
            "moves": sim.steps, "labeled": sum(d["labeled"] for d in decisions),
            "unmapped": dict(st["unmapped"]), "reorders": dict(st["reorders"]), "no_kind": dict(st["no_kind"]),
            "errors": dict(st["errors"]), "bridge_unmapped": dict(sh.unmapped)}
@@ -273,13 +275,19 @@ def worker(a):
         if f.startswith("games_w") and f.endswith(".jsonl"):
             done |= {json.loads(l)["seed"] for l in open(os.path.join(a.out, f))}
     with open(log, "a") as out:
-        seeds = seeds_from(a.seed_file)[a.first:a.first + a.games] if a.seed_file else teach_seeds(a.games, a.first)
+        if a.eval_seeds:
+            from common import eval_seeds
+            seeds = eval_seeds(600)[a.first:a.first + a.games]
+        elif a.seed_file:
+            seeds = seeds_from(a.seed_file)[a.first:a.first + a.games]
+        else:
+            seeds = teach_seeds(a.games, a.first)
         for seed in seeds:
             if seed in done:
                 continue
             t = time.time()
             try:
-                rec, decisions = play_game(sim, seed, ValueBot, a.check, a.max_steps, a.leak, student)
+                rec, decisions = play_game(sim, seed, ValueBot, a.check, a.max_steps, a.leak, student, a.back, a.stake)
                 with gzip.open(os.path.join(a.out, "games", f"{seed}.pkl.gz"), "wb") as f:
                     pickle.dump(decisions, f, protocol=4)
             except Exception:
@@ -346,7 +354,14 @@ def main() -> int:
     ap.add_argument("--student", help="stage 2 (DAgger): a v6 checkpoint plays; the teacher labels every state it reaches")
     ap.add_argument("--seed-file", help="play these seeds (one per line) instead of the teacher seeds; --first/--games "
                                         "index into it (re-measuring chosen games, e.g. after a bridge fix)")
+    ap.add_argument("--back", default="b_red", help="the game's deck (the teacher's Run follows it: fix F2)")
+    ap.add_argument("--stake", type=int, default=1, help="the game's stake, 1 White to 8 Gold (the teacher's Run follows it: F2)")
+    ap.add_argument("--eval-seeds", action="store_true",
+                    help="play the 600 eval seeds (--first/--games index into them), to score the teacher where the "
+                         "student is scored; never write these games into a training folder")
     a = ap.parse_args()
+    if a.eval_seeds:
+        a.games = min(a.games, 600 - a.first)
     if a.seed_file and a.workers > 1:
         a.games = min(a.games, len(seeds_from(a.seed_file)) - a.first)
     if a.report:
@@ -364,7 +379,9 @@ def main() -> int:
                                            "--first", str(a.first + k * per), "--max-steps", str(a.max_steps),
                                            "--out", a.out] + (["--seed-file", a.seed_file] if a.seed_file else [])
                                           + (["--student", a.student] if a.student else [])
-                                          + (["--check"] if a.check else []) + (["--leak"] if a.leak else [])))
+                                          + (["--check"] if a.check else []) + (["--leak"] if a.leak else [])
+                                          + ["--back", a.back, "--stake", str(a.stake)]
+                                          + (["--eval-seeds"] if a.eval_seeds else [])))
         for p in procs:
             p.wait()
         report(a.out)

@@ -112,3 +112,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-22, after chud's 18:03 CST message: DAgger round 1 and its twin scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1803-cst-message-dagger-round-1-and-its-twin-scored) | v6 |
 | [Added 2026-11-22, after chud's 18:10 CST message: the student at Gold, registered before it runs](hypotheses-v6.md#added-2026-11-22-after-chuds-1810-cst-message-the-student-at-gold-registered-before-it-runs) | v6 |
 | [Added 2026-11-22, after chud's 18:18 CST message: test S scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1818-cst-message-test-s-scored) | v6 |
+| [Added 2026-11-22, after chud's 18:26 CST message: fix F2 built, and the teacher on the eval seeds at any stake](hypotheses-v6.md#added-2026-11-22-after-chuds-1826-cst-message-fix-f2-built-and-the-teacher-on-the-eval-seeds-at-any-stake) | v6 |

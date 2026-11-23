@@ -104,11 +104,24 @@ def joker_state(name, ability, G):
     }.get(name, dict)()
 
 
+STAKES = ("White Stake", "Red Stake", "Green Stake", "Black Stake", "Blue Stake", "Purple Stake", "Orange Stake",
+          "Gold Stake")
+
+
+def run_args(G):
+    """Fix F2 (docs/hypotheses-v6.md, 2026-11-19): the game's own deck and stake, by Balatro Lab's names, for every Run
+    the bridge builds. Before F2 every Run was Red Deck at White Stake, whatever the game was playing. The game's
+    Back.name is the deck's English name (back.lua), which is Balatro Lab's; G.GAME.stake is 1-8 in the game's order."""
+    back = G.GAME.selected_back
+    deck = str(back.name) if back is not None and back.name else "Red Deck"
+    return {"deck": deck, "stake": STAKES[int(G.GAME.stake or 1) - 1]}
+
+
 def lab_run(G):
     """A Balatro Lab Run matching the harness's current round."""
     L = G.localization.descriptions
     Run = LAB["Run"]
-    run = Run(None, deck="Red Deck")
+    run = Run(None, **run_args(G))
     run.unmapped = []
     # cards: one Lab Card per game card, shared between deck / hand / draw pile like the game's
     by_id, uid = {}, 0

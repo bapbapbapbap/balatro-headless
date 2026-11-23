@@ -732,3 +732,20 @@ White), blind scaling 3, eternal, perishable and rental stickers in the shop, no
   chud's call: continuing to imitate needs the teacher's Gold rate (F2, then the teacher at Gold); training on our
   own reward does not. This test does not say which Gold rule does the damage (blind scaling, one fewer discard,
   stickers the student has never seen, the lost Small Blind money).
+
+## Added 2026-11-22, after chud's 18:26 CST message: fix F2 built, and the teacher on the eval seeds at any stake
+
+Claude's, reviewed by chud. Built as registered (2026-11-19, fix F2), for chud's request to run the teacher where
+the student was run (test S and the stake sweep).
+- `state.run_args(G)`: the game's deck (`G.GAME.selected_back.name`, the English name Balatro Lab uses) and stake
+  (`G.GAME.stake`, 1-8, mapped to Balatro Lab's "White Stake" ... "Gold Stake"). Every Run the bridge builds (in a
+  round, `state.lab_run`; outside one, `bridge.base_run`) is made with them. `twin.py` (--check) is unchanged.
+- `teach.py --back/--stake` start the game there; `--eval-seeds` plays the 600 eval seeds (these games are for
+  scoring and never go in a training folder). Each game's record carries its back and stake.
+- Cloud checks: at Red/White the Run F2 builds equals the pre-F2 Run field for field, so the teacher's moves there
+  are unchanged by construction. At Red/Gold it differs in exactly the stake fields, and they match the game: 3
+  discards, the scaling-3 table (300, 1,000, 3,200, 9,000, 25,000, 60,000, 110,000, 200,000). Smoke: the first 2
+  eval seeds at Gold, 0 errors, every decision labeled, 0 unmapped; the teacher reached ante 4 on both (10 blinds
+  each; the student, test S: 7 blinds, ante 3).
+- F2a as registered (moves identical on 20 seeds at Red/White) runs on the laptop: teacher seeds 3,600-3,619 (run
+  4's, made with the code just before F2) again with F2, compared move for move by `f2a_check.py`.
