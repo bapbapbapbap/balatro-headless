@@ -1,7 +1,7 @@
 # Beaten seeds
 
 <!-- tally:start -->
-**Seeds proven beatable: 1,229** (24 by model 0.1, 179 by model 0.2, 232 by model 0.3, 790 by model moe2, 4 by model v6dt; 4 on Red Deck, Purple Stake, 1,225 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
+**Seeds proven beatable: 1,323** (24 by model 0.1, 179 by model 0.2, 232 by model 0.3, 790 by model moe2, 98 by model v6dt; 30 on Red Deck, Black Stake, 18 on Red Deck, Blue Stake, 46 on Red Deck, Green Stake, 4 on Red Deck, Purple Stake, 1,225 on Red Deck, White Stake). Each one is a route in [`routes.jsonl`](routes.jsonl) that was replayed move for move to the same win before it was listed. This is the project's production count, updated each time wins are published.
 
 **naneinf seeds proven: 0.** A seed counts once its route in [`../naneinf/proven.jsonl`](../naneinf/proven.jsonl) replays move for move to a played hand with non-finite chips (see `naneinf/README.md`).
 

@@ -5,6 +5,11 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ## [Unreleased] - 2026-11-10
 
+### Added (2026-11-22, later)
+- **94 more wins above White, Red Deck, by v6dt** at eval temperature 0 (the same stake sweep): 46 at Green (stake 3),
+  30 at Black (4), 18 at Blue (5); each replayed on the fast sim and the untouched game to the same win
+  (`tools/ladder_to_routes.py`) before it was published. With the 4 at Purple: a win at every stake from 1 to 6.
+
 ### Added (2026-11-22)
 - **First wins above White Stake: 4 seeds at Purple Stake (6 of 8), Red Deck**, by model v6dt (branch `v6`,
   `docs/runs/v6dt.md`) at eval temperature 0: 6YVBLGC3, 5BI4KZK9, IIDM7FNT, 6MIUYVEA (4 of 600 eval seeds in the
