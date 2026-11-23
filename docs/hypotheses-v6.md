@@ -697,3 +697,24 @@ Reading:
 - Not tested here, so not a finding: why the labels hurt. One candidate is that the teacher's moves from the
   student's own (often losing) states pull the policy away from ordinary play. Round 1's antes 2-3 losses (32, 18)
   are above the twin's (14, 9) but close to v6e's (27, 25), so the early-ante numbers do not settle it.
+
+## Added 2026-11-22, after chud's 18:10 CST message: the student at Gold, registered before it runs
+
+The test is chud's (measure the student at Gold before running the teacher there), reviewed by Claude; the
+predictions are Claude's. Goal 1's working target is 5% at Gold stake (2026-11-20 section). The student plays our
+game directly, so this needs no bridge fix (F2 is the teacher's). The student's training games were all White
+stake, so its sticker features (eternal, perishable, rental; encode.lua) have only ever been 0.
+
+**Test S, the best student at Gold.** v6dt's `best.pt`, temperature 0, Red deck, Gold stake (`--stake 8`, the
+game's `stake_gold`, stake_level 8), the 600 registered eval seeds, `tools/eval_ladder.py`; output
+`balatro-work/gold/v6dt_t0_s8.jsonl`.
+- S1: wins between 6 and 24 (1-4%). 50%.
+- S2: fewer than 30 wins (below the 5% target). 85%.
+- S3: mean blinds per game below 12 (White: 17.23). 65%.
+
+Reading:
+- 30 wins or more (S2 miss): the working target is met without the teacher at Gold. The teacher's Gold rate becomes
+  a reference only, not a gate.
+- Fewer than 30: the next step depends on the route, which is chud's call. If imitation continues, the teacher's
+  Gold rate is needed (F2, then the teacher at Gold), since a student rarely passes its teacher by much. If training
+  on our own reward is next, the teacher's Gold rate matters little.
