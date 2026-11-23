@@ -718,3 +718,17 @@ Reading:
 - Fewer than 30: the next step depends on the route, which is chud's call. If imitation continues, the teacher's
   Gold rate is needed (F2, then the teacher at Gold), since a student rarely passes its teacher by much. If training
   on our own reward is next, the teacher's Gold rate matters little.
+
+## Added 2026-11-22, after chud's 18:18 CST message: test S scored
+
+Claude's, reviewed by chud. Laptop, 7849069, 18:11 → 18:13; `balatro-work/gold/v6dt_t0_s8.jsonl` (log `gold/s.txt`).
+Before it ran, a cloud check confirmed `--stake 8` starts the game's Gold rules: 3 discards with the Red deck (4 at
+White), blind scaling 3, eternal, perishable and rental stickers in the shop, no Small Blind reward.
+- 600 games, 0 errors. **Won 0** (95% upper bound 0.5%). 6.98 blinds per game (White: 17.23). Near wins 0.
+- Losses by ante: 1:46, 2:155, 3:233, 4:128, 5:32, 6:6. No game reached ante 7; 562 of 600 ended by ante 4
+  (White: 70 of 327 losses).
+- **S1 miss** (0, not 6-24). **S2 hit** (below 30). **S3 hit** (6.98 < 12).
+- Reading (as registered): the 5% target is not met by the student as it stands. The next step depends on the route,
+  chud's call: continuing to imitate needs the teacher's Gold rate (F2, then the teacher at Gold); training on our
+  own reward does not. This test does not say which Gold rule does the damage (blind scaling, one fewer discard,
+  stickers the student has never seen, the lost Small Blind money).
