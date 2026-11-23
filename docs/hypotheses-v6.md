@@ -812,3 +812,55 @@ paired seed for seed with the stake sweep's run without the setting (`gold/v6dt_
   or in the economy, and only training at those stakes addresses it. `shun_stickers` stays off; it does not join the
   delivery score. The build-value finding of the 19:15 section (Perishable priced as if it never expires, Rental's
   cost not counted) stands as a candidate input fix for that training, registered before its code if it is made.
+
+## Added 2026-11-22, after chud's 19:36 CST message: stage 3 at Gold (run v6g), registered before its code
+
+The route is chud's ("train a bot on gold difficulty... skip the balatrobot teacher"), reviewed by Claude; the
+design and predictions are Claude's, reviewed by chud. This is stage 3 as registered (2026-11-20: PPO from the best
+student, our reward alone, learning rate 5e-5, no imitation term, v4b's stall rule), run at Gold, with one addition.
+
+**Why no teacher at Gold.** Besides speed: the teacher ignores Rental and a Perishable's coming debuff and keeps
+White's survival constants (F2 section), and test X found the student's Gold loss is in living with stickered
+jokers, not in buying them. Teacher labels at Gold would be weakest exactly there. Under test S's registered fork
+(own reward: the teacher's Gold rate is not needed), teach_s8 and F2a are not run.
+
+**Dropped, with its reason: the sticker-pricing fix** (offer values, 19:15 section). Read in full,
+`H.offer_values` is the change in phi_build, a scoring-power measure projected PROJECT_ROUNDS = 6 rounds ahead.
+Every offered joker is fresh (`perish_tally = G.GAME.perishable_rounds = 5`, card.lua 517, game.lua 1914), so a
+Perishable offer is overvalued by at most its sixth round, about 1/6 of its value. Rental's $3 a round is money,
+and phi has no money term at all (dollars reach it only through Bull and Bootstraps): it is outside what the offer
+value measures, not a mispricing within it. The network already sees each item's sticker flags and price; under
+PPO at Gold those inputs get their first gradient. So the fix would move little and would add a second change to
+this run; it is not made.
+
+**Run v6g** (`configs/v6g.toml`): v6dt's settings without the imitation lines; `start = warm:runs/v6dt/best.pt`
+(fresh optimizer, round 0); Red deck, stake 8 alone (a `--stakes` mix would also mix the eval seeds, so the eval
+and best.pt would track the mix, not Gold); reward `blinds` with v4b's shaping and credit settings as in v6dt;
+lr 5e-5; eval every 20 rounds on the 600 eval seeds (temperature 1, as every in-run eval); stall rule 25 evals with
+no new best; 168-hour cap; no curriculum (its published starts are White wins).
+
+**The addition: a critic warm-up**, new setting `--critic-rounds N` (default 0, so every earlier run is unchanged).
+For rounds 0 to N-1 only the value heads' weights train (the policy heads and the trunks they share are frozen, so
+the policy is exactly v6dt's), then normal PPO. v6g: N = 10 (~960 games). Reason (Claude's reading, untested): v4c
+and v5 both fell for ~120 rounds after a fresh-optimizer warm start, and here the critic was fit to the teacher's
+White returns (~17 blinds a game) while the student gets ~7 at Gold, so the first advantages would be biased.
+A runtime guard: in a critic-only round the policy's measured KL over the update must be 0, or the run stops.
+
+**Agreement without imitation**, new setting `--agreement-from <teacher data>` (default off): the run's fixed
+agreement set (`agreement_set.json`, copied in from runs/v6dt by the setting `--agreement-set`) is scored at every
+eval as in stages 1-2, without running imitation. v6g scores it on teach_v6.
+
+**Predictions** (Claude's), scored when v6g stops:
+- G1: the value loss of critic round 9 is at most half of critic round 0's. 70%.
+- G2: no eval in rounds 20-120 falls more than 10% below round 0's eval (blinds/game), i.e. the warm-start dip of
+  v4c and v5 does not recur at that size. 50%.
+- G3: v6g's best in-run eval beats round 0's by at least 1.0 blinds/game. 55%.
+- G4: v6g's best.pt at temperature 0 on the 600 eval seeds at Gold (eval_ladder, paired with test S's run) wins at
+  least one game. 35%.
+- G5: that eval reaches the working target, 30 of 600 (5%). 5%.
+- G6: agreement with the teacher at v6g's best eval is at least 5 points below round 0's. 60%.
+- G7: v6g's best.pt at temperature 0 on the 600 eval seeds at White wins fewer than 258 (v6dt's 273 - 15). 40%.
+
+Reading: G3 + G4 hit → own reward at Gold works from the taught student; continue it and register the next lever
+(late-ante coverage, the round-margin input). G3 misses → PPO from the student does not climb at Gold either, as at
+White (v4c, v5); the next question is the update itself (learning rate, credit), not the stake.
