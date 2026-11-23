@@ -21,6 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from sim import Sim  # noqa: E402
 
+NOT_REPLAYED = {"phi_build"}     # shaping values the replay does not compute (sim.py replay)
+
 
 def records(paths, wins_only):
     files = []
@@ -66,9 +68,12 @@ def main():
                 problems.append("final state differs")
             # Compare the fields the saved game recorded (games saved before 2026-11-03 lack
             # final_boss / near_win). A final-boss loss saved as a win shows up here as won False.
-            got = {k: prog.get(k) for k in r["progress"]}
-            if got != r["progress"]:
-                problems.append(f"outcome {got} vs saved {r['progress']}")
+            # phi_build (model v4+'s build potential) is reward shaping, not game state: the replay skips it
+            # (sim.py replay), so it is not compared. Every game field still is.
+            got = {k: prog.get(k) for k in r["progress"] if k not in NOT_REPLAYED}
+            saved = {k: v for k, v in r["progress"].items() if k not in NOT_REPLAYED}
+            if got != saved:
+                problems.append(f"outcome {got} vs saved {saved}")
         n += 1
         wins += bool(r["progress"]["won"])
         if problems:
@@ -96,7 +101,8 @@ def check_save(args):
             print(f"LOCKED run {n + 1} seed {r['seed']}: {r.get('challenge') or r['back']} stake {r['stake']} "
                   f"wasn't selectable on the profile at that point")
         prog, steps, final, problems = sim.replay(r["seed"], r["back"], r["stake"], r["acts"], r["desc"], r.get("challenge"))
-        if not problems and (steps != r["n"] or final != r["final"] or {k: prog.get(k) for k in r["progress"]} != r["progress"]):
+        if not problems and (steps != r["n"] or final != r["final"] or {k: prog.get(k) for k in r["progress"] if k not in NOT_REPLAYED}
+                               != {k: v for k, v in r["progress"].items() if k not in NOT_REPLAYED}):
             problems.append("steps, final state or outcome differs")
         n += 1
         if problems:

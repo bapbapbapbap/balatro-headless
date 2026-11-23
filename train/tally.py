@@ -25,7 +25,10 @@ ROOT = os.path.dirname(HERE)
 # Which model a route came from, by the run folder its wins.jsonl was in. The A/B arms
 # (low/high, off/on) played from v1's weights.
 MODEL = {"v1": "0.1", "low": "0.1", "high": "0.1", "off": "0.1", "on": "0.1", "v2": "0.2", "v2b": "0.3"}
-DECK = {"b_red": "Red Deck"}
+DECK = {"b_red": "Red Deck", "b_blue": "Blue Deck", "b_yellow": "Yellow Deck", "b_green": "Green Deck",
+        "b_black": "Black Deck", "b_magic": "Magic Deck", "b_nebula": "Nebula Deck", "b_ghost": "Ghost Deck",
+        "b_abandoned": "Abandoned Deck", "b_checkered": "Checkered Deck", "b_zodiac": "Zodiac Deck",
+        "b_painted": "Painted Deck", "b_anaglyph": "Anaglyph Deck", "b_plasma": "Plasma Deck", "b_erratic": "Erratic Deck"}
 STAKE = {1: "White Stake", 2: "Red Stake", 3: "Green Stake", 4: "Black Stake", 5: "Blue Stake",
          6: "Purple Stake", 7: "Orange Stake", 8: "Gold Stake"}
 BLOCK = re.compile(r"(<!-- tally:start -->\n).*?(<!-- tally:end -->)", re.S)
