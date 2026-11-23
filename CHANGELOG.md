@@ -5,6 +5,15 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ## [Unreleased] - 2026-11-10
 
+### Added (2026-11-22)
+- **First wins above White Stake: 4 seeds at Purple Stake (6 of 8), Red Deck**, by model v6dt (branch `v6`,
+  `docs/runs/v6dt.md`) at eval temperature 0: 6YVBLGC3, 5BI4KZK9, IIDM7FNT, 6MIUYVEA (4 of 600 eval seeds in the
+  stake sweep, `balatro-work/gold/v6dt_t0_s6.jsonl`). Each was replayed on chud's laptop on the fast sim and on the
+  untouched game, move for move, both ending in the game's win with the same final state, before it was published.
+  Highest stake beaten: 6 of 8.
+- `tools/ladder_to_routes.py`: turns `tools/eval_ladder.py` wins into route records (`wins/routes.jsonl`'s format),
+  each kept only if the fast and the untouched replays both win with the same final state.
+
 ### Changed
 - **One launcher, one config per run.** `bash train/launch.sh <run> --work <dir> [--smoke]` runs
   `configs/<run>.toml`: its pre-flight checks (by name, `train/launch.py` `CHECKS`), then `train.py` with the
