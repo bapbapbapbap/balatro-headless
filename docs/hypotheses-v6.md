@@ -749,3 +749,34 @@ the student was run (test S and the stake sweep).
   each; the student, test S: 7 blinds, ante 3).
 - F2a as registered (moves identical on 20 seeds at Red/White) runs on the laptop: teacher seeds 3,600-3,619 (run
   4's, made with the code just before F2) again with F2, compared move for move by `f2a_check.py`.
+
+## Added 2026-11-22, after chud's 19:15 CST message: test X, the student kept off stickered jokers (registered before its code)
+
+The direction is chud's ("fix the Gold and Orange bug"), reviewed by Claude; the design and predictions are Claude's,
+reviewed by chud.
+
+**Already measured** (the stake sweep, `balatro-work/gold/sweep.txt`, v6dt temperature 0, Red deck, 600 eval seeds;
+read here only for this test, not scored): Purple 4 won, 9.69 blinds/game, 199 games over by ante 3; Orange 0, 8.39,
+293; Gold 0, 6.98, 434 (test S). Orange adds only Perishable stickers to Purple's rules and Gold only Rental, so the
+student's further loss above Purple comes from those two stickers. Its sticker inputs (encode.lua, item features 8-10)
+are read from the game correctly (env.lua, `card.ability`), but they were 0 in every training game (all White).
+Also found by reading: `H.offer_values`' build value (build_phi.lua) prices a Perishable joker as if it never expires
+until it has, and never counts Rental's $3 a round.
+
+**Test X** (eval only; new setting `shun_stickers`, off by default, so every earlier run replays unchanged). At every
+decision, buying (buy, buy_and_use) or picking (pack) a joker that carries a Perishable or Rental sticker is removed
+before the move is chosen, unless that would remove every move. Eternal is not touched (it arrives at Black, below
+Purple, where the student already wins). Counted per game: decisions filtered, and how often the model's own move was removed.
+Run: v6dt `best.pt`, temperature 0, Red deck, the 600 eval seeds, at Orange (stake 7) and Gold (stake 8), paired
+with the sweep's runs on the same seeds.
+- X1: at Gold, blinds/game rises from 6.98 to at least 8.0. 70%.
+- X2: at Gold, games over by ante 3 fall from 434 to at most 330. 60%.
+- X3: at Orange, blinds/game rises from 8.39 to at least 9.0. 60%.
+- X4: at least one win at Gold or Orange. 30%.
+- X5: at Gold the model's own move is removed in at least 1 game in 3 (it buys stickered jokers when it can). 75%.
+
+Reading: if X1-X3 hit, buying stickered jokers is most of the Orange/Gold loss; the setting joins the delivery score
+at those stakes and stays until a student trained with stickers no longer needs it (its removed-move count near 0).
+If they miss, the loss is in living with stickers or in the economy, not in the buying, and only training at those
+stakes addresses it. Either way the lasting fix is training where the stickers appear (the from-scratch run); this
+test measures how much of the gap is one avoidable choice.
