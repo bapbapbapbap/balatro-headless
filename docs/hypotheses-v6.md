@@ -790,3 +790,25 @@ counts filtered decisions and removed model moves; `tools/eval_ladder.py --shun-
 counts per game and prints them in the summary. Checked in the cloud without the game (its source is only on the
 laptop): the Lua parses, and on a stub shop and pack the flags come out as designed (perishable buy, rental pick and
 rental buy_and_use flagged; eternal buy, end_shop and an unstickered pick not). Off by default: no earlier run changes.
+
+## Added 2026-11-22, after chud's 19:26 CST message: test X scored
+
+Claude's, reviewed by chud. Laptop, c352a15; `balatro-work/gold/x_s7.jsonl`, `x_s8.jsonl` (log `gold/x.txt`), each
+paired seed for seed with the stake sweep's run without the setting (`gold/v6dt_t0_s7.jsonl`, `v6dt_t0_s8.jsonl`).
+
+| | blinds/game | paired change (z) | seeds better / worse / same | over by ante 3 | wins | model's move removed |
+|---|---|---|---|---|---|---|
+| Orange, without | 8.39 | | | 293 | 0 | |
+| Orange, test X | 7.80 | -0.59 (-5.24) | 129 / 206 / 265 | 345 | 0 | 1,162 times in 435 games |
+| Gold, without (test S) | 6.98 | | | 434 | 0 | |
+| Gold, test X | 6.12 | -0.86 (-6.62) | 159 / 298 / 143 | 455 | 0 | 3,152 times in 572 games |
+
+- **X1 miss** (6.12, not >= 8.0; it fell). **X2 miss** (455, not <= 330). **X3 miss** (7.80, not >= 9.0).
+  **X4 miss** (no win). **X5 hit** (the model's move was removed in 572 of 600 games at Gold).
+- Reading (as registered, the miss branch): buying stickered jokers is not the Orange/Gold loss. Keeping the student
+  off them costs it, significantly at both stakes: at those stakes stickered jokers are a large share of what the
+  shop and packs offer, and the jokers it buys are worth more to it than they cost, sticker included. The loss is in
+  living with the stickers (a Perishable joker it builds around going dead after five rounds; Rental's $3 a round)
+  or in the economy, and only training at those stakes addresses it. `shun_stickers` stays off; it does not join the
+  delivery score. The build-value finding of the 19:15 section (Perishable priced as if it never expires, Rental's
+  cost not counted) stands as a candidate input fix for that training, registered before its code if it is made.

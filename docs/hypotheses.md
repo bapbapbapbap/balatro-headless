@@ -115,3 +115,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-22, after chud's 18:26 CST message: fix F2 built, and the teacher on the eval seeds at any stake](hypotheses-v6.md#added-2026-11-22-after-chuds-1826-cst-message-fix-f2-built-and-the-teacher-on-the-eval-seeds-at-any-stake) | v6 |
 | [Added 2026-11-22, after chud's 19:15 CST message: test X, the student kept off stickered jokers (registered before its code)](hypotheses-v6.md#added-2026-11-22-after-chuds-1915-cst-message-test-x-the-student-kept-off-stickered-jokers-registered-before-its-code) | v6 |
 | [Added 2026-11-22: test X built (no results)](hypotheses-v6.md#added-2026-11-22-test-x-built-no-results) | v6 |
+| [Added 2026-11-22, after chud's 19:26 CST message: test X scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1926-cst-message-test-x-scored) | v6 |
