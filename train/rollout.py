@@ -27,6 +27,7 @@ from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402
 
 SURVIVE = {"filtered": 0, "changed": 0}   # test G counts (eval with --survive), per process
 STICKERS = {"filtered": 0, "changed": 0}  # test X counts (eval with --shun-stickers), per process
+NOSKIP = {"filtered": 0, "changed": 0}    # skip test counts (eval with --no-skip), per process
 
 def inject_at(args, kind):
     """Iterations where a fault is injected (testing the safety checks), e.g. --inject nan:3,crash:5"""
@@ -155,6 +156,15 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                         logits[0][torch.tensor([not x for x in ok])] = float("-inf")
                         STICKERS["filtered"] += 1
                         STICKERS["changed"] += int(not ok[before])
+                if mode == "eval" and getattr(args, "no_skip", 0):
+                    # skip test (docs/hypotheses-v6.md 2026-11-23): never skip a blind (action type 4, encode.lua ACTION)
+                    ok = [int(r[0]) != 4 for r in o["act"]]
+                    if any(ok) and not all(ok):
+                        before = int(logits[0].argmax())
+                        logits = logits.clone()
+                        logits[0][torch.tensor([not x for x in ok])] = float("-inf")
+                        NOSKIP["filtered"] += 1
+                        NOSKIP["changed"] += int(not ok[before])
                 temp = getattr(args, "eval_temp", 1.0) if mode == "eval" else 1.0
                 # eval temperature 0 = the most likely move (M1, docs/hypotheses-v6.md 2026-11-20); its probabilities
                 # stay the policy's own, so logp is still the move's log-probability at temperature 1

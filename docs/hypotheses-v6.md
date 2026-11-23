@@ -898,3 +898,54 @@ iteration 732, 70,272 games, 67 train wins) instead of by the registered stall r
 have restarted the 25-eval stall clock. The scored checkpoint is unchanged by the stop: best.pt is round 660's
 (eval 9.705, 1 win), sha256 4462f80e4b41fb9e..., written 09:21 CST; every prediction scored from best.pt (G4, G5,
 G7, chud's White-vs-Gold) uses that file. No temperature-0 eval of v6g had run when this section was committed.
+
+## Added 2026-11-23, after chud's 11:39 CST message: v6g scored at temperature 0 (G4, G5, G7, chud's prediction)
+
+Laptop, branch v6-win-attempts (1fcc1c1), 11:08-11:20 CST. v6g best.pt (round 660, sha256 4462f80e4b41fb9e...),
+Red deck, the 600 eval seeds, `tools/eval_ladder.py --temp 0`; outputs `balatro-work/gold/v6g_t0_s1.jsonl`,
+`v6g_t0_s8.jsonl`; scorer output `gold/v6g_white_gold.txt`. 0 errors.
+
+| | v6dt White | v6g White | v6dt Gold | v6g Gold |
+|---|---|---|---|---|
+| Wins | 273 | 174 | 0 | 0 |
+| Blinds beaten/game | 17.23 | 17.89 | 6.98 | 9.92 |
+| Mean ante reached | 7.29 | 6.56 | 2.94 | 3.91 |
+| Games with a skipped blind (lower bound) | 392 | 1 | 5 | 0 |
+| Wins with all 24 blinds beaten | 16 of 273 | 173 of 174 | - | - |
+
+- **chud's prediction (White, paired z > 2): NOT MET.** The opposite: 174 vs 273, discordant 51 / 150, z -6.98.
+- **G7 (White below 258): MET** (174). **G4 (≥1 Gold win at t0): NOT MET** (0 of 600; the test-S pairing is moot
+  at 0). **G5: NOT MET.** G1-G3 and G6 are scored from the run's logs in a later section.
+- **Correction to the scorer's compression line.** `score_white_gold.py` printed a blinds-per-game factor of 0.23.
+  Blinds beaten per game does not compare these two models: skipped blinds count as not beaten, and v6g stopped
+  skipping. Its White "gain" of +0.66 blinds is the skips it no longer makes. Measured by mean ante reached, which
+  skips don't affect, White moved -0.73 and Gold +0.97: a compression factor of about **-0.75**. The registered
+  definition (blinds/game) stands in the 23:12 section; this section records why it misleads here.
+- **Found, not predicted:** PPO on the `blinds` reward removed skipping (v6dt skipped in 392 of 600 White games;
+  257 of its 273 wins include a skip; v6g skipped once). The reward pays for each blind beaten, and a skip trades
+  that blind's reward for a tag. Whether this causes the White drop is untested; the next section registers a test.
+
+## Added 2026-11-23, after chud's 11:50 CST message: the skip test, registered before its code ran
+
+Claude's, reviewed by chud (chud: no prediction). Question: how much of v6g's White drop (273 -> 174) comes from
+no longer skipping blinds?
+
+**Design:** v6dt best.pt (the same file as `dagger/twin_t0.jsonl`), Red deck, White, temperature 0, the 600 eval
+seeds, with every `skip_blind` move removed from the legal set before the argmax (`tools/eval_ladder.py --no-skip 1`,
+new; default off, so every earlier eval is unchanged; the filter is in `train/rollout.py` next to tests G and X's
+and acts only in eval mode). Paired seed by seed with v6dt as it plays and with v6g. Scorer
+`tools/score_skip_test.py`. Output `balatro-work/gold/v6dt_t0_s1_noskip.jsonl`, `gold/skip_test.txt`.
+
+**Check:** the filter must change v6dt's move in some decisions (v6dt skips ≥1.9 blinds a game at White); if it
+changes none, the test did not run as registered.
+
+**Prediction (Claude's):**
+- S1: v6dt without skips wins 175-257 at White: skipping explains part of the drop, not all of it. 50%.
+  (Below 175, removing skips alone is as bad as all of v6g's changes: 15%. 258 or more, skipping is not the cause
+  at the size of the drop: 35%.)
+
+**Reading:** the share of the drop reproduced = (273 - no-skip wins) / (273 - 174). Near 100%: v6g's White loss is
+mostly the skips its reward taught it to give up, i.e. the reward's ought (count blinds) diverging from winning at
+one decision. Near 0%: the loss is elsewhere in the drift from the teacher (agreement fell 75% -> 53%).
+Caveat: removing skips puts v6dt in states it rarely reached (more shops and money, no tags), so this measures
+"v6dt forced not to skip", not "v6dt had it learned not to skip".

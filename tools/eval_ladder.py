@@ -36,7 +36,7 @@ def build(a):
     from sim import Sim, sim_kwargs
     ck = torch.load(a.weights, map_location="cpu", weights_only=False)
     cfg = dict(ck["provenance"]["config"])
-    cfg.update(src=a.src, verify_wins=False, save_games="none", eval_temp=a.temp, survive=a.survive, shun_stickers=a.shun_stickers, back=a.back, stake=a.stake,
+    cfg.update(src=a.src, verify_wins=False, save_games="none", eval_temp=a.temp, survive=a.survive, shun_stickers=a.shun_stickers, no_skip=a.no_skip, back=a.back, stake=a.stake,
                backs=[], stakes=[], challenges=[])
     args = Namespace(**cfg)
     sim = Sim(args.src, args.mods, mode=args.actions, enc=args.enc, **sim_kwargs(args))
@@ -80,6 +80,7 @@ def one_seed(seed):
         import rollout
         rollout.SURVIVE.update(filtered=0, changed=0)
         rollout.STICKERS.update(filtered=0, changed=0)
+        rollout.NOSKIP.update(filtered=0, changed=0)
         ep = T.play_games(m["sim"], m["model"], G["R"][m["args"].reward], random.Random(0), m["args"], 0,
                           (m["state"], [seed], "eval", m["it"], 0), set())[0]
         p = ep["progress"]
@@ -87,7 +88,8 @@ def one_seed(seed):
                 "blinds": p["blinds_beaten"], "ante": p["ante"], "capped": bool(ep["capped"]),
                 "seconds": round(time.time() - t0, 2), "acts": ep["acts"],
                 **({"survive": dict(rollout.SURVIVE)} if m["args"].survive else {}),
-                **({"stickers": dict(rollout.STICKERS)} if getattr(m["args"], "shun_stickers", 0) else {})}
+                **({"stickers": dict(rollout.STICKERS)} if getattr(m["args"], "shun_stickers", 0) else {}),
+                **({"no_skip": dict(rollout.NOSKIP)} if getattr(m["args"], "no_skip", 0) else {})}
     except Exception:
         return {"seed": seed, "error": traceback.format_exc()[-3000:]}
 
@@ -138,6 +140,8 @@ def main():
                     "when a safe play exists (docs/hypotheses-v6.md, 2026-11-21 23:42)")
     ap.add_argument("--shun-stickers", type=int, default=0, help="test X: never buy or pick a joker with a "
                     "Perishable or Rental sticker (eval only)")
+    ap.add_argument("--no-skip", type=int, default=0, help="skip test: never skip a blind (every skip_blind move "
+                    "removed; counts filtered decisions and changed moves)")
     ap.add_argument("--back", default="b_red")
     ap.add_argument("--stake", type=int, default=1, help="1 White ... 8 Gold")
     ap.add_argument("--games", type=int, default=600)
@@ -152,7 +156,7 @@ def main():
         ap.error("--src, --weights and --out are needed to play")
     from common import eval_seeds
     seeds = eval_seeds(a.games)
-    run = {"weights": os.path.abspath(a.weights), "policy": a.policy, "temp": a.temp, "survive": a.survive, "shun_stickers": a.shun_stickers, "back": a.back,
+    run = {"weights": os.path.abspath(a.weights), "policy": a.policy, "temp": a.temp, "survive": a.survive, "shun_stickers": a.shun_stickers, "no_skip": a.no_skip, "back": a.back,
            "stake": a.stake, "games": a.games, "init_seed": a.init_seed if a.policy == "untrained" else None}
     done = set()
     if os.path.exists(a.out):
