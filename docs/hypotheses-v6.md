@@ -864,3 +864,27 @@ eval as in stages 1-2, without running imitation. v6g scores it on teach_v6.
 Reading: G3 + G4 hit → own reward at Gold works from the taught student; continue it and register the next lever
 (late-ante coverage, the round-margin input). G3 misses → PPO from the student does not climb at Gold either, as at
 White (v4c, v5); the next question is the update itself (learning rate, credit), not the stake.
+
+## Added 2026-11-22, after chud's 23:12 CST message: chud's White-vs-Gold prediction, registered before its evals
+
+chud's, reviewed by Claude. Registered while v6g trains (round ~170), before any temperature-0 eval of its best.pt.
+
+**The prediction, in chud's words (23:05-23:10):** "the bot trained on gold stake will have a much better white
+stake rate afterwards"; "a model this good at reaching x is better at reaching x-difficulty." His scope (23:12):
+White and Gold only. It is the opposite of G7 (Claude's).
+
+**Scored:** v6g's best.pt (as it stands when v6g stops), Red deck, White stake, temperature 0, the 600 eval seeds
+(`tools/eval_ladder.py`), paired seed by seed with v6dt's same eval (`balatro-work/dagger/twin_t0.jsonl`, 273 wins).
+**Met** if v6g wins more games and the paired z = (b - c) / sqrt(b + c) over discordant seeds is above 2. At the
+discordance measured between v6dt and its DAgger round (169 seeds) that is about +26 wins (~299 of 600); more
+discordance raises it. "Much" has no threshold; the gain is printed.
+
+**Computed alongside (no verdict):** the same paired numbers at Gold against `balatro-work/gold/v6dt_t0_s8.jsonl`
+(0 wins, 6.98 blinds/game), and the compression factor = White gain / Gold gain in blinds per game (wins at Gold
+too few for a ratio), plus the ratio in wins when the Gold win gain is not 0.
+
+**Pipeline, run once v6g stops (stall rule or 168 h):** the two evals G4 and G7 already need, then the scorer,
+committed here with this section: `tools/score_white_gold.py --white-new <v6g White t0> --white-old
+dagger/twin_t0.jsonl --gold-new <v6g Gold t0> --gold-old gold/v6dt_t0_s8.jsonl`. Outputs
+`balatro-work/gold/v6g_t0_s1.jsonl`, `v6g_t0_s8.jsonl`, `v6g_white_gold.txt`. Checked on existing files: DAgger
+round 1 vs its twin gives z -2.23 (70 vs 99 discordant), as recorded in step 3.

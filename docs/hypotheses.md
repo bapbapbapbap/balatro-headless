@@ -117,3 +117,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-22: test X built (no results)](hypotheses-v6.md#added-2026-11-22-test-x-built-no-results) | v6 |
 | [Added 2026-11-22, after chud's 19:26 CST message: test X scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1926-cst-message-test-x-scored) | v6 |
 | [Added 2026-11-22, after chud's 19:36 CST message: stage 3 at Gold (run v6g), registered before its code](hypotheses-v6.md#added-2026-11-22-after-chuds-1936-cst-message-stage-3-at-gold-run-v6g-registered-before-its-code) | v6 |
+| [Added 2026-11-22, after chud's 23:12 CST message: chud's White-vs-Gold prediction, registered before its evals](hypotheses-v6.md#added-2026-11-22-after-chuds-2312-cst-message-chuds-white-vs-gold-prediction-registered-before-its-evals) | v6 |
