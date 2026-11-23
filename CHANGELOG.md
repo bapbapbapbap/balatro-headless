@@ -5,6 +5,12 @@ All notable changes to this project. Dates are YYYY-MM-DD.
 
 ## [Unreleased] - 2026-11-10
 
+### Added (2026-11-22, branch v6-win-attempts; merge after v6g stops)
+- **Each game records its attempt on its seed** (`attempt` in `games/*.jsonl.gz`, `wins.jsonl`, `near_wins.jsonl`):
+  1 = first sight of the seed in this run, k = the k-th game on it. Train rounds with a win print
+  `won on attempt <seed> #k`. Logging only: no setting, reward or update changes. `tools/win_attempts.py
+  <run folder>` lists every win's attempt, rebuilt from the saved games for runs without the field (v6g).
+
 ### Changed
 - **One launcher, one config per run.** `bash train/launch.sh <run> --work <dir> [--smoke]` runs
   `configs/<run>.toml`: its pre-flight checks (by name, `train/launch.py` `CHECKS`), then `train.py` with the

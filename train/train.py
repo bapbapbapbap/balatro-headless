@@ -436,6 +436,8 @@ def main():
             sd, p = e["seed"], e["progress"]
             arm = source.get(sd, "fresh")
             e["arm"] = arm
+            # this game's attempt on its seed in this run: 1 = first sight (fresh); the pool's "attempts" counts retries
+            e["attempt"] = 1 if arm == "fresh" else (e.get("_prev_entry") or {}).get("attempts", 0) + 2
             arms[arm]["games"] += 1
             arms[arm]["wins"] += int(p["won"])
             if arm != "fresh":
@@ -468,7 +470,7 @@ def main():
                  "found_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
-                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 "retry": e.get("retry", False), "arm": e.get("arm"), "attempt": e.get("attempt"), "actions": args.actions, "enc": args.enc,
                  **({"curriculum": e["curriculum"]} if e.get("curriculum") else {}),
                  **({"moe": e.get("moe")} if args.moe else {}),
                  **({"stop_ante": args.stop_ante, "reached": e.get("reached", False)} if args.stop_ante else {}),
@@ -922,6 +924,8 @@ def main():
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
                   + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
+                  + (" | won on attempt " + ", ".join(f"{e['seed']} #{e['attempt']}" for e in eps
+                     if e["progress"]["won"] and e.get("attempt")) if any(e["progress"]["won"] and e.get("attempt") for e in eps) else "")
                   + " | alloc " + " ".join(f"{a[0] if a == 'fresh' else a}:{round_alloc[a]}" for a in ARMS if round_alloc[a])
                   + f" | waiting {sum(len(v) for v in pools.values())} beaten seeds {len(beaten)}"
                   + (f" | curriculum {cur_rec['games']} games (replay {cur_rec['replay_share_of_play']:.0%} of play)" if cur_rec else "")
