@@ -18,6 +18,7 @@ CHANGELOG, `wins/`), unedited.
 | [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | stage 1: 78/600, agreement 68.0% | – |
 | [v6d](v6d.md) | – | 2026-11-19 → | model v6 stage 2: DAgger rounds (student plays, teacher labels); round 1 from v6e, 600 games (re-registered 11-21) | round 1: 183/600 (t0: 244); agreement 76.3%; below its twin | – |
 | [v6dt](v6dt.md) | – | 2026-11-21 → | model v6: DAgger's attribution twin (round 1's training without the DAgger games) | 187/600 (t0: 273, best student); agreement 75.4% | – |
+| [v6g](v6g.md) | – | 2026-11-22 → | model v6, stage 3 at Gold: PPO on our reward from v6dt, 10 critic-only rounds first, no teacher | – | – |
 | [v6m2](v6m2.md) | – | 2026-11-20 → | model v6 step 1, M2: stage 1's imitation continued | built, not run | – |
 | [v6c450](v6c450.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 450 teacher games | built, not run | – |
 | [v6c900](v6c900.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 900 teacher games | built, not run | – |

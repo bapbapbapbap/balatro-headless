@@ -142,6 +142,14 @@ def build_parser():
                          "best eval and stall clock); the play-value weights start at 0 (ported from v4c's warm start)")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
+    ap.add_argument("--critic-rounds", type=int, default=0,
+                    help="v6g: for rounds 0 to N-1 train only the value heads (policy heads and shared trunks frozen, "
+                         "so the policy is unchanged), then normal PPO (docs/hypotheses-v6.md, 2026-11-22 19:36 section)")
+    ap.add_argument("--agreement-from",
+                    help="v6g: teacher data (as --imitate) to score the fixed agreement set on at every eval, "
+                         "without running imitation")
+    ap.add_argument("--agreement-set",
+                    help="v6g: an agreement_set.json to copy into the run folder if it has none")
     ap.add_argument("--vf", type=float, default=0.5)
     ap.add_argument("--grad-clip", type=float, default=0.5)
     ap.add_argument("--device", default="auto")

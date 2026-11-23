@@ -23,6 +23,7 @@ import math
 import os
 import platform
 import random
+import shutil
 import signal
 import subprocess
 import sys
@@ -658,11 +659,14 @@ def main():
         """Top-1 agreement with the teacher on the run's fixed agreement set (v6), or None."""
         nonlocal agree_decs
         ref = os.path.join(out, "agreement_set.json")
-        if not args.imitate or not os.path.exists(ref):
+        teacher = args.imitate or args.agreement_from      # v6g: the set scored without imitation
+        if teacher and not os.path.exists(ref) and args.agreement_set:
+            shutil.copyfile(args.agreement_set, ref)
+        if not teacher or not os.path.exists(ref):
             return None
         from imitate import decisions_of, score, where
         if agree_decs is None:
-            agree_decs = decisions_of(where(args.imitate), [tuple(r) for r in json.load(open(ref))])
+            agree_decs = decisions_of(where(teacher), [tuple(r) for r in json.load(open(ref))])
         r = score(model, agree_decs, device, args.minibatch)
         return {"agreement": round(r["agree"], 4), "agreement_table": round(r["agree_table"], 4),
                 "agreement_shop": round(r["agree_shop"], 4), "agreement_n": r["n"]}
@@ -801,7 +805,16 @@ def main():
             snap_m = {k: v.detach().clone() for k, v in model.state_dict().items()}
             snap_o = copy.deepcopy(opt.state_dict())
             args.decisions_done = decisions_total     # the shop's entropy schedule (v4) counts training decisions
-            st = ppo_update(model, opt, eps, args, device, sil)
+            critic_only = it < args.critic_rounds
+            st = ppo_update(model, opt, eps, args, device, sil, critic_only=critic_only)
+            if critic_only:
+                # v6g's guard: a critic round must leave the policy exactly as it was
+                from ppo import value_param
+                now_sd = model.state_dict()
+                changed = [k for k, v in snap_m.items() if not value_param(k) and not torch.equal(v, now_sd[k])]
+                if changed:
+                    raise Stop(f"critic round {it} changed {len(changed)} policy weights (first: {changed[0]})")
+                st["critic_only"] = 1.0
             decisions_total += sum(len(e["steps"]) for e in eps)
             if it in nan_at:
                 with torch.no_grad():
