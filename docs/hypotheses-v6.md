@@ -662,3 +662,38 @@ Claude's, reviewed by chud. `balatro-work/teach_v6/games_w3600.jsonl` to `w5250`
 - 405,492 decisions; **13 unmapped = 0.003%** (pack:skip 8, round:use 4, round:discard 1). **D4 hit.**
 - Ante-1 losses 12. `teach.py --report` over the whole folder: 5,399 games, 1 error, 3,711 won = 68.7% (±1.2).
 - DAgger round 1 and its twin (`train/step3.sh`, registered in the 2026-11-21 23:42 section) train on all of these.
+
+## Added 2026-11-22, after chud's 18:03 CST message: DAgger round 1 and its twin scored
+
+Claude's, reviewed by chud. `train/step3.sh` on the laptop (e0ff1f5), 11-22 09:48 → 17:56; log
+`balatro-work/step3.txt`. Both trained from v6e's `best.pt` with a fresh optimizer, up to 8 passes, stage 1's
+agreement set; the temperature-0 evals are `balatro-work/dagger/r1_t0.jsonl` and `twin_t0.jsonl` (600 eval seeds,
+0 errors each).
+
+| | trained on | kept pass | agreement (table, shop) | t1 | **t0** | t0 losses by ante 1-8 |
+|---|---|---|---|---|---|---|
+| v6e (step 2) | 3,599 teacher games | 15 of 16 | 74.1% (54.3, 81.4) | 132 | 254 (42.3%) | 29, 27, 25, 25, 42, 52, 69, 77 |
+| round 1 (v6d-r1) | teach_v6 + dagger/d1: 5,648 (351 held out) | 6 of 8 | 76.3% (58.6, 82.9) | 183 | **244 (40.7%, 95% 36.8-44.6)** | 23, 32, 18, 24, 43, 66, 70, 80 |
+| twin (v6dt) | teach_v6: 5,085 (314 held out) | 7 of 8 | 75.4% (56.0, 82.9) | 187 | **273 (45.5%, 95% 41.6-49.5)** | 15, 14, 9, 32, 56, 48, 72, 81 |
+
+Paired at temperature 0 (seeds won by only one of the two):
+- round 1 vs twin: 70 vs 99, z = -2.23.
+- twin vs v6e: 93 vs 74, z = 1.47.
+- round 1 vs v6e: 77 vs 87, z = -0.78.
+
+- **D5 miss** (round 1 244 < twin 273; the twin is ahead, z = -2.23).
+- **D6 miss** (round 1's ante-1 losses 23, not <= 15).
+- **D7 miss** (244, not >= 290).
+
+Reading:
+- Adding DAgger round 1's labels to the same training cost about 29 temperature-0 wins against the twin. Round 1
+  does not beat its twin, so the condition the plan set for a round 2 (round 1 beats its twin) is not met. Whether
+  DAgger gets another design is chud's call.
+- The twin is the best student so far: 273 at temperature 0 (v6e 254, z = 1.47, not significant alone). Its gain
+  over v6e mixes two things the design does not separate: run 4's 1,800 teacher games and 8 more passes from v6e.
+- Agreement on stage 1's agreement set did not track wins: round 1 agreed more (76.3% vs 75.4%) and won fewer.
+  Round 1's kept pass was chosen on a held-out set that includes DAgger games, so the two runs' pass choices are
+  not on the same footing.
+- Not tested here, so not a finding: why the labels hurt. One candidate is that the teacher's moves from the
+  student's own (often losing) states pull the policy away from ordinary play. Round 1's antes 2-3 losses (32, 18)
+  are above the twin's (14, 9) but close to v6e's (27, 25), so the early-ante numbers do not settle it.

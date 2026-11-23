@@ -6,8 +6,11 @@ every state the student reaches; then the student is trained again on every teac
 weights, and scored on the 600 eval seeds with agreement. Rounds stop when eval wins fail to rise two rounds in a
 row.
 
-**Status:** built 2026-11-19 (branch `gap-check`), not run. Runs only if stage 1's reading calls for it (the rule
-in the 2026-11-19 roadmap section).
+**Status:** round 1 ran 2026-11-22 (from v6e, 600 games, by `train/step3.sh`); no round 2.
+
+**Result (2026-11-22):** round 1 kept pass 6 of 8; 183/600 at temperature 1, **244/600 (40.7%) at temperature 0**;
+agreement 76.3% (hand 58.6%, shop 82.9%). Its twin [v6dt](v6dt.md) won 273 at temperature 0 (paired z = -2.23
+against round 1): D5, D6 and D7 missed. Scored in docs/hypotheses-v6.md (2026-11-22, after chud's 18:03 CST message).
 
 **A round** (from chud's clone, after stage 1):
 

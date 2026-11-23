@@ -16,8 +16,8 @@ CHANGELOG, `wins/`), unedited.
 | [v4b](v4b.md) | – | 2026-11-10 → | v4 + hand clock on the table's lambda, hand exploration off | stopped at round 280 on the sell stop (best eval 8.31, round 240); **continues with the stop off** | – |
 | [v5](v5.md) | – | 2026-11-15 → 11-16 | v4b warm start + play values | stopped by chud at round 278 (best eval stayed round 0's, 13.40) | – |
 | [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | stage 1: 78/600, agreement 68.0% | – |
-| [v6d](v6d.md) | – | 2026-11-19 → | model v6 stage 2: DAgger rounds (student plays, teacher labels); round 1 from v6e, 600 games (re-registered 11-21) | built, not run | – |
-| [v6dt](v6dt.md) | – | 2026-11-21 → | model v6: DAgger's attribution twin (round 1's training without the DAgger games) | built, not run | – |
+| [v6d](v6d.md) | – | 2026-11-19 → | model v6 stage 2: DAgger rounds (student plays, teacher labels); round 1 from v6e, 600 games (re-registered 11-21) | round 1: 183/600 (t0: 244); agreement 76.3%; below its twin | – |
+| [v6dt](v6dt.md) | – | 2026-11-21 → | model v6: DAgger's attribution twin (round 1's training without the DAgger games) | 187/600 (t0: 273, best student); agreement 75.4% | – |
 | [v6m2](v6m2.md) | – | 2026-11-20 → | model v6 step 1, M2: stage 1's imitation continued | built, not run | – |
 | [v6c450](v6c450.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 450 teacher games | built, not run | – |
 | [v6c900](v6c900.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 900 teacher games | built, not run | – |
