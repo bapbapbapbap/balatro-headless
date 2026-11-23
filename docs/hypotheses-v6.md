@@ -888,3 +888,13 @@ committed here with this section: `tools/score_white_gold.py --white-new <v6g Wh
 dagger/twin_t0.jsonl --gold-new <v6g Gold t0> --gold-old gold/v6dt_t0_s8.jsonl`. Outputs
 `balatro-work/gold/v6g_t0_s1.jsonl`, `v6g_t0_s8.jsonl`, `v6g_white_gold.txt`. Checked on existing files: DAgger
 round 1 vs its twin gives z -2.23 (70 vs 99 discordant), as recorded in step 3.
+
+## Added 2026-11-23, after chud's 11:06 CST message: v6g stopped by hand at round 731, before its evals
+
+chud's call, reviewed by Claude. v6g was stopped with Ctrl+C (SIGINT; health.json "stopped: interrupted (Ctrl+C)",
+iteration 732, 70,272 games, 67 train wins) instead of by the registered stall rule, which would have fired at round
+1160 at the earliest. Reason (chud): growth had stalled. In-run evals (temperature 1, 600 seeds) since round 600 were
+9.678, 9.467, 9.697, 9.705, 9.512, 9.573, 9.547: flat within eval noise, and a lucky eval above 9.705 would only
+have restarted the 25-eval stall clock. The scored checkpoint is unchanged by the stop: best.pt is round 660's
+(eval 9.705, 1 win), sha256 4462f80e4b41fb9e..., written 09:21 CST; every prediction scored from best.pt (G4, G5,
+G7, chud's White-vs-Gold) uses that file. No temperature-0 eval of v6g had run when this section was committed.
