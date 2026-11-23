@@ -949,3 +949,17 @@ mostly the skips its reward taught it to give up, i.e. the reward's ought (count
 one decision. Near 0%: the loss is elsewhere in the drift from the teacher (agreement fell 75% -> 53%).
 Caveat: removing skips puts v6dt in states it rarely reached (more shops and money, no tags), so this measures
 "v6dt forced not to skip", not "v6dt had it learned not to skip".
+
+## Added 2026-11-23, after chud's 12:21 CST message: the skip test scored
+
+Laptop, 8f8cbe4, 11:52-12:00 CST; `balatro-work/gold/v6dt_t0_s1_noskip.jsonl`, `gold/skip_test.txt`. 0 errors.
+Check passed: 8,143 decisions had a skip removed; 1,441 changed v6dt's move (2.40 a game).
+
+- v6dt without skips: **259** wins (v6dt 273, v6g 174); mean ante reached 7.24 (7.29, 6.56); vs v6dt discordant
+  63 / 77, z -1.18 (not significant). Losses by ante 1:16, 2:15, 3:11, 4:22, 5:53, 6:66, 7:78, 8:80.
+- Share of v6g's White drop reproduced by removing skips: **14%**.
+- **S1 (175-257): NOT MET**, in the bin given 35% (258 or more: skipping is not the cause at the size of the drop).
+
+Reading (as registered): v6g's lost skipping is real but is not what costs it at White. About 85 of the 99 lost wins
+are elsewhere in its drift from v6dt. Where v6g loses more than v6dt at White: antes 3-6 (losses 23/49/90/71 vs
+9/32/56/48), i.e. the mid-game, not the late antes where v6dt's own losses sit.
