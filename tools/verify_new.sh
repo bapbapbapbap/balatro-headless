@@ -44,4 +44,5 @@ for f in glob.glob(f"{sys.argv[1]}/shard*.log"):
     n += int(m.group(1)); bad += int(m.group(2))
 print(f"total: {n} routes replayed on the untouched game, {bad} problems -> {'PASS' if n and not bad else 'FAIL'}")
 print(f"logs: {sys.argv[1]}")
+sys.exit(0 if n and not bad else 1)
 EOF
