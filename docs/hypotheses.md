@@ -123,3 +123,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-23, after chud's 11:50 CST message: the skip test, registered before its code ran](hypotheses-v6.md#added-2026-11-23-after-chuds-1150-cst-message-the-skip-test-registered-before-its-code-ran) | v6 |
 | [Added 2026-11-23, after chud's 12:21 CST message: the skip test scored](hypotheses-v6.md#added-2026-11-23-after-chuds-1221-cst-message-the-skip-test-scored) | v6 |
 | [Added 2026-11-23, after chud's 12:24 CST message: v6g on Blue Deck at Gold, zero-shot, registered before it runs](hypotheses-v6.md#added-2026-11-23-after-chuds-1224-cst-message-v6g-on-blue-deck-at-gold-zero-shot-registered-before-it-runs) | v6 |
+| [Added 2026-11-23, after chud's 13:02 CST message: v6g on Blue Deck at Gold scored (B1, B2)](hypotheses-v6.md#added-2026-11-23-after-chuds-1302-cst-message-v6g-on-blue-deck-at-gold-scored-b1-b2) | v6 |

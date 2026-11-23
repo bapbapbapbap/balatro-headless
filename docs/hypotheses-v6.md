@@ -976,3 +976,16 @@ through its contents and the HUD.
 - **B2, a win for the ladder:** the same at temperature 1 on 3,000 eval seeds (the registered 600 plus their
   extension), `gold/v6g_t1_s8_blue.jsonl`. Not a rate claim: a search for a Blue Gold route that replays.
   Prediction: at least 1 win, 55%.
+
+## Added 2026-11-23, after chud's 13:02 CST message: v6g on Blue Deck at Gold scored (B1, B2)
+
+Laptop, 54f2371, 12:24-12:55 CST; `balatro-work/gold/v6g_t0_s8_blue.jsonl`, `v6g_t1_s8_blue.jsonl`, `gold/blue.txt`.
+0 errors in both.
+
+- **B1, transfer (temperature 0, the 600 seeds):** mean ante reached **4.38** vs Red Gold's 3.91, paired +0.47,
+  z 9.77: **MET** (70%). **1 win** (XX1IAKXP; Red Gold had 0): **MET** (25%). Near wins 4. Losses by ante
+  1:16, 2:33, 3:86, 4:163, 5:204, 6:76, 7:16, 8:5.
+- **B2, win search (temperature 1, 3,000 seeds):** **5 wins** (6YVBLGC3, G4K8XTZL, 257HLXF1, UT5JR15B, ILVQPF1D),
+  0.17%; 11 near wins; 10.95 blinds/game: **MET** (55%).
+- None of the six counts as beaten until its route replays on the fast sim and the untouched game to the game's own
+  win (`tools/ladder_to_routes.py`, brought over from branch purple-wins, a525fbb, unchanged).
