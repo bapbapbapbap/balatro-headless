@@ -963,3 +963,16 @@ Check passed: 8,143 decisions had a skip removed; 1,441 changed v6dt's move (2.4
 Reading (as registered): v6g's lost skipping is real but is not what costs it at White. About 85 of the 99 lost wins
 are elsewhere in its drift from v6dt. Where v6g loses more than v6dt at White: antes 3-6 (losses 23/49/90/71 vs
 9/32/56/48), i.e. the mid-game, not the late antes where v6dt's own losses sit.
+
+## Added 2026-11-23, after chud's 12:24 CST message: v6g on Blue Deck at Gold, zero-shot, registered before it runs
+
+chud's call (Blue first), predictions Claude's. v6g best.pt (round 660, sha256 4462f80e4b41fb9e...), no training on
+Blue. Blue = Red's 52 cards with +1 hand per round (Red has +1 discard instead); the network sees the deck only
+through its contents and the HUD.
+
+- **B1, transfer:** `tools/eval_ladder.py --back b_blue --stake 8 --temp 0`, the 600 eval seeds, paired seed by seed
+  with Red Gold (`gold/v6g_t0_s8.jsonl`: 0 wins, mean ante 3.91). Prediction: mean ante reached higher than Red's
+  (the extra hand), 70%; at least 1 win, 25%. Output `gold/v6g_t0_s8_blue.jsonl`.
+- **B2, a win for the ladder:** the same at temperature 1 on 3,000 eval seeds (the registered 600 plus their
+  extension), `gold/v6g_t1_s8_blue.jsonl`. Not a rate claim: a search for a Blue Gold route that replays.
+  Prediction: at least 1 win, 55%.
