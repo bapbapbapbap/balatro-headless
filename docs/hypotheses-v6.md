@@ -1040,3 +1040,18 @@ rates are about 100x lower; what differs is that v6g trained on one deck and eve
 chud's decision (21:49): the project stays internal for now, citing Balatro Lab and AnteZero.
 
 Still owed for v6g: G1-G3 and G6 from the run's logs.
+
+## Added 2026-11-25, after chud's 22:31 CST message: correction to the prior-art paragraph of the 22:00 section
+
+Claude's, reviewed by chud. The 22:00 section said that what differs from AnteZero is that v6g trained on one deck.
+That is wrong. AnteZero's history (tags in its repository, read 2026-11-25): v0.1.0, tagged 2026-11-12 (commit
+ed13c5a), README: trained on Red Deck, White Stake only, about 91% there, and zero-shot at Gold Stake 1-2% on Red,
+Blue, Yellow, Green, Magic and Zodiac (about 1,024 games per cell; the other nine decks round to 0%). v0.2.0, tagged
+2026-11-20 (commit 426c6ba), trained on all 15 decks and 8 stakes: Gold 3-24% per deck, about 12% overall. Dates are
+publication dates; when AnteZero first won at Gold is not known, only that it was no later than those dates.
+
+v6g's first Gold win was 2026-11-22 (training) and its 15th deck 2026-11-24 05:15 CST. So AnteZero was ahead both in
+achievement (no later than 11-12 for zero-shot Gold from a one-deck White policy on six decks, no later than 11-20
+for all 15) and in publication. What remains distinct about v6g's record is the evidence form: every win is a route
+on the game's own code, re-chosen by the frozen policy and replayed on the untouched game; AnteZero reports rates
+from its Rust reimplementation, without per-win routes as far as its README shows.

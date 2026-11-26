@@ -3,6 +3,15 @@
 Dates are YYYY-MM-DD. Everything before 2026-11-25 (tooling versions 0.1.0 to 0.13.x and the unreleased v4-v6 work)
 is in the CHANGELOG at the tag `archive-2026-11-25` (`git show archive-2026-11-25:CHANGELOG.md`).
 
+## 2026-11-25 (later): front page
+### Changed
+- README cut to two screens: the claim, how to replay a win, one results table, limits, related work, links. Its
+  layout follows the front pages of AnteZero and Atol8/balatro-ai. The harness checks moved to `docs/REPRODUCE.md`.
+- The long tally now lives only in `wins/README.md`; the front page keeps the badges (`train/tally.py` writes the
+  README block only if the README has the markers).
+- Related work dated: AnteZero v0.1.0 (2026-11-12, Red/White only, 1-2% Gold on six decks) and v0.2.0 (2026-11-20);
+  correction section in `docs/hypotheses-v6.md`; system card limits updated.
+
 ## 2026-11-25: cleanup to the current lineage
 ### Changed
 - Main now holds only what the current policy (v6g best.pt, round 660) needs: the harness, the trainer, the teacher
