@@ -1055,3 +1055,42 @@ achievement (no later than 11-12 for zero-shot Gold from a one-deck White policy
 for all 15) and in publication. What remains distinct about v6g's record is the evidence form: every win is a route
 on the game's own code, re-chosen by the frozen policy and replayed on the untouched game; AnteZero reports rates
 from its Rust reimplementation, without per-win routes as far as its README shows.
+
+## Added 2026-11-25, after chud's 23:23 CST message: v6gd, v6g with the deck mixed, registered before it runs
+
+The question is chud's, reviewed by Claude: v6g trained on the Red Deck alone and generalized to the other 14 at
+Gold zero-shot; there is no comparison yet to training across the decks. The design is Claude's, reviewed by chud.
+
+**Run v6gd** (`configs/v6gd.toml`): v6g's run with one change. Same start (v6dt's best.pt, fresh optimizer,
+round 0), same reward, credit, learning rate, critic warm-up (10 rounds), agreement scoring, Gold stake, eval
+cadence and stall rule. **The change: every game's deck is drawn uniformly from the 15 decks** (`--backs`, all 15
+listed once). The deck is fixed for the whole game and comes from a hash of the game's seed (`common.game_config`),
+so a retried seed and every eval seed always get the same deck.
+
+**Why equal games, not equal time or equal decisions** (chud, 23:23: "don't punish it for doing the right
+things"). At r660 a Gold game takes 2.6 s on Black and 6.7 s on Painted, 58 to 126 decisions (eval files in
+`balatro-work/gold/`). Weighting decks by time or decisions would give a deck fewer games as the policy learns to
+survive longer on it. Uniform per game doesn't, and it needs no code. The cost: decks with longer games get
+more of the training signal (by r660's lengths, 3.7% of the time for Black up to 9.7% for Painted).
+
+**Kept as in v6g, on purpose:** encoding 2 (no deck token; the policy sees the deck only through what a player
+sees, as v6g did), so the deck mix is the only change. A deck token is a later, separate test.
+
+**What else changes as a consequence:** the in-run eval (600 eval seeds) is also mixed, about 40 games per deck,
+so best.pt is picked on mixed-deck blinds and v6gd's in-run numbers are not comparable to v6g's (Red only).
+`--smoke` first: `--backs` has not been used in the v6 lineage.
+
+**The comparison** (scored when chud stops v6gd): R = the last round both runs have a checkpoint for (every 20
+rounds), at most 660. v6gd's `ckpt_R` and v6g's `ckpt_R`, temperature 0, Gold, `tools/eval_ladder.py` (which plays
+one deck per call and ignores the checkpoint's deck mix), the first 600 eval seeds on each of the 15 decks: 9,000
+games per checkpoint, paired seed by seed and deck by deck.
+
+**Predictions** (Claude's):
+- D1: pooled over the 15 decks, v6gd's mean blinds per game beats v6g's. 70%.
+- D2: on the Red Deck alone, v6g's mean blinds per game is at least v6gd's (the specialist keeps its deck). 55%.
+- D3: v6gd's mean blinds per game is higher on at least 11 of the 15 decks. 50%.
+- D4: pooled wins, v6gd at least v6g's. 55% (both are likely in single digits per 9,000; reported, not decisive).
+
+Reading: D1 hit → training across decks beats specializing at equal games; the next Gold run trains mixed. D1
+miss → at this scale one deck generalizes as well as the mix, and the deck set is not the lever (boss play and
+xMult, from the walls report, stay first).

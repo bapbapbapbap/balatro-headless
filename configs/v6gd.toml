@@ -1,0 +1,58 @@
+# Model v6, v6g with the deck mixed (docs/hypotheses-v6.md, 2026-11-25 23:23 section; run page docs/runs/v6gd.md):
+# v6g's run with one change: every game's deck drawn uniformly from all 15 (--backs; fixed for the game, from its
+# seed). Same start (v6dt's best.pt, fresh optimizer, round 0), reward, credit, lr, critic warm-up, Gold stake.
+#
+#   bash train/launch.sh v6gd --work /mnt/c/Users/Jacobi/balatro-work [--smoke]
+
+[run]
+start = "warm:{work}/runs/v6dt/best.pt"
+hours = 168
+workers = 12
+checks = ["repo", "fixture-replay", "ordered", "diff", "v4-credit", "v4-phase", "v4-phi", "v5-play", "v6-imitate"]
+mirror_dir = "/mnt/f/balatro data/{run}"
+spill_dir = "/mnt/f/balatro data"
+publish_on_stop = false
+
+# train.py's settings (train/options.py); anything not listed keeps its default there.
+[train]
+# the model: v6dt's (two networks, encoding 2, ordered actions with the joker-drag cap, offer and play values)
+phase_split = true
+d = 192
+layers = 4
+heads = 6
+enc = 2
+actions = "ordered-capped"
+offer_values = true
+play_values = true
+# what it wants, and how credit reaches its moves (v4b's, as in v6dt)
+reward = "blinds"
+build_shaping = 1
+gamma_blind = 0.95
+lam_blind = 0.95
+lam_hand = 0.8
+shop_ent = "0.001"
+# training: stage 3 as registered (2026-11-20), plus the critic warm-up
+seed = 3
+lr = 5e-5
+critic_rounds = 10
+# agreement with the teacher at every eval, without imitation
+agreement_from = "{work}/teach_v6"
+agreement_set = "{work}/runs/v6dt/agreement_set.json"
+# the game: every game's deck drawn uniformly from these 15 (common.game_config), the only change from v6g
+back = "b_red"          # unused when backs is set
+backs = ["b_red", "b_blue", "b_yellow", "b_green", "b_black", "b_magic", "b_nebula", "b_ghost", "b_abandoned", "b_checkered", "b_zodiac", "b_painted", "b_anaglyph", "b_plasma", "b_erratic"]
+stake = 8
+# evals and stops (v4b's stall rule)
+eval_games = 600
+eval_every = 20
+stall_evals = 25
+max_wins = 1000000
+
+# --smoke: runs/v6g-smoke, 3 rounds (2 of them critic rounds), a 12-game eval, then stop
+[smoke]
+iterations = 3
+critic_rounds = 2
+eval_games = 12
+eval_every = 2
+games_per_worker = 2
+hours = 1

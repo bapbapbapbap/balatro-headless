@@ -1,6 +1,6 @@
 # System card: v6g best.pt (round 660)
 
-Written 2026-11-25. Internal: no public release of the weights yet. Every number points to where it was registered
+Written 2026-11-25. Weights released 2026-11-25 (GitHub Release `v6g-r660`); game logs not released. Every number points to where it was registered
 and scored; registrations are in [`hypotheses-v6.md`](hypotheses-v6.md) (the student) and
 [`hypotheses-reproduce.md`](hypotheses-reproduce.md) (the teacher). Lines marked *(chat)* were measured in working
 sessions and recorded in the project's status notes, not yet as a committed section.
