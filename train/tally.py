@@ -120,8 +120,9 @@ def main():
         with open(os.path.join(args.wins, name), "w") as f:
             json.dump({"schemaVersion": 1, "label": label, "message": message, "color": color}, f)
             f.write("\n")
-    put(args.readme, block(total, by_model, by_setup, top_stake, naneinf, "wins/", "naneinf/proven.jsonl",
-                               near, "wins/near_misses.jsonl"))
+    if BLOCK.search(open(args.readme, encoding="utf-8").read()):   # the front page keeps only the badges
+        put(args.readme, block(total, by_model, by_setup, top_stake, naneinf, "wins/", "naneinf/proven.jsonl",
+                                   near, "wins/near_misses.jsonl"))
     put(os.path.join(args.wins, "README.md"),
         block(total, by_model, by_setup, top_stake, naneinf, "routes.jsonl", "../naneinf/proven.jsonl",
               near, "near_misses.jsonl"))

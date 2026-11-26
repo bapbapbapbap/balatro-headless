@@ -26,7 +26,7 @@ seed produce the same run, ending in a win.
   `0D75FE164ACCF3312734D4B37AC98788DD15F0B8E4F9BB8B7F90C4E59DE93F47`, **unmodded**.
 - A profile with **everything unlocked** (which jokers, tags and vouchers can appear depends on
   unlocks, so a fresh profile plays the same seed differently).
-- The deck and stake on each line (so far: Red Deck, White Stake).
+- The deck and stake on each line (Red Deck at White, Green, Black, Blue, Purple and Gold Stake; all 15 decks at Gold Stake).
 
 A win is the game's own: the Ante 8 Boss Blind beaten, so the game runs `win_game()` and records
 the win. In code, `G.GAME.won` and not `GAME_OVER`. `G.GAME.won` alone is not enough: the game sets

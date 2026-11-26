@@ -242,3 +242,18 @@ Changes to this machine that bear on runs, dated:
 - Training runs haven't been checked for bit-for-bit reproducibility: same seeds and settings on another machine (or GPU) aren't shown to give the same weights. What is exact is each saved game: a route replays move for move on any machine with the pinned game.
 - Only the Windows Steam build is supported. Mac, Linux-native and mobile builds ship other runtimes.
 - The environment hasn't been checked on the modded game; training uses the unmodded game.
+
+## How the harness is checked (moved from the README, 2026-11-25)
+- **Validated on 2 logged runs**, Windows Steam 1.0.1o with Lovely 0.10.0, Steamodded
+  26.1002.0 and Antelytics 1.3.0-alpha, with **0 mismatches**:
+  - Tutorial run, Red Deck, White Stake: all 322 decisions. Covers packs, Death, Hanged Man, Cryptid copies, DNA, Sixth Sense, Buy & Use, vouchers, rerolls and selling. The sim wins at ante 9, same as the real run.
+  - Ghost Deck, Purple Stake: 10 decisions, including Steamodded's own RNG streams.
+- Not yet covered: challenges, Erratic Deck, seeded runs, quit-and-continue runs, Mac/mobile.
+- Speed: ~12 ms per step (controls mode) to ~35 ms per move (ordered moves, with the encoder),
+  visuals stripped. Training runs 14 sims in parallel.
+- **Playable from code** (`harness/env.lua`): legal actions and
+  player-visible observations at every decision. Both fixtures can be driven entirely through
+  it with 0 mismatches.
+
+More logged runs and bug reports are the most useful contribution. A run that doesn't
+replay cleanly is a finding.

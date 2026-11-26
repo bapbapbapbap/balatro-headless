@@ -77,8 +77,10 @@ winning move; every route replays on the untouched game. 114 routes, 0 mismatche
 
 ## Limits
 
-- **Low Gold rates.** 0.01-0.32% per deck. AnteZero reports about 12% at Gold over all decks with a policy trained
-  on every deck and stake, before this result (README, Related work). This policy is not competitive on rate.
+- **Low Gold rates, and not first.** 0.01-0.32% per deck. AnteZero's v0.1.0 (2026-11-12), trained on Red Deck White
+  Stake only, reported 1-2% at Gold on six decks zero-shot; its v0.2.0 (2026-11-20), trained on every deck and stake,
+  about 12% at Gold over all 15 (README, Related work). This policy is not competitive on rate, and training on one
+  deck is not a distinction either. What it does have is a replayed route for every win on the game's own code.
 - **Simulator, not a save.** The wins are the game's own code run headless and replayed; they are not the Steam
   achievement, which needs the real-save path (not built).
 - **Seed band.** Wins concentrate on ~1% of seeds; what makes those seeds winnable (the seed or this policy's fit to
