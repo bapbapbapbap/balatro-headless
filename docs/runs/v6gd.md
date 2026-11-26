@@ -16,7 +16,7 @@ blinds per game are not comparable to v6g's Red-only evals. The start banner pri
 default and is unused once `--backs` is set; each game's deck is in its record (`back`). The comparison with v6g
 is scored afterwards by `tools/eval_ladder.py` on matched checkpoints, 15 decks × 600 seeds each.
 
-**Status:** registered, not started.
+**Status:** registered; the first smoke (2026-11-25 23:30) stopped in pre-flight at `v4-phi` (a phi_build cache gap v6g also trained with; 2026-11-26 10:55 section). That check is dropped for v6gd; not started.
 
 Launch (smoke first; `--backs` has not been used in the v6 lineage):
 
