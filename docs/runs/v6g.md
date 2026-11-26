@@ -7,12 +7,18 @@ with the teacher is scored at every eval on v6dt's agreement set without imitati
 v4b's stall rule (25 evals with no new best) or the 168-hour cap. Registered with predictions G1-G7 in
 [docs/hypotheses-v6.md](../hypotheses-v6.md) (2026-11-22, after chud's 19:36 CST message). Settings: `configs/v6g.toml`.
 
-**Status:** registered and built 2026-11-22; not launched. Smoke in the cloud (2 workers, 3 rounds, no agreement):
-critic rounds 0-1 moved the policy 0.0000 and eval 2 matched eval 0 exactly; round 2's PPO update moved it 0.025.
+**Status:** ran 2026-11-22 → 11-23 (commit 74eeab7, tag `run-v6g`); stopped by chud at round 731 (flat since
+round 600). best.pt = round 660 (eval 9.705 at temperature 1), sha256 `4462f80e4b41fb9e...`.
+
+**Result:** at temperature 0, Red Deck, 600 seeds: White 174 (v6dt 273), Gold 0 (mean ante 3.91 vs v6dt's 2.94);
+G7 met, G4 and G5 not met, chud's White prediction not met; skipping explains 14% of the White drop
+([docs/hypotheses-v6.md](../hypotheses-v6.md), 2026-11-23 sections). Zero-shot at Gold on the other 14 decks,
+then 9,000 seeds per deck: wins on all 15 ([`gold/`](../../gold/README.md)); what was learned:
+[system card](../system_card_v6g.md). G1-G3 and G6 are still to be scored from the run's logs.
 
 Launch (smoke first):
 
-    wsl bash -lc "cd ~/balatro/balatro-headless && git checkout v6 && git pull && bash train/launch.sh v6g --work /mnt/c/Users/Jacobi/balatro-work --smoke"
+    wsl bash -lc "cd ~/balatro/balatro-headless && git checkout main && git pull && bash train/launch.sh v6g --work /mnt/c/Users/Jacobi/balatro-work --smoke"
     wsl bash -lc "cd ~/balatro/balatro-headless && bash train/launch.sh v6g --work /mnt/c/Users/Jacobi/balatro-work"
 
 Output: `balatro-work/runs/v6g/`.

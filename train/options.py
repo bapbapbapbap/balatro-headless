@@ -198,7 +198,7 @@ def build_parser():
                     help="write every game exactly (seed + actions) to <out>/games/; wins also go to wins.jsonl")
     ap.add_argument("--sil-buffer", type=int, default=0,
                     help="self-imitation: keep the N highest-return training games (0 = off; off by default until an A/B "
-                         "test at full size, see CHANGELOG 0.6.0; 64 is the tested setting)")
+                         "test at full size, see CHANGELOG 0.6.0 at the tag archive-2026-11-25; 64 is the tested setting)")
     ap.add_argument("--sil-games", type=int, default=8, help="saved games replayed into each update")
     ap.add_argument("--sil-weight", type=float, default=0.2,
                     help="1.0 pushed KL past the guard and entropy 2.35 -> 1.9 within 10 rounds on v1 (rounds 307-320)")

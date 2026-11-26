@@ -92,7 +92,7 @@ bot reaches naneinf on go in `wins/` with their routes, like every other proven 
 
 A route found by search (lookahead over replayed branches) also proves a seed, and is labeled as found by
 search; seeds proven by a model playing only what a player sees are counted separately
-([decision](../docs/hypotheses-general.md#added-2026-11-09-1840-cst-the-last-three-open-settings-fixed), 2026-11-09).
+([decision](https://github.com/bapbapbapbap/balatro-headless/blob/archive-2026-11-25/docs/hypotheses-general.md#added-2026-11-09-1840-cst-the-last-three-open-settings-fixed), 2026-11-09).
 
 ```bash
 cd naneinf && BALATRO_SRC=~/balatro/local/source python3 probe.py community_seeds.json out.json

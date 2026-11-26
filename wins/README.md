@@ -7,7 +7,7 @@
 
 **Highest stake beaten: 8 of 8 (Gold Stake).**
 
-**Final-boss near misses: 1,601.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`near_misses.jsonl`](near_misses.jsonl): median 62% of the boss's target scored, 232 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG, 0.13.2).
+**Final-boss near misses: 1,601.** Seeds where the bot reached the Ante 8 boss and lost it, kept with their routes in [`near_misses.jsonl`](near_misses.jsonl): median 62% of the boss's target scored, 232 at 90% or more. Until 2026-11-03 these were counted as wins (see the CHANGELOG at the tag archive-2026-11-25, 0.13.2).
 <!-- tally:end -->
 
 The proof that Balatro can be beaten, from the first of these seeds, and the first seed for each

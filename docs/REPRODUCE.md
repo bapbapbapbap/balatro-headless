@@ -19,7 +19,7 @@ Set-ExecutionPolicy -Scope Process Bypass   # this window only: lets the scripts
 .\tools\balatro.ps1 lock      # stop Steam updating Balatro (keeps 1.0.1o)
 .\tools\balatro.ps1 bundle    # game source + mods + logs -> balatro_bundle.zip in your work folder
 .\tools\balatro.ps1 setup     # WSL: packages, repo, LuaJIT 2.0.5 + lupa, numpy + torch, every accuracy check
-.\tools\balatro.ps1 train -Run v4b -Smoke   # pre-flight + 3 rounds; then without -Smoke for the run
+.\tools\balatro.ps1 train -Run v6g -Smoke   # pre-flight + 3 rounds; then without -Smoke for the run
 .\tools\balatro.ps1 status    # one-screen status of a run
 .\tools\balatro.ps1 watch     # keep the PC awake; restart training only if it crashes
 .\tools\balatro.ps1 stop      # stop a run cleanly (it saves latest.pt)
@@ -27,7 +27,7 @@ Set-ExecutionPolicy -Scope Process Bypass   # this window only: lets the scripts
 .\tools\balatro.ps1 publish   # add every new win from your runs to wins\, update the tally, commit and push
 .\tools\balatro.ps1 help
 ```
-Options: `-Work C:\Users\<you>\balatro-work` (default), `-Run <run>` (a config in `configs/`, default v4b),
+Options: `-Work C:\Users\<you>\balatro-work` (default), `-Run <run>` (a config in `configs/`, default v4b; current lineage: v6e, v6dt, v6g),
 `-Distro Ubuntu-24.04` (default), `-Workers 14`, `-Hours 168`. Before the first `setup`, install
 WSL once from an admin PowerShell: `wsl --install -d Ubuntu-24.04`, then reboot and create your
 Linux user.
@@ -143,8 +143,8 @@ A run is a config, `configs/<run>.toml`: its settings (`train.py`'s, by name), h
 checks. One launcher runs any of them:
 ```bash
 cd ~/balatro/balatro-headless
-bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work --smoke   # pre-flight, 3 rounds into runs/v4b-smoke
-bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work           # the run
+bash train/launch.sh v6g --work /mnt/c/Users/<you>/balatro-work --smoke   # pre-flight, 3 rounds into runs/v6g-smoke
+bash train/launch.sh v6g --work /mnt/c/Users/<you>/balatro-work           # the run
 ```
 - The launcher runs the config's pre-flight checks (e.g. a saved win replays exactly on the untouched game,
   ordered actions do what they say, the fast sim matches the untouched game, the v4 checks) and refuses to
@@ -208,7 +208,7 @@ To record the exact Python packages of your own run: `~/balatro/venv/bin/pip fre
 
 Every model and run in this repository (v1 through moe2) was trained on one laptop. Recorded
 2026-11-04 with `tools/sysinfo.ps1`; the raw record is
-[`docs/machines/2026-11-04-training-laptop.txt`](machines/2026-11-04-training-laptop.txt).
+`docs/machines/2026-11-04-training-laptop.txt` (at the tag `archive-2026-11-25`).
 
 | | Recorded 2026-11-04 |
 |---|---|

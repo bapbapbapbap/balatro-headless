@@ -998,3 +998,45 @@ XX1IAKXP (t0, 286 moves), 6YVBLGC3 (318), G4K8XTZL (267), 257HLXF1 (338), UT5JR1
 Routes: `balatro-work/v6g/blue_gold_t0_routes.jsonl`, `blue_gold_t1_routes.jsonl`; log `v6g/blue_gold_verify.txt`
 (the t1 file's; the t0 file passed first, as its routes file is written only on PASS and the command chained on it).
 Blue Deck at Gold Stake is beaten (repo rule: a route that replays to the game's own win). Not yet published to wins/.
+
+## Added 2026-11-25, after chud's 22:00 CST message: v6g at Gold on all 15 decks, verification, seed sharing (results)
+
+Results only; nothing here was registered in a committed section before its data. Predictions made in chat are
+marked as such. v6g best.pt (round 660, sha256 4462f80e4b41fb9e85ec9f69a48dc3bf1ac35099d3c3a6f3213b8535aa909106),
+stake 8, the fixed eval seed list, one game per seed. Scripts and outputs: `gold/` (the repo) and
+`balatro-work/gold/` (eval files, logs).
+
+**How the wins were searched (2026-11-23 → 11-24).** `crack3.sh` (t1, 3,000 seeds on Yellow, Checkered, Ghost):
+Yellow EAWZSSK8, Ghost NIU5VBUN, Checkered 0. `crack_t0.sh` (t0, chosen because t0 beat t1 on mean ante and ante-8
+arrivals on every deck tried): each deck still at 0 wins taken to 3,000, 9,000, 18,000 seeds, stopping at its first
+win. All 15 decks had a win by 05:15 on 11-24. Because that rule stops at a win, its rates lean high; `even_9000.sh`
+(11-24 10:31 → 18:04) then took every deck to the first 9,000 seeds at t0 (Black 18,000), so the rates share a
+denominator. Red's first 600 games replayed move for move against the 11-23 file: 600/600.
+
+**Rates at t0** (`gold/results/gold_rates.md`, Wilson 95% intervals there): Green 29/9,000, Blue 17, Yellow 15,
+Ghost 10, Zodiac 6, Erratic 5, Magic 5, Nebula 5, Abandoned 3, Checkered 3, Red 2, Anaglyph 2, Painted 1, Plasma 1,
+Black 2/18,000. 106 wins; first 600 seeds pooled over 15 decks: 4/9,000.
+
+**Verification** (`gold/verify_gold.py`, chud's laptop, 2026-11-25 21:48-21:54, repo ec0c051): weights hash
+matches; every eval file holds exactly the first N eval seeds; best.pt, in fresh processes, re-chose every route's
+moves and won; every route replayed on the untouched game. 114 routes (106 t0, 7 t1, Red's training-eval win
+WCRKZKR1), 0 mismatches, 15/15 decks, PASS.
+
+**Seed sharing** (`gold/seed_pool.py`, same run; `gold/results/seed_pool.md`), t0 wins only: 15 seeds won by two or
+more decks against 0.521 expected if decks won independently; 55 shared deck pairs against 0.524. HTBDF155 was won
+by 7 decks, B88LZ88C by 5. Under one band of seeds shared by all decks, the band is f = 0.95% of seeds (95%
+0.6-2.2%, Poisson bootstrap over seeds); win rate inside it from 34% (Green) to 1.2% (Black, Painted, Plasma).
+f is this policy's rough ceiling, not the game's winnable fraction.
+
+**Claude's prediction, made in chat on 11-24 ~10:37 before even_9000 played those cells (recorded in the project's
+status notes, not committed):** of the 63 deck/seed cells for the 5 seeds shared at that time that hadn't been
+won, at least 10 win at t0. **NOT MET: 8 won** (B88LZ88C blue, ghost; HTBDF155 red, blue, yellow, erratic;
+9QGDSETV abandoned, erratic). The direction held (independence predicts ~0.4); the size was overestimated.
+
+**Prior art found 2026-11-25, before any claim was made.** AnteZero (github.com/namecallfilter/antezero, MIT),
+released v0.2.0 on 2026-11-20, reports a PPO transformer trained on all 15 decks and 8 stakes winning about 12% at
+Gold over all decks (3-24% per deck, about 1,024 games per cell). So v6g's 15-deck Gold result is not first and its
+rates are about 100x lower; what differs is that v6g trained on one deck and every win is a replayed route.
+chud's decision (21:49): the project stays internal for now, citing Balatro Lab and AnteZero.
+
+Still owed for v6g: G1-G3 and G6 from the run's logs.

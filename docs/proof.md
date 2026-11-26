@@ -4,7 +4,7 @@
 > it ran out of hands on the Ante 8 boss (Verdant Leaf, 82,500 of 100,000). Balatro sets
 > `G.GAME.won` at the end of the Ante 8 boss round whether or not the boss is beaten, and the
 > harness read that flag alone. The proof below uses the first published run that is a win by the
-> game's own test. See the CHANGELOG (0.13.2) and `docs/hypotheses.md` (correction, 2026-11-03).
+> game's own test. See the CHANGELOG at the tag `archive-2026-11-25` (0.13.2) and `docs/hypotheses.md` (correction, 2026-11-03).
 
 ## Claim
 **There is a run of Balatro that can be won.** Precisely: on Balatro 1.0.1o-FULL (`Balatro.exe`

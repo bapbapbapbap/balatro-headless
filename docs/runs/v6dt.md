@@ -6,8 +6,8 @@
 
 **Result (2026-11-22):** kept pass 7 of 8; 187/600 at temperature 1, **273/600 (45.5%) at temperature 0**, the best student so far (v6e 254, paired z = 1.47); agreement 75.4% (hand 56.0%, shop 82.9%). DAgger round 1 won 244 at temperature 0 (D5 miss). Scored in docs/hypotheses-v6.md (2026-11-22, after chud's 18:03 CST message).
 
-Started by `train/step3.sh` after DAgger round 1:
+Started by `train/step3.sh` (at the tag `run-v6d`). To rerun it alone from main:
 
-    wsl bash -lc "cd ~/balatro/balatro-headless && git checkout v6 && git pull && bash train/step3.sh"
+    wsl bash -lc "cd ~/balatro/balatro-headless && git checkout main && git pull && bash train/launch.sh v6dt --work /mnt/c/Users/Jacobi/balatro-work"
 
 Output: `balatro-work/runs/v6dt/`; temperature 0: `balatro-work/dagger/twin_t0.jsonl`; log `balatro-work/step3.txt`.
