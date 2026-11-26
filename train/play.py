@@ -39,12 +39,16 @@ def main():
     ap.add_argument("--max-steps", type=int, default=1500)
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--save")
+    ap.add_argument("--temp", type=float, default=None,
+                    help="v4 and later: eval temperature (0 = always the most likely move); default: the run's own")
     a = ap.parse_args()
 
     w = torch.load(a.weights, map_location="cpu", weights_only=True)
     arch = w["arch"]
     if arch.get("moe") or arch.get("phase_split"):
         return play_moe(w, a)
+    if arch.get("enc", 1) >= 2:
+        return play_trainer(w, a)
     sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"])
     if sim.vocab != w["vocab"]:
         raise SystemExit("these weights were trained on a different game version (vocabulary differs)")
@@ -81,6 +85,47 @@ def main():
         print(f"route saved to {a.save}")
 
 
+def play_trainer(w, a):
+    """v4 and later single networks (v5, v6: play values and offer values as inputs): the trainer's own eval code,
+    with the run's settings as stored in the file, as tools/eval_ladder.py plays them. --temp 0 reproduces the
+    temperature-0 evals move for move (the Gold routes of v6g were found that way)."""
+    from argparse import Namespace
+    from model import make_model
+    from sim import sim_kwargs
+    import train as T
+    torch.set_num_threads(1)      # as eval_ladder's workers: same arithmetic, so the same moves
+    cfg = dict(w["trained"]["provenance"]["config"])
+    cfg.update(src=a.src, mods=None, back=a.back, stake=a.stake, backs=[], stakes=[], challenges=[],
+               max_steps=a.max_steps, verify_wins=False, save_games="none", survive=0, shun_stickers=0, no_skip=0,
+               **({"eval_temp": a.temp} if a.temp is not None else {}))
+    args = Namespace(**cfg)
+    arch = w["arch"]
+    sim = Sim(a.src, fast=True, mode=arch["actions"], enc=arch["enc"], **sim_kwargs(args))
+    if list(sim.vocab) != list(w["vocab"]):
+        raise SystemExit("these weights were trained on a different game version (vocabulary differs)")
+    model = make_model(args, len(w["vocab"]))
+    model.load_state_dict(w["state_dict"])
+    model.eval()
+    print(f"model {w['model_version']} ({sum(p.numel() for p in model.parameters()):,} params), seed {a.seed}, "
+          f"{a.back}, stake {a.stake}, temperature {getattr(args, 'eval_temp', 1.0)}", flush=True)
+    ep = T.play_games(sim, model, T.REWARDS[args.reward], random.Random(0), args, 0,
+                      (model.state_dict(), [a.seed], "eval", w["trained"].get("iteration") or 0, 0), set())[0]
+    if not a.quiet:
+        for i, desc in enumerate(ep["desc"], 1):
+            if not desc.startswith("move_joker"):
+                print(f"{i:4d}  {desc}")
+    prog = ep["progress"]
+    print(f"result: {'WON' if prog['won'] else 'lost'} at ante {prog['ante']}, {prog['blinds_beaten']} blinds beaten, "
+          f"{ep['n']} moves" + (" (move cap reached)" if ep["capped"] else ""))
+    if a.save:
+        rec = {"seed": a.seed, "back": ep["back"], "stake": ep["stake"], "actions": arch["actions"], "enc": arch["enc"],
+               "acts": ep["acts"], "desc": ep["desc"], "final": ep["final"], "n": ep["n"], "progress": prog,
+               "mode": "play", "model_version": w["model_version"]}
+        with open(a.save, "a") as f:
+            f.write(json.dumps(rec) + "\n")
+        print(f"route saved to {a.save}")
+
+
 def play_moe(w, a):
     """A mixture of experts, or v4's two networks (arch "phase_split"), plays one seed exactly as in its
     training evals (see the docstring)."""
@@ -90,7 +135,8 @@ def play_moe(w, a):
     torch.set_num_threads(1)      # as the trainer's workers: same arithmetic, so the same sampled moves
     cfg = dict(w["trained"]["provenance"]["config"])
     cfg.update(src=a.src, mods=None, back=a.back, stake=a.stake, backs=[], stakes=[], challenges=[],
-               max_steps=a.max_steps, verify_wins=False, save_games="none")
+               max_steps=a.max_steps, verify_wins=False, save_games="none", survive=0, shun_stickers=0, no_skip=0,
+               **({"eval_temp": a.temp} if a.temp is not None else {}))
     args = Namespace(**cfg)
     arch = w["arch"]
     from sim import sim_kwargs
@@ -131,8 +177,8 @@ def play_moe(w, a):
 
 def play_phase(w, a, args, sim, model, T, names):
     """v4: the table and shop networks, as in its evals; each move is printed with the network that made it."""
-    print(f"model {w['model_version']} (v4: table and shop networks, {sum(p.numel() for p in model.parameters()):,} params), "
-          f"seed {a.seed}, {a.back}, stake {a.stake}", flush=True)
+    print(f"model {w['model_version']} (table and shop networks, {sum(p.numel() for p in model.parameters()):,} params), "
+          f"seed {a.seed}, {a.back}, stake {a.stake}, temperature {getattr(args, 'eval_temp', 1.0)}", flush=True)
     ep = T.play_games(sim, model, T.REWARDS[args.reward], random.Random(0), args, 0,
                       (model.state_dict(), [a.seed], "eval", w["trained"].get("iteration") or 0, 0), set())[0]
     if not a.quiet:
