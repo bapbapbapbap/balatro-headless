@@ -60,6 +60,12 @@ def build_parser():
                     help="stop at the first eval averaging more than this many joker sells per game (0 = off; v4b: 1.5)")
     ap.add_argument("--eval-temp", type=float, default=1.0,
                     help="sampling temperature for eval games only (1 = the policy as trained)")
+    ap.add_argument("--shun-stickers", type=int, default=0,
+                    help="eval only: never buy or pick a joker with a Perishable or Rental sticker "
+                         "(harness/build_phi.lua H.sticker_flags; test X, docs/hypotheses-v6.md 2026-11-22 19:15)")
+    ap.add_argument("--survive", type=int, default=0,
+                    help="eval games only: remove plays that leave the round unwinnable when a safe play exists "
+                         "(harness/build_phi.lua H.survive_flags; test G, docs/hypotheses-v6.md 2026-11-21 23:42)")
     ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--minibatch", type=int, default=64)
@@ -128,8 +134,22 @@ def build_parser():
     ap.add_argument("--shop-ent", default=None,
                     help="v4: the shop network's entropy coefficient by training decisions (both networks), e.g. "
                          "'0.02,0.006@1.5M,0.001@4M' (linear between; default: --ent)")
+    ap.add_argument("--play-values", action="store_true",
+                    help="v5: each move row gets two more numbers, a play's score against what the blind still needs "
+                         "(log ratio) and whether it reaches it (harness/build_phi.lua H.play_values); needs --offer-values")
+    ap.add_argument("--warm-start",
+                    help="v5: start from a v4b training checkpoint's weights (fresh optimizer, round 0, this run's own "
+                         "best eval and stall clock); the play-value weights start at 0 (ported from v4c's warm start)")
     ap.add_argument("--init-weights",
                     help="start from a released weights file (weights/*.pt) with a fresh optimizer, at round 0")
+    ap.add_argument("--critic-rounds", type=int, default=0,
+                    help="v6g: for rounds 0 to N-1 train only the value heads (policy heads and shared trunks frozen, "
+                         "so the policy is unchanged), then normal PPO (docs/hypotheses-v6.md, 2026-11-22 19:36 section)")
+    ap.add_argument("--agreement-from",
+                    help="v6g: teacher data (as --imitate) to score the fixed agreement set on at every eval, "
+                         "without running imitation")
+    ap.add_argument("--agreement-set",
+                    help="v6g: an agreement_set.json to copy into the run folder if it has none")
     ap.add_argument("--vf", type=float, default=0.5)
     ap.add_argument("--grad-clip", type=float, default=0.5)
     ap.add_argument("--device", default="auto")
@@ -162,6 +182,18 @@ def build_parser():
     ap.add_argument("--bc-epochs", type=float, default=2.0, help="passes over the --bc games")
     ap.add_argument("--bc-chunk", type=int, default=0, help="games replayed per step (default: 4 per worker)")
     # saved games and self-imitation
+    # model v6, stage 1 (docs/hypotheses-v6.md, 2026-11-18): imitate the teacher's recorded games before RL
+    ap.add_argument("--imitate", help="v6: teach.py's output folder (games/<seed>.pkl.gz); imitate it before RL starts")
+    ap.add_argument("--imitate-epochs", type=int, default=8, help="v6: most passes over the teacher's games")
+    ap.add_argument("--imitate-patience", type=int, default=2,
+                    help="v6: stop after this many passes without a lower held-out move loss")
+    ap.add_argument("--imitate-lr", type=float, default=3e-4, help="v6: imitation's learning rate (its own optimizer)")
+    ap.add_argument("--imitate-chunk", type=int, default=32, help="v6: games loaded at a time")
+    ap.add_argument("--imitate-agreement", type=int, default=2000, help="v6: held-out decisions in the agreement set")
+    ap.add_argument("--imitate-max-games", type=int, default=0,
+                    help="v6: use at most this many training games (and a tenth as many held out); 0 = all (smoke)")
+    ap.add_argument("--imitate-only", type=int, default=0,
+                    help="v6 stage 1: 1 = after imitation, one eval (with agreement), then stop")
     ap.add_argument("--save-games", choices=["all", "wins", "none"], default="all",
                     help="write every game exactly (seed + actions) to <out>/games/; wins also go to wins.jsonl")
     ap.add_argument("--sil-buffer", type=int, default=0,

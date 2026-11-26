@@ -27,7 +27,10 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [`hypotheses-moe2.md`](hypotheses-moe2.md) | Run moe2 (moe2-pins0) |
 | [`hypotheses-v3.md`](hypotheses-v3.md) | Model v3 |
 | [`hypotheses-v4.md`](hypotheses-v4.md) | Model v4 |
-| [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (current) |
+| [`hypotheses-v4b.md`](hypotheses-v4b.md) | Model v4b (last trained run) |
+| [`hypotheses-reproduce.md`](hypotheses-reproduce.md) | Reproducing other bots (Balatro Lab) |
+| [`hypotheses-v5.md`](hypotheses-v5.md) | Model v5 |
+| [`hypotheses-v6.md`](hypotheses-v6.md) | Model v6 (taught by Balatro Lab's bot; next) |
 
 ## Every section, in the order it was added
 
@@ -76,3 +79,49 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-11 ~09:25 CST: why v4b's shop network sold, and what it cost (diagnosis after the stop)](hypotheses-v4b.md#added-2026-11-11-0925-cst-why-v4bs-shop-network-sold-and-what-it-cost-diagnosis-after-the-stop) | v4b |
 | [Added 2026-11-11 ~09:25 CST: v4b continues from round 280 with the sell stop off, registered before its config changes](hypotheses-v4b.md#added-2026-11-11-0925-cst-v4b-continues-from-round-280-with-the-sell-stop-off-registered-before-its-config-changes) | v4b |
 | [Added 2026-11-11 ~09:30 CST: whose the 09:25 sections are](hypotheses-v4b.md#added-2026-11-11-0930-cst-whose-the-0925-sections-are) | v4b |
+| [Added 2026-11-14 ~15:55 CST: Balatro Lab, what is already measured, and two tests registered before they run](hypotheses-reproduce.md#added-2026-11-14-1555-cst-balatro-lab-what-is-already-measured-and-two-tests-registered-before-they-run) | reproduce |
+| [Added 2026-11-14 ~16:15 CST: T1 withdrawn; T2 replaced by ranking test R; how v5 is chosen](hypotheses-reproduce.md#added-2026-11-14-1615-cst-t1-withdrawn-t2-replaced-by-ranking-test-r-how-v5-is-chosen) | reproduce |
+| [Added 2026-11-14 ~16:50 CST: R's code, decided before R runs (two details beyond the 16:05 section); a time correction](hypotheses-reproduce.md#added-2026-11-14-1650-cst-rs-code-decided-before-r-runs-two-details-beyond-the-1605-section-a-time-correction) | reproduce |
+| [Added 2026-11-14 16:24 CST: time correction](hypotheses-reproduce.md#added-2026-11-14-1624-cst-time-correction) | reproduce |
+| [Added 2026-11-14, after chud's 16:48 CST message (the commit's time is the record): R's pre-flight, and jokers mirrored whole](hypotheses-reproduce.md#added-2026-11-14-after-chuds-1648-cst-message-the-commits-time-is-the-record-rs-pre-flight-and-jokers-mirrored-whole) | reproduce |
+| [Added 2026-11-15, after chud's 09:56 CST message: R's result, scored](hypotheses-reproduce.md#added-2026-11-15-after-chuds-0956-cst-message-rs-result-scored) | reproduce |
+| [Added 2026-11-15, after chud's 09:56 CST message: v5 registered before any of its code](hypotheses-v5.md#added-2026-11-15-after-chuds-0956-cst-message-v5-registered-before-any-of-its-code) | v5 |
+| [2026-11-15: implementation, checks and smoke (before launch)](hypotheses-v5.md#2026-11-15-implementation-checks-and-smoke-before-launch) | v5 |
+| [2026-11-15: correction to the section above](hypotheses-v5.md#2026-11-15-correction-to-the-section-above) | v5 |
+| [Added 2026-11-16, after chud's 11:19 CST message: v5 stopped by chud; V1-V3 and chud's prediction scored](hypotheses-v5.md#added-2026-11-16-after-chuds-1119-cst-message-v5-stopped-by-chud-v1-v3-and-chuds-prediction-scored) | v5 |
+| [Added 2026-11-16, after chud's 11:30 CST message: v6 registered before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1130-cst-message-v6-registered-before-any-of-its-code) | v6 |
+| [Added 2026-11-16, after chud's 12:00 CST message: v6 cut down before any of its code](hypotheses-v6.md#added-2026-11-16-after-chuds-1200-cst-message-v6-cut-down-before-any-of-its-code) | v6 |
+| [2026-11-16: stage 0 built; the bridge's checks in the cloud (before the data run)](hypotheses-v6.md#2026-11-16-stage-0-built-the-bridges-checks-in-the-cloud-before-the-data-run) | v6 |
+| [Added 2026-11-18, after chud's 23:15 CST message: the data run's result, more teacher games, and stage 1 registered before its code](hypotheses-v6.md#added-2026-11-18-after-chuds-2315-cst-message-the-data-runs-result-more-teacher-games-and-stage-1-registered-before-its-code) | v6 |
+| [Added 2026-11-19, after chud's 11:28 CST message: the second teacher run's result](hypotheses-v6.md#added-2026-11-19-after-chuds-1128-cst-message-the-second-teacher-runs-result) | v6 |
+| [Added 2026-11-19, after chud's 11:42 CST message: where the teacher's ~4 points go (registered before the fix and the run)](hypotheses-v6.md#added-2026-11-19-after-chuds-1142-cst-message-where-the-teachers-4-points-go-registered-before-the-fix-and-the-run) | v6 |
+| [Added 2026-11-19, after chud's 11:47 CST message: stage 1 code fix (GPU memory), no design change](hypotheses-v6.md#added-2026-11-19-after-chuds-1147-cst-message-stage-1-code-fix-gpu-memory-no-design-change) | v6 |
+| [Added 2026-11-19: fix F1's first cloud check, and F1b (registered before its code)](hypotheses-v6.md#added-2026-11-19-fix-f1s-first-cloud-check-and-f1b-registered-before-its-code) | v6 |
+| [Added 2026-11-19: F1 and F1b's cloud results so far, and measurement F1c (registered before it runs)](hypotheses-v6.md#added-2026-11-19-f1-and-f1bs-cloud-results-so-far-and-measurement-f1c-registered-before-it-runs) | v6 |
+| [Added 2026-11-19: the cloud Bell reruns, stopped at 23 (the laptop's F1c will measure all 244)](hypotheses-v6.md#added-2026-11-19-the-cloud-bell-reruns-stopped-at-23-the-laptops-f1c-will-measure-all-244) | v6 |
+| [Added 2026-11-19, after chud's 15:37 CST message: the roadmap after the pending laptop runs, test K, and stage 2's details (registered before their code)](hypotheses-v6.md#added-2026-11-19-after-chuds-1537-cst-message-the-roadmap-after-the-pending-laptop-runs-test-k-and-stage-2s-details-registered-before-their-code) | v6 |
+| [Added 2026-11-19: test K and stage 2 built, checked in the cloud (no results)](hypotheses-v6.md#added-2026-11-19-test-k-and-stage-2-built-checked-in-the-cloud-no-results) | v6 |
+| [Added 2026-11-20, after chud's 11:06 CST message: stage 1's result, the gap tests' results, and the rule](hypotheses-v6.md#added-2026-11-20-after-chuds-1106-cst-message-stage-1s-result-the-gap-tests-results-and-the-rule) | v6 |
+| [Added 2026-11-20, after chud's 12:38 CST message: the new direction, step 0's findings, and step 1 registered before its code](hypotheses-v6.md#added-2026-11-20-after-chuds-1238-cst-message-the-new-direction-step-0s-findings-and-step-1-registered-before-its-code) | v6 |
+| [Added 2026-11-20, after chud's 15:13 CST message: step 1 scored, the delivery score, the single-card finding, and more teacher games registered before they run](hypotheses-v6.md#added-2026-11-20-after-chuds-1513-cst-message-step-1-scored-the-delivery-score-the-single-card-finding-and-more-teacher-games-registered-before-they-run) | v6 |
+| [Added 2026-11-21, after chud's 09:38 CST message: the third teacher run's result, and step 2 (the student on 3,600 games) registered before its code](hypotheses-v6.md#added-2026-11-21-after-chuds-0938-cst-message-the-third-teacher-runs-result-and-step-2-the-student-on-3600-games-registered-before-its-code) | v6 |
+| [Added 2026-11-21, after chud's 16:09 CST message: step 2 scored; the round-margin input and a fourth teacher run registered before their code and data](hypotheses-v6.md#added-2026-11-21-after-chuds-1609-cst-message-step-2-scored-the-round-margin-input-and-a-fourth-teacher-run-registered-before-their-code-and-data) | v6 |
+| [Added 2026-11-21, after chud's 23:42 CST message: the score check, causal confusion, and three tests registered before their code (the game-rule constraint, the teacher on the student's death rounds, DAgger re-registered)](hypotheses-v6.md#added-2026-11-21-after-chuds-2342-cst-message-the-score-check-causal-confusion-and-three-tests-registered-before-their-code-the-game-rule-constraint-the-teacher-on-the-students-death-rounds-dagger-re-registered) | v6 |
+| [Added 2026-11-22, after chud's 23:42 CST message (11-21): tests G and T scored](hypotheses-v6.md#added-2026-11-22-after-chuds-2342-cst-message-11-21-tests-g-and-t-scored) | v6 |
+| [Added 2026-11-22, after chud's 09:45 CST message: teacher run 4 scored](hypotheses-v6.md#added-2026-11-22-after-chuds-0945-cst-message-teacher-run-4-scored) | v6 |
+| [Added 2026-11-22, after chud's 18:03 CST message: DAgger round 1 and its twin scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1803-cst-message-dagger-round-1-and-its-twin-scored) | v6 |
+| [Added 2026-11-22, after chud's 18:10 CST message: the student at Gold, registered before it runs](hypotheses-v6.md#added-2026-11-22-after-chuds-1810-cst-message-the-student-at-gold-registered-before-it-runs) | v6 |
+| [Added 2026-11-22, after chud's 18:18 CST message: test S scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1818-cst-message-test-s-scored) | v6 |
+| [Added 2026-11-22, after chud's 18:26 CST message: fix F2 built, and the teacher on the eval seeds at any stake](hypotheses-v6.md#added-2026-11-22-after-chuds-1826-cst-message-fix-f2-built-and-the-teacher-on-the-eval-seeds-at-any-stake) | v6 |
+| [Added 2026-11-22, after chud's 19:15 CST message: test X, the student kept off stickered jokers (registered before its code)](hypotheses-v6.md#added-2026-11-22-after-chuds-1915-cst-message-test-x-the-student-kept-off-stickered-jokers-registered-before-its-code) | v6 |
+| [Added 2026-11-22: test X built (no results)](hypotheses-v6.md#added-2026-11-22-test-x-built-no-results) | v6 |
+| [Added 2026-11-22, after chud's 19:26 CST message: test X scored](hypotheses-v6.md#added-2026-11-22-after-chuds-1926-cst-message-test-x-scored) | v6 |
+| [Added 2026-11-22, after chud's 19:36 CST message: stage 3 at Gold (run v6g), registered before its code](hypotheses-v6.md#added-2026-11-22-after-chuds-1936-cst-message-stage-3-at-gold-run-v6g-registered-before-its-code) | v6 |
+| [Added 2026-11-22, after chud's 23:12 CST message: chud's White-vs-Gold prediction, registered before its evals](hypotheses-v6.md#added-2026-11-22-after-chuds-2312-cst-message-chuds-white-vs-gold-prediction-registered-before-its-evals) | v6 |
+| [Added 2026-11-23, after chud's 11:06 CST message: v6g stopped by hand at round 731, before its evals](hypotheses-v6.md#added-2026-11-23-after-chuds-1106-cst-message-v6g-stopped-by-hand-at-round-731-before-its-evals) | v6 |
+| [Added 2026-11-23, after chud's 11:39 CST message: v6g scored at temperature 0 (G4, G5, G7, chud's prediction)](hypotheses-v6.md#added-2026-11-23-after-chuds-1139-cst-message-v6g-scored-at-temperature-0-g4-g5-g7-chuds-prediction) | v6 |
+| [Added 2026-11-23, after chud's 11:50 CST message: the skip test, registered before its code ran](hypotheses-v6.md#added-2026-11-23-after-chuds-1150-cst-message-the-skip-test-registered-before-its-code-ran) | v6 |
+| [Added 2026-11-23, after chud's 12:21 CST message: the skip test scored](hypotheses-v6.md#added-2026-11-23-after-chuds-1221-cst-message-the-skip-test-scored) | v6 |
+| [Added 2026-11-23, after chud's 12:24 CST message: v6g on Blue Deck at Gold, zero-shot, registered before it runs](hypotheses-v6.md#added-2026-11-23-after-chuds-1224-cst-message-v6g-on-blue-deck-at-gold-zero-shot-registered-before-it-runs) | v6 |
+| [Added 2026-11-23, after chud's 13:02 CST message: v6g on Blue Deck at Gold scored (B1, B2)](hypotheses-v6.md#added-2026-11-23-after-chuds-1302-cst-message-v6g-on-blue-deck-at-gold-scored-b1-b2) | v6 |
+| [Added 2026-11-23, after chud's 13:16 CST message: the six Blue Deck Gold routes replay](hypotheses-v6.md#added-2026-11-23-after-chuds-1316-cst-message-the-six-blue-deck-gold-routes-replay) | v6 |

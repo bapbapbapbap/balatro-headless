@@ -13,7 +13,18 @@ CHANGELOG, `wins/`), unedited.
 | [moe2](moe2.md) | moe2-pins0 | 2026-11-04 → 11-05 | 6 experts, early Full House pin, pins faded to 0 | stopped at pins zero; released | 790 / 712 |
 | [v3](v3.md) | – | 2026-11-05 | discount per blind passed | code built; replaced by v4 | – |
 | [v4](v4.md) | – | 2026-11-09 → 11-10 | shop and table networks, build potential, curriculum | stopped on the stall rule (best eval 4.68, round 120) | not yet published |
-| [**v4b**](v4b.md) | – | 2026-11-10 → | v4 + hand clock on the table's lambda, hand exploration off | stopped at round 280 on the sell stop (best eval 8.31, round 240); **continues with the stop off** | – |
+| [v4b](v4b.md) | – | 2026-11-10 → | v4 + hand clock on the table's lambda, hand exploration off | stopped at round 280 on the sell stop (best eval 8.31, round 240); **continues with the stop off** | – |
+| [v5](v5.md) | – | 2026-11-15 → 11-16 | v4b warm start + play values | stopped by chud at round 278 (best eval stayed round 0's, 13.40) | – |
+| [**v6**](v6.md) | – | 2026-11-16 → | taught by Balatro Lab's bot, then our reward alone | stage 1: 78/600, agreement 68.0% | – |
+| [v6d](v6d.md) | – | 2026-11-19 → | model v6 stage 2: DAgger rounds (student plays, teacher labels); round 1 from v6e, 600 games (re-registered 11-21) | round 1: 183/600 (t0: 244); agreement 76.3%; below its twin | – |
+| [v6dt](v6dt.md) | – | 2026-11-21 → | model v6: DAgger's attribution twin (round 1's training without the DAgger games) | 187/600 (t0: 273, best student); agreement 75.4% | – |
+| [v6g](v6g.md) | – | 2026-11-22 → | model v6, stage 3 at Gold: PPO on our reward from v6dt, 10 critic-only rounds first, no teacher | – | – |
+| [v6m2](v6m2.md) | – | 2026-11-20 → | model v6 step 1, M2: stage 1's imitation continued | built, not run | – |
+| [v6c450](v6c450.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 450 teacher games | built, not run | – |
+| [v6c900](v6c900.md) | – | 2026-11-20 → | model v6 step 1, scaling curve: 900 teacher games | built, not run | – |
+| [v6e](v6e.md) | – | 2026-11-21 → | model v6 step 2: stage 1 on all 3,599 teacher games, up to 16 passes | 132/600 (t0: 254); agreement 74.1% | – |
+| [v6eb](v6eb.md) | – | 2026-11-21 → | model v6 step 2: v6e with a bigger network (d 256, 6 layers, 8 heads) | 125/600 (t0: 245); agreement 74.7% | – |
+| [v5](v5.md) | – | 2026-11-15 → | v4b warm start + play values (each play's score vs what the blind needs) | registered | – |
 
 Counts are of `wins/routes.jsonl` and `wins/near_misses.jsonl` on 2026-11-09, by each line's `source`
 (the run folder the win came from), with the corrected win test (2026-11-03). Every run so far is Red Deck,

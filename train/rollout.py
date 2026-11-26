@@ -25,6 +25,10 @@ from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402
 
 # ---------------- workers ----------------
 
+SURVIVE = {"filtered": 0, "changed": 0}   # test G counts (eval with --survive), per process
+STICKERS = {"filtered": 0, "changed": 0}  # test X counts (eval with --shun-stickers), per process
+NOSKIP = {"filtered": 0, "changed": 0}    # skip test counts (eval with --no-skip), per process
+
 def inject_at(args, kind):
     """Iterations where a fault is injected (testing the safety checks), e.g. --inject nan:3,crash:5"""
     out = set()
@@ -130,11 +134,44 @@ def play_games(sim, model, reward_fn, rng, args, wid, msg, crash_at):
                 with torch.no_grad():
                     logits, v = model(*collate([o]))
                 t_model += time.time() - tm
+                if mode == "eval" and getattr(args, "survive", 0) and sim.H.state_name() == "SELECTING_HAND":
+                    # test G: the game's rule (a blind not beaten ends the run) as a filter on plays
+                    ok = [f == "1" for f in str(sim.H.survive_flags()).split()]
+                    if len(ok) != logits.shape[-1]:
+                        raise RuntimeError(f"survive: {len(ok)} flags for {logits.shape[-1]} moves")
+                    if not all(ok):
+                        before = int(logits[0].argmax())
+                        logits = logits.clone()
+                        logits[0][torch.tensor([not x for x in ok])] = float("-inf")
+                        SURVIVE["filtered"] += 1
+                        SURVIVE["changed"] += int(not ok[before])
+                if mode == "eval" and getattr(args, "shun_stickers", 0):
+                    # test X: never buy or pick a joker with a Perishable or Rental sticker
+                    ok = [f == "1" for f in str(sim.H.sticker_flags()).split()]
+                    if len(ok) != logits.shape[-1]:
+                        raise RuntimeError(f"shun_stickers: {len(ok)} flags for {logits.shape[-1]} moves")
+                    if any(ok) and not all(ok):
+                        before = int(logits[0].argmax())
+                        logits = logits.clone()
+                        logits[0][torch.tensor([not x for x in ok])] = float("-inf")
+                        STICKERS["filtered"] += 1
+                        STICKERS["changed"] += int(not ok[before])
+                if mode == "eval" and getattr(args, "no_skip", 0):
+                    # skip test (docs/hypotheses-v6.md 2026-11-23): never skip a blind (action type 4, encode.lua ACTION)
+                    ok = [int(r[0]) != 4 for r in o["act"]]
+                    if any(ok) and not all(ok):
+                        before = int(logits[0].argmax())
+                        logits = logits.clone()
+                        logits[0][torch.tensor([not x for x in ok])] = float("-inf")
+                        NOSKIP["filtered"] += 1
+                        NOSKIP["changed"] += int(not ok[before])
                 temp = getattr(args, "eval_temp", 1.0) if mode == "eval" else 1.0
-                p = torch.softmax(logits[0] / temp if temp != 1.0 else logits[0], -1).numpy().astype(np.float64)
+                # eval temperature 0 = the most likely move (M1, docs/hypotheses-v6.md 2026-11-20); its probabilities
+                # stay the policy's own, so logp is still the move's log-probability at temperature 1
+                p = torch.softmax(logits[0] / temp if temp not in (0.0, 1.0) else logits[0], -1).numpy().astype(np.float64)
                 if not np.isfinite(p).all():
                     raise FloatingPointError("non-finite action probabilities")
-                if greedy:
+                if greedy or (mode == "eval" and temp == 0.0):
                     a = int(p.argmax())
                     logp = float(math.log(max(p[a], 1e-30)))
                 elif mode == "train" and args.explore_hands > 0:

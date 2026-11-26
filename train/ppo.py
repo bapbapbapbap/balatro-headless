@@ -64,12 +64,20 @@ def taken_logp(model, obs, acts, idx, device):
     return np.concatenate([taken_logp(model, obs, acts, idx[:h], device), taken_logp(model, obs, acts, idx[h:], device)])
 
 
-def ppo_update(model, opt, episodes, args, device, sil=None):
+def value_param(name):
+    """A value head's weight (Net: value.*; PhaseNet: nets.<m>.value.*; MoE: heads.<m>.value.*)."""
+
+    return name.startswith("value.") or ".value." in name
+
+
+def ppo_update(model, opt, episodes, args, device, sil=None, critic_only=False):
     """sil: optional (obs, actions, returns) from replayed saved games. Self-imitation (Oh et al.
     2018): each step pulls the policy toward the saved action by how much the game's actual return
     beat the critic's estimate, max(R - V, 0), and the critic toward R where it underestimated.
     Steps the critic already expected contribute nothing, so this reuses only what the bot
-    undervalued. The return is the same reward (+ shaping) the bot is trained on: no new goal."""
+    undervalued. The return is the same reward (+ shaping) the bot is trained on: no new goal.
+    critic_only (v6g's critic warm-up, --critic-rounds): the loss is the value loss alone and only the value
+    heads' weights step; everything the policy reads is left as it was (train.py checks this after the update)."""
     obs, acts, oldlp, adv, ret = [], [], [], [], []
     for ep in episodes:
         r = [s[4] for s in ep["steps"]]
@@ -187,7 +195,9 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
                                 ent_n[nm] += 1
                 else:
                     loss = pi_loss + args.vf * v_loss - args.ent * ent
-                if sil is not None and nb % sil_every == 0:
+                if critic_only:
+                    loss = args.vf * v_loss
+                if sil is not None and nb % sil_every == 0 and not critic_only:
                     sobs, sact, sret = sil
                     sidx = np.random.randint(0, len(sobs), size=min(args.minibatch, len(sobs)))
                     sk = collate([sobs[i] for i in sidx], device)
@@ -204,6 +214,10 @@ def ppo_update(model, opt, episodes, args, device, sil=None):
                         stats["sil_pos"] += (sadv > 0).float().mean().item(); stats["sil_adv"] += sadv.mean().item()
                 opt.zero_grad()
                 loss.backward()
+                if critic_only:
+                    for nm, p in model.named_parameters():
+                        if not value_param(nm):
+                            p.grad = None            # Adam skips a weight with no gradient
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
                 opt.step()
                 with torch.no_grad():

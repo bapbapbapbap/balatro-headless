@@ -10,8 +10,9 @@ public record of beaten seeds whose routes replay exactly. Research aims (chud's
 gap (facts fixed, only the reward varied); 2. prove a naneinf seed; 3. 100% a fresh save.
 
 ## Now
-- **Current run: model v4b** (`configs/v4b.toml`; design and predictions `docs/hypotheses-v4b.md`; why v4 failed:
-  last section of `docs/hypotheses-v4.md`; run page `docs/runs/v4b.md`, which says whether it is training).
+- **No run training.** v5 stopped 2026-11-16 (`docs/runs/v5.md`). **Next: model v6** (branch `v6`; `docs/hypotheses-v6.md`):
+  our network taught by Balatro Lab's bot through a bridge to our game, then our reward alone. Stage 1 (imitation)
+  is `train/imitate.py` + `configs/v6.toml`. Last trained run: v4b.
 - **Don't push to the branch a run trains from** while it trains: a watcher restart runs `git pull` and would
   launch the new code mid-run. Work on another branch and merge after.
 
@@ -28,6 +29,7 @@ gap (facts fixed, only the reward varied); 2. prove a naneinf seed; 3. 100% a fr
 | Beaten seeds | `wins/README.md` (`wins/routes.jsonl` is 7.5 MB: query it, don't read it) |
 | Diagnostics | `analysis/compare_models.py` (model vs model on tagged seeds), `analysis/v4_sells.py` (per-move rewards and advantages) |
 | Windows side | `tools/balatro.ps1` (setup, train, status, watch, publish), `tools/watch.ps1` |
+| Other people's bots | `reproduce/<project>/README.md` (their code stays in their repos, imported from a pinned clone); registrations `docs/hypotheses-reproduce.md` |
 
 Don't read unless asked: `CHANGELOG.md` (77 KB), `wins/*.jsonl`, `weights/*.pt`, `analysis/results/`.
 
