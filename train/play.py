@@ -135,7 +135,8 @@ def play_moe(w, a):
     torch.set_num_threads(1)      # as the trainer's workers: same arithmetic, so the same sampled moves
     cfg = dict(w["trained"]["provenance"]["config"])
     cfg.update(src=a.src, mods=None, back=a.back, stake=a.stake, backs=[], stakes=[], challenges=[],
-               max_steps=a.max_steps, verify_wins=False, save_games="none")
+               max_steps=a.max_steps, verify_wins=False, save_games="none", survive=0, shun_stickers=0, no_skip=0,
+               **({"eval_temp": a.temp} if a.temp is not None else {}))
     args = Namespace(**cfg)
     arch = w["arch"]
     from sim import sim_kwargs
@@ -176,8 +177,8 @@ def play_moe(w, a):
 
 def play_phase(w, a, args, sim, model, T, names):
     """v4: the table and shop networks, as in its evals; each move is printed with the network that made it."""
-    print(f"model {w['model_version']} (v4: table and shop networks, {sum(p.numel() for p in model.parameters()):,} params), "
-          f"seed {a.seed}, {a.back}, stake {a.stake}", flush=True)
+    print(f"model {w['model_version']} (table and shop networks, {sum(p.numel() for p in model.parameters()):,} params), "
+          f"seed {a.seed}, {a.back}, stake {a.stake}, temperature {getattr(args, 'eval_temp', 1.0)}", flush=True)
     ep = T.play_games(sim, model, T.REWARDS[args.reward], random.Random(0), args, 0,
                       (model.state_dict(), [a.seed], "eval", w["trained"].get("iteration") or 0, 0), set())[0]
     if not a.quiet:
