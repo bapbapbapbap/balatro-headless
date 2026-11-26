@@ -51,6 +51,15 @@ Don't read unless asked: `wins/*.jsonl`, `analysis/results/`, `reproduce/balatro
   put the chain in a `.sh` in `balatro-work/gold/` that tees its own log.
 - Times come from chud's message timestamps; never run a command to check the time.
 
+## Git hygiene (chud, 2026-11-25)
+- `main` is the only long-lived branch. One branch per task, named for it; open its PR in the same session.
+- Before starting a branch, list open PRs and unmerged branches (`gh api repos/bapbapbapbap/balatro-headless/pulls`).
+  If one of yours is open, finish or close it first, or tell chud it is still open and why.
+- Stack nothing on an unmerged branch unless chud asks; never leave work only on a branch at the end of a session.
+- End every session that touched the repo by telling chud which PRs await his merge. STATUS lists open PRs at the top.
+- After a merge the branch is deleted (GitHub setting "Automatically delete head branches"); a run's code is kept by
+  its `run-<run>` tag, not by a branch.
+
 ## Rules of the record
 - A hypothesis or design change is committed **before** its code or data exists. Committed sections are never
   edited; results and corrections are new sections. A prediction made only in chat is reported as such.
