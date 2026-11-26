@@ -17,9 +17,12 @@ import os
 import torch
 
 
-PATH_KEYS = {"src", "out", "resume", "mirror_dir", "spill_dir", "bc", "sil_seed", "mods", "inject"}
+PATH_KEYS = {"src", "out", "resume", "mirror_dir", "spill_dir", "bc", "sil_seed", "mods", "inject",
+             "imitate", "agreement_from"}
 # Paths to a released weights file or a checkpoint: kept as the file's name, which says what it was.
 NAME_KEYS = {"moe_init", "moe_early", "init_weights"}
+# Paths into another run's folder (v6): kept as <run>/<file>, e.g. v6dt/best.pt.
+RUN_FILE_KEYS = {"warm_start", "agreement_set"}
 
 
 def public_provenance(prov):
@@ -34,6 +37,8 @@ def public_provenance(prov):
             cfg[k] = [os.path.basename(str(x).rstrip("/")) for x in v] if isinstance(v, list) else "<local path>"
         elif k in NAME_KEYS and v:
             cfg[k] = [os.path.basename(str(x)) for x in v] if isinstance(v, list) else os.path.basename(str(v))
+        elif k in RUN_FILE_KEYS and v:
+            cfg[k] = "/".join(str(v).replace("\\", "/").rstrip("/").split("/")[-2:])
     return prov
 
 

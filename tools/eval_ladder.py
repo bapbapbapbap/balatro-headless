@@ -35,6 +35,9 @@ def build(a):
     from model import make_model
     from sim import Sim, sim_kwargs
     ck = torch.load(a.weights, map_location="cpu", weights_only=False)
+    if str(ck.get("format", "")).startswith("balatro-headless-weights"):   # a released file (export_weights.py)
+        ck = {"provenance": ck["trained"]["provenance"], "model": ck["state_dict"], "vocab": ck["vocab"],
+              "iteration": ck["trained"].get("iteration") or 0}
     cfg = dict(ck["provenance"]["config"])
     cfg.update(src=a.src, verify_wins=False, save_games="none", eval_temp=a.temp, survive=a.survive, shun_stickers=a.shun_stickers, no_skip=a.no_skip, back=a.back, stake=a.stake,
                backs=[], stakes=[], challenges=[])
