@@ -25,7 +25,7 @@
 #   progress  the save-progress tables in docs\proof.md from the published wins; commit and push
 #   help      this list
 #
-# Options: -Work C:\Users\<you>\balatro-work   -Run v4b   -Distro Ubuntu-24.04
+# Options: -Work C:\Users\<you>\balatro-work   -Run v6g   -Distro Ubuntu-24.04
 #          -Workers N   -Hours H (default: the run's config)   -Smoke
 #          -Weights <file>   -Save <file>   -Runs 100
 # Runs from before the launcher (v1 to v4) are launched from their tags: see ARCHIVE.md.
@@ -37,7 +37,7 @@
 param(
     [Parameter(Position = 0)][string]$Command = "help",
     [string]$Work = (Join-Path $env:USERPROFILE "balatro-work"),
-    [string]$Run = "v4b",
+    [string]$Run = "v6g",
     [string]$Distro = "Ubuntu-24.04",
     [int]$Workers = 12,
     [int]$Hours = 168,
@@ -148,7 +148,7 @@ function Save-Path {
 }
 
 function Cmd-Save {
-    $wt = if ($Weights) { To-Wsl $Weights } else { (Wsl-Path $Work) + "/runs/moe/best.pt" }
+    $wt = if ($Weights) { To-Wsl $Weights } else { (Wsl-Path $Work) + "/runs/v6g/best.pt" }
     Start-Window "the save ($(Save-Path))" (". ~/balatro/venv/bin/activate && python3 tools/play_save.py --src ~/balatro/local/source " +
         "--weights '$wt' --save '$(Save-Path)' --runs $Runs")
 }

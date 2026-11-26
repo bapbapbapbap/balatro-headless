@@ -14,13 +14,13 @@ ACT_WIDTH = {1: 9, 2: 18, 3: 18}
 # Fields that are embedding ids or numbers (padded with 0); every other field is a token index (-1 = none).
 ZERO_FIELDS = {1: (0, 8), 2: (0, 8, 16, 17), 3: (0, 8, 16, 17)}
 # by action row width: v4's offer values add column 18 (a number) to encoding 2's 18
-ZERO_BY_WIDTH = {9: (0, 8), 18: (0, 8, 16, 17), 19: (0, 8, 16, 17, 18)}
+ZERO_BY_WIDTH = {9: (0, 8), 18: (0, 8, 16, 17), 19: (0, 8, 16, 17, 18), 21: (0, 8, 16, 17, 18, 19, 20)}
 
 
 class Net(nn.Module):
-    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False):
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False, play=False):
         super().__init__()
-        self.d, self.enc, self.offer = d, enc, offer
+        self.d, self.enc, self.offer, self.play = d, enc, offer, play
         self.feat = nn.Linear(F, d)
         self.kind_emb = nn.Embedding(N_KINDS, d)
         self.vocab_emb = nn.Embedding(n_vocab, d)
@@ -38,7 +38,8 @@ class Net(nn.Module):
             self.proj_l = nn.Linear(d, d)      # lead card / card Death copies
             self.proj_h = nn.Linear(d, d)      # the hand type's token (level, chips, mult, increments)
             # HUD chips x mult, scoring cards' chips (slog); v4 (offer): + the offer's phi_build change
-            self.num = nn.Linear(3 if offer else 2, d)
+            # v5 (play): + the play's score against what the blind needs, and whether it reaches it
+            self.num = nn.Linear((3 + (2 if play else 0)) if offer else 2, d)
 
     @staticmethod
     def _gather(h, idx):
@@ -80,7 +81,7 @@ class Net(nn.Module):
             ns = (ss >= 0).sum(-1, keepdim=True).clamp(min=1).float()
             a = a + self.proj_s(sg.sum(2) / ns)
             a = a + self.proj_l(self._gather(h, act[..., 14])) + self.proj_h(self._gather(h, act[..., 15]))
-            a = a + self.num(act[..., 16:19 if self.offer else 18].float() / 10000.0)
+            a = a + self.num(act[..., 16:(21 if self.play else 19) if self.offer else 18].float() / 10000.0)
         return a, pooled
 
 
@@ -164,9 +165,9 @@ class PhaseNet(nn.Module):
     decision names its member (collate's 7th tensor, `member`), as with MoE; no weights are shared, so a
     decision trains only its own network."""
 
-    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False):
+    def __init__(self, n_vocab, d=96, layers=2, heads=4, enc=1, offer=False, play=False):
         super().__init__()
-        self.nets = nn.ModuleList([Net(n_vocab, d, layers, heads, enc, offer) for _ in PHASE_NAMES])
+        self.nets = nn.ModuleList([Net(n_vocab, d, layers, heads, enc, offer, play) for _ in PHASE_NAMES])
 
     def forward(self, kind, vocab, feat, tok_mask, act, act_mask, member):
         B, A = act.shape[0], act.shape[1]
@@ -180,11 +181,28 @@ class PhaseNet(nn.Module):
         return logits, value
 
 
+def warm_start_state(old_sd, new_sd):
+    """A v4b PhaseNet state dict into a v5 model's (docs/hypotheses-v5.md; the idea of a warm start from v4c,
+    model.py on branch v4c). Every weight loads as it is; each network's `num` layer, which reads the action row's
+    numbers, gains columns for v5's two play values, at zero, so the warm-started model plays as the checkpoint."""
+    import torch as _t
+    out = {}
+    for k, v in old_sd.items():
+        assert k in new_sd, f"warm start: {k} not in the new model"
+        if k.endswith("num.weight") and v.shape[1] < new_sd[k].shape[1]:
+            v = _t.cat([v, _t.zeros(v.shape[0], new_sd[k].shape[1] - v.shape[1], dtype=v.dtype, device=v.device)], 1)
+        assert v.shape == new_sd[k].shape, f"warm start: {k} is {tuple(v.shape)}, the model has {tuple(new_sd[k].shape)}"
+        out[k] = v
+    missing = set(new_sd) - set(out)
+    assert not missing, f"warm start: not in the checkpoint: {sorted(missing)[:5]}"
+    return out
+
+
 def make_model(cfg, n_vocab):
     """The network a run's settings (train.py args or a checkpoint's config) call for."""
     if getattr(cfg, "phase_split", False):
         return PhaseNet(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc,
-                        offer=bool(getattr(cfg, "offer_values", False)))
+                        offer=bool(getattr(cfg, "offer_values", False)), play=bool(getattr(cfg, "play_values", False)))
     assert not getattr(cfg, "offer_values", False), "offer values are model v4's (with --phase-split)"
     cls = MoE if getattr(cfg, "moe", False) else Net
     return cls(n_vocab, d=cfg.d, layers=cfg.layers, heads=cfg.heads, enc=cfg.enc)

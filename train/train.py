@@ -23,6 +23,7 @@ import math
 import os
 import platform
 import random
+import shutil
 import signal
 import subprocess
 import sys
@@ -34,7 +35,7 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from model import EXPERT_HANDS, make_model, param_count  # noqa: E402
+from model import EXPERT_HANDS, make_model, param_count, warm_start_state  # noqa: E402
 from rewards import REWARDS, build_shaping, shaping, step_discount  # noqa: E402,F401
 # The trainer's parts, by capability. Imported here too so `import train` keeps exposing them (play.py,
 # analysis/, tests/ and tools/ use train.<name>).
@@ -145,6 +146,9 @@ def main():
     assert args.lam_hand == 1.0 or args.phase_split, "--lam-hand is model v4b's: it needs --phase-split"
     assert not (args.curriculum or args.offer_values or args.build_shaping) or args.phase_split, \
         "--curriculum, --offer-values and --build-shaping are model v4's: they need --phase-split"
+    assert not args.play_values or args.offer_values, "--play-values (model v5) comes after the offer value: it needs --offer-values"
+    assert not args.imitate or args.phase_split, "--imitate is model v6's: it trains v5's phase-split networks"
+    assert not args.imitate_only or args.imitate, "--imitate-only needs --imitate"
     if args.phase_split:
         assert not (args.moe or args.stop_ante or args.bc or args.sil_buffer or args.pin_hand or args.init_weights), \
             "--phase-split (v4) trains two networks from random weights on whole games; --moe, --stop-ante, --bc, " \
@@ -158,9 +162,9 @@ def main():
         assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
         arch = ck.get("arch", {})
         for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc), ("actions", args.actions), ("moe", bool(args.moe)), ("phase_split", bool(args.phase_split)),
-                     ("offer_values", bool(args.offer_values))):
+                     ("offer_values", bool(args.offer_values)), ("play_values", bool(args.play_values))):
             have = arch.get(k, {"enc": 1, "actions": "subsets", "moe": False, "phase_split": False,
-                                "offer_values": False}.get(k))
+                                "offer_values": False, "play_values": False}.get(k))
             if k == "actions" and (have, v) == ("ordered", "ordered-capped"):
                 # Same model and moves; only long chains of joker drags stop being offered.
                 alert("continuing an 'ordered' checkpoint with 'ordered-capped' actions (joker-drag cap on)")
@@ -171,6 +175,20 @@ def main():
             for g in opt.param_groups:
                 g["lr"] = args.lr
         resumed = ck
+    elif args.warm_start:
+        # model v5 (docs/hypotheses-v5.md): v4b's weights, a fresh optimizer, round 0, this run's own evals.
+        # Ported from model v4c's warm start (branch v4c, commit 96703f9); v5's new weights are play values' columns.
+        ck = torch.load(args.warm_start, map_location=device, weights_only=False)
+        assert ck["vocab"] == vocab, "checkpoint vocabulary differs from this game"
+        arch = ck.get("arch", {})
+        for k, v in (("d", args.d), ("layers", args.layers), ("heads", args.heads), ("enc", args.enc),
+                     ("actions", args.actions), ("phase_split", bool(args.phase_split)),
+                     ("offer_values", bool(args.offer_values))):
+            assert arch.get(k) == v, f"warm-start checkpoint has {k}={arch.get(k)}, this run has {k}={v}"
+        model.load_state_dict(warm_start_state(ck["model"], model.state_dict()))
+        alert(f"warm start from {args.warm_start} (its round {ck.get('iteration')}, its best eval "
+              f"{ck.get('best_eval', -1):.2f} blinds/game): fresh optimizer, round 0"
+              + ("; play-value weights start at 0" if args.play_values and not arch.get("play_values") else ""))
     elif args.init_weights:
         w = torch.load(args.init_weights, map_location=device, weights_only=True)
         arch = w.get("arch", {})
@@ -223,7 +241,8 @@ def main():
     def save(it, tag):
         ck = {"model": model.state_dict(), "opt": opt.state_dict(), "iteration": it, "vocab": vocab,
               "provenance": prov, "arch": {"d": args.d, "layers": args.layers, "heads": args.heads, "enc": args.enc, "actions": args.actions, "moe": bool(args.moe),
-                       "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values)},
+                       "phase_split": bool(args.phase_split), "offer_values": bool(args.offer_values),
+                       "play_values": bool(args.play_values)},
               "best_eval": best_eval, "evals_since_best": evals_since_best, "games_total": games_total, "wins_total": wins_total,
               "decisions_total": decisions_total,
               "lr": opt.param_groups[0]["lr"], "sil_buffer": sil_buffer, "retry_pools": pools, "arms": arms,
@@ -417,6 +436,8 @@ def main():
             sd, p = e["seed"], e["progress"]
             arm = source.get(sd, "fresh")
             e["arm"] = arm
+            # this game's attempt on its seed in this run: 1 = first sight (fresh); the pool's "attempts" counts retries
+            e["attempt"] = 1 if arm == "fresh" else (e.get("_prev_entry") or {}).get("attempts", 0) + 2
             arms[arm]["games"] += 1
             arms[arm]["wins"] += int(p["won"])
             if arm != "fresh":
@@ -449,7 +470,7 @@ def main():
                  "found_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                  "n": e["n"], "capped": e["capped"], "return": e["return"], "progress": e["progress"],
                  "verified": e["verified"], "final": e["final"], "acts": e["acts"], "desc": e["desc"],
-                 "retry": e.get("retry", False), "arm": e.get("arm"), "actions": args.actions, "enc": args.enc,
+                 "retry": e.get("retry", False), "arm": e.get("arm"), "attempt": e.get("attempt"), "actions": args.actions, "enc": args.enc,
                  **({"curriculum": e["curriculum"]} if e.get("curriculum") else {}),
                  **({"moe": e.get("moe")} if args.moe else {}),
                  **({"stop_ante": args.stop_ante, "reached": e.get("reached", False)} if args.stop_ante else {}),
@@ -610,7 +631,50 @@ def main():
         model.eval()
         save(-1, "bc")
         alert(f"behavior cloning done: {total:,} game replays in {(time.time() - t0) / 60:.1f} min; saved bc.pt")
+    agree_decs = None
+
+    def imitate_phase():
+        """Model v6, stage 1 (train/imitate.py): passes over the teacher's games, keeping the weights with the lowest
+        held-out move loss; the agreement set is fixed in the run folder for every later eval."""
+        from imitate import train_imitation
+
+        def log(line, metric=None, health=None):
+            print(line, flush=True)
+            if metric:
+                metrics.write(json.dumps(metric) + "\n")
+                metrics.flush()
+            if health:
+                write_health(status="running: imitation", **health)
+        try:
+            summary = train_imitation(model, args, device, out, log,
+                                      lambda: stop_requested[0] if stop_requested else None)
+        except KeyboardInterrupt as e:
+            raise Stop(str(e) or "interrupted during imitation")
+        k = summary["kept"]
+        alert(f"imitation done: kept pass {k['pass']} (held-out move loss {k['heldout_ce']:.3f}, agreement "
+              f"{k['agreement']:.1%}) of {len(summary['passes'])}; {summary['train_games']:,} games trained on, "
+              f"{summary['held_out_games']:,} held out")
+        save(-1, "imitate_ckpt")
+        return summary
+
+    def agreement_now():
+        """Top-1 agreement with the teacher on the run's fixed agreement set (v6), or None."""
+        nonlocal agree_decs
+        ref = os.path.join(out, "agreement_set.json")
+        teacher = args.imitate or args.agreement_from      # v6g: the set scored without imitation
+        if teacher and not os.path.exists(ref) and args.agreement_set:
+            shutil.copyfile(args.agreement_set, ref)
+        if not teacher or not os.path.exists(ref):
+            return None
+        from imitate import decisions_of, score, where
+        if agree_decs is None:
+            agree_decs = decisions_of(where(teacher), [tuple(r) for r in json.load(open(ref))])
+        r = score(model, agree_decs, device, args.minibatch)
+        return {"agreement": round(r["agree"], 4), "agreement_table": round(r["agree_table"], 4),
+                "agreement_shop": round(r["agree_shop"], 4), "agreement_n": r["n"]}
     try:
+        if args.imitate and resumed is None:
+            imitate_phase()
         if args.bc and resumed is None:
             bc_phase()
         pending = None
@@ -642,6 +706,9 @@ def main():
                 ev = summarize(eval_eps)
                 record(it, "eval", eval_eps)
                 beaten.update(e["seed"] for e in eval_eps if e["progress"]["won"])
+                ag = agreement_now()
+                if ag:
+                    ev.update(ag)
                 print(f"[eval {it}] {json.dumps(ev)}", flush=True)
                 metrics.write(json.dumps({"iteration": it, "eval": ev, "eval_seconds": round(time.time() - te, 1)}) + "\n")
                 metrics.flush()
@@ -674,6 +741,10 @@ def main():
                                                 "last_moves": e["tail"]}) + "\n")
                 health["last_eval"] = ev
                 health["best_eval_blinds"] = best_eval
+                if args.imitate_only:
+                    save(it, "latest")
+                    raise Stop(f"stage 1 scored: eval {it} won {ev['wins']}/{ev['games']}, {ev['blinds_mean']:.2f} "
+                               f"blinds/game" + (f", agreement {ev['agreement']:.1%}" if "agreement" in ev else ""))
 
             t0 = time.time()
             if pending is None:
@@ -736,7 +807,16 @@ def main():
             snap_m = {k: v.detach().clone() for k, v in model.state_dict().items()}
             snap_o = copy.deepcopy(opt.state_dict())
             args.decisions_done = decisions_total     # the shop's entropy schedule (v4) counts training decisions
-            st = ppo_update(model, opt, eps, args, device, sil)
+            critic_only = it < args.critic_rounds
+            st = ppo_update(model, opt, eps, args, device, sil, critic_only=critic_only)
+            if critic_only:
+                # v6g's guard: a critic round must leave the policy exactly as it was
+                from ppo import value_param
+                now_sd = model.state_dict()
+                changed = [k for k, v in snap_m.items() if not value_param(k) and not torch.equal(v, now_sd[k])]
+                if changed:
+                    raise Stop(f"critic round {it} changed {len(changed)} policy weights (first: {changed[0]})")
+                st["critic_only"] = 1.0
             decisions_total += sum(len(e["steps"]) for e in eps)
             if it in nan_at:
                 with torch.no_grad():
@@ -844,6 +924,8 @@ def main():
                   + (f" | sil buffer {sil_info['buffer']} ({sil_info['buffer_wins']} wins, min return {sil_info['buffer_min_return']:.0f}) "
                      f"pos {st.get('sil_pos', 0):.2f}" if sil_info else "")
                   + (f" | retry {sr['games']} games ante {sr['final_ante']} wins {sr['wins']}" if sr else "")
+                  + (" | won on attempt " + ", ".join(f"{e['seed']} #{e['attempt']}" for e in eps
+                     if e["progress"]["won"] and e.get("attempt")) if any(e["progress"]["won"] and e.get("attempt") for e in eps) else "")
                   + " | alloc " + " ".join(f"{a[0] if a == 'fresh' else a}:{round_alloc[a]}" for a in ARMS if round_alloc[a])
                   + f" | waiting {sum(len(v) for v in pools.values())} beaten seeds {len(beaten)}"
                   + (f" | curriculum {cur_rec['games']} games (replay {cur_rec['replay_share_of_play']:.0%} of play)" if cur_rec else "")

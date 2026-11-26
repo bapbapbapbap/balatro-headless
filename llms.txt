@@ -1,119 +1,39 @@
 # balatro-headless
 
-> Balatro's real game logic, run headless from the user's own install; a reinforcement-learning bot trained on it that sees only what a player sees; and a public record of every seed the bot has beaten, each with a route (every move from seed to win) that replays exactly. The research aim (chud's) is to exhibit Hume's is-ought gap in an agent: hold the facts fixed and vary only the ought, the reward.
+> Balatro's own game code (1.0.1o), run headless from the user's own install; a learned policy trained on it that sees only what a player sees; and a record of every seed it has beaten, each with a route that replays move for move to the game's own win.
 
 Important for anyone reading or using this repository:
 
-- Balatro was created by LocalThunk and is published by Playstack. This repository contains none of the game: no code, art, audio or text. The harness reads the game from the user's own purchased install, and extracted files must stay private.
-- Nothing in the game is reimplemented. The harness boots the game's own Lua (LuaJIT 2.0.5 via lupa) with a stand-in for LÖVE, and is checked decision by decision against runs logged in the real game.
-- Everything is pinned to Balatro 1.0.1o-FULL, unmodded. Results so far are on Red Deck, White Stake.
-- The bot observes cards face up as a player would, the deck as a set, and never the draw order or the game's random state. Strategy is not encoded; what the bot wants is only the reward.
-- A seed counts as beaten only if its saved route replays move for move to the game's own win (the Ante 8 boss beaten). Until 2026-11-03 final-boss losses were miscounted as wins; those are now kept separately as near misses. Current counts are in the README's tally block, not here.
-- Hypotheses are pre-registered in `docs/hypotheses.md` before their data exists. Earlier sections are never edited; results and corrections are added as new dated sections.
-- **Current model: v4b** (run `v4b`, started 2026-11-10 10:40 CST, 168-hour cap, 12 workers; stopped itself at round 280 on its sell stop with a best eval of 8.31 blinds/game at round 240, and continues from there with that stop off since 2026-11-11: last three sections of `docs/hypotheses-v4b.md`). v4's design (two networks with routed credit, a build-strength potential, offer values, a replay curriculum) with a hand clock on the table network's GAE lambda and hand-type exploration off; it stops on the stall rule (25 evals with no new best). Registered in `docs/hypotheses-v4b.md`; why v4 stalled is the last section of `docs/hypotheses-v4.md`. Agents: start at `AGENTS.md`; past runs' code: `ARCHIVE.md`.
-- **Standing decisions** (`docs/hypotheses.md` 2026-11-09 ~18:17): no run forces a hand (the Full House venture is closed); the bar for going up the decks and stakes is a 25% win rate on the 600-seed eval, Red/White, open to revision from v4's data.
-- **Aims** (chud's, in order): 1. exhibit Hume's is-ought gap; 2. prove a naneinf seed (a score that overflows to inf/nan, in a route that replays; none proven yet); 3. 100% a fresh save (a Gold Stake win with every joker, Gold Stake on every deck, every challenge). Aims 2–3 are existence proofs and may also be found by search (`docs/hypotheses.md` 2026-11-05 ~23:01).
+- Balatro was created by LocalThunk and is published by Playstack. This repository contains none of the game. The harness reads the game from the user's own purchased install. The MIT license covers this project's tooling only.
+- Nothing in the game is reimplemented. The harness boots the game's own Lua in LuaJIT 2.0.5 (the game's runtime; some random draws depend on its table order) via lupa, with LÖVE stubbed out, and was checked decision by decision against runs logged in the real game.
+- Results are simulator runs of the game's own code, not real-save achievements.
+- A seed counts as beaten only if its saved route replays move for move to the game's own win (the Ante 8 boss beaten).
+- **Current policy: v6g best.pt (round 660)**, sha256 4462f80e4b41fb9e85ec9f69a48dc3bf1ac35099d3c3a6f3213b8535aa909106. Trained on the Red Deck only: imitation of Balatro Lab's hand-built bot (v6e, v6dt), then PPO on "blinds beaten" at Gold Stake (v6g). Zero-shot, it has won at Gold Stake on all 15 decks; t0 win rates 0.01-0.32% per deck over 9,000 seeds (Black 18,000); 114 routes verified. White Stake, Red Deck: 174/600.
+- Wins cluster on a shared band of about 1% of seeds; deck strength sets the rate inside it.
+- Prior art: AnteZero (namecallfilter/antezero) reports about 12% at Gold over all 15 decks with a policy trained on every deck and stake, released before this result. Atol8/balatro-ai (LLM with tools) won Black Deck Gold Stake in the real game. Balatro Lab (KvashaIhor/balatro-lab) is the teacher.
+- Designs and predictions are committed before their code or data (`docs/hypotheses-v6.md`); committed sections are never edited; results, including predictions not met, are new sections.
+- Earlier runs (models 0.1-1.0, moe2, v4-v6 arms), their docs and weights are kept at git tags listed in `ARCHIVE.md`.
 
-### Model lineage (oldest first)
+## Start here
 
-| Model | Run | What it was | Status |
-|---|---|---|---|
-| 0.1 | `v1` | single PPO policy, 250k parameters | retired |
-| 0.2 | `v2` | behavior cloning from v1's games, then PPO; 1.6M parameters, ordered actions | retired; start of `moe2` |
-| 0.3 | `v2b` | 0.2 plus the joker-drag cap and hand-type exploration | retired |
-| 1.0 | `v2b` | released weights, the end of that line | released (`docs/models.md`) |
-| moe | `moe` | mixture of experts (early head + 7 hand experts), pinned | stopped on the stall rule, 2026-11-04 |
-| moe2-pins0 | `moe2` | early head + 6 hand experts, pins faded to 0; 9 of 600 eval wins, 12.94 blinds per game; never learned Full House | released (`weights/balatro-bot-moe2-pins0.pt`, `docs/system_card_moe2.md`); the baseline v4 is tested against |
-| v3 | `v3`, `v3-control` | single network, discount per blind passed; code built | replaced as the target by v4; no result recorded |
-| v4 | `v4` | two networks, routed credit, build potential, curriculum; best eval 4.68 blinds/game, then learned to sell its jokers mid-blind | stopped on the stall rule, 2026-11-10 |
-| **v4b** | `v4b` | see above; best eval 8.31 blinds/game at round 240 | stopped at round 280 on its sell stop, 2026-11-10; **continues with the stop off** |
+- [README](README.md): results, how the policy was made, related work.
+- [System card, v6g](docs/system_card_v6g.md): what the policy is, how it was checked, what was learned, limits.
+- [Gold evaluation](gold/README.md): per-deck rates, verification, seed sharing.
+- [Beaten seeds](wins/README.md): the record and how to replay a route.
+- [Reproduce the setup](docs/REPRODUCE.md): from a Steam copy to a running harness.
 
-One page per run: [`docs/runs/`](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/runs/README.md).
+## Record
 
-## How it is run
-
-Everything is run from **Windows PowerShell**. The game lives on Windows (Steam); the harness and the trainer run in **Linux under WSL2** (Ubuntu 24.04, distro name `Ubuntu-24.04`), and PowerShell starts the Linux side with one command per job:
-
-```
-wsl -d Ubuntu-24.04 -- bash -lc "<linux commands>"
-```
-
-`wsl -d Ubuntu-24.04` picks the Linux install, `--` ends WSL's own options, and `bash -lc "..."` runs the quoted commands in a login shell (so `~` is the Linux home).
-
-**Any command containing `$` uses `-e` instead of `--`, with single quotes:** `wsl -d Ubuntu-24.04 -e bash -lc '...'`. With `--`, WSL's own shell reads the line first and expands `$(...)` and `$VAR` in the Windows folder before bash runs (2026-11-04: a branch cleanup failed with "not a git repository"). `-e` hands the line straight to bash.
-
-Two folders matter:
-
-- `~/balatro/` (Linux side): the repo clone (`~/balatro/balatro-headless`), the Python venv (`~/balatro/venv`), and the game's Lua source unpacked from the bundle (`~/balatro/local/source`).
-- `C:\Users\<you>\balatro-work` (Windows side), which Linux sees as `/mnt/c/Users/<you>/balatro-work`: the shared work folder. Training runs (`runs/<name>/`: checkpoints, `health.json`, `metrics.jsonl`, `train.log`, saved games, wins), the game bundle, and the PowerShell scripts run from it. Windows and Linux both read and write it.
-
-
-### Running a run
-
-Every run is a config, `configs/<run>.toml` (its settings, start, pre-flight checks), started by one launcher:
-
-```
-wsl bash -lc "cd ~/balatro/balatro-headless && bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work --smoke"
-wsl bash -lc "cd ~/balatro/balatro-headless && bash train/launch.sh v4b --work /mnt/c/Users/<you>/balatro-work"
-```
-
-The first is the smoke test (pre-flight, then 3 rounds into `runs/v4b-smoke`); the second the run (pre-flight, then training, resuming from `runs/v4b/latest.pt` if it exists; `--hours`, `--workers` override the config, `--skip-checks` skips the pre-flight on a relaunch). Double quotes and no `$` in the command: that form works the same in PowerShell and Command Prompt. `python3 train/launch.py <run> --work <dir> --dry-run` prints the exact `train.py` command; `--check-provenance runs/<run>/provenance.json` shows whether a config reproduces a run's settings.
-
-- **Watch it** (second PowerShell window): `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\<you>\balatro-work\watch.ps1 -Run v4b`. Start it after training prints `== training`. The watcher keeps the PC awake, prints a status line each minute from `health.json`, and restarts training only after an unexpected death (never after a deliberate stop; at most 5 times per watcher; after a restart it waits up to 30 minutes for the relaunch's pre-flight). A restart runs `git pull`, so it picks up whatever is pushed to the branch the clone is on: don't push there while a run trains. It runs from a copy in the work folder; refresh it with `wsl bash -lc "cp ~/balatro/balatro-headless/tools/watch.ps1 /mnt/c/Users/<you>/balatro-work/"`. A Windows reboot stops it too.
-- **Stop it** with Ctrl+C in its window: it saves `latest.pt` first. A relaunch resumes from it; the hours limit counts from each launch.
-- **What to read while it runs:** `runs/<run>/metrics.jsonl` (evals on the 600 fixed seeds every 20 rounds, with `sells_mean`; `play_seconds` + `update_seconds`; entropy per network; `ms_sim`; `gpu_memory`) and alerts in `runs/<run>/train.log`.
-- **v4/v4b's test** (W1-W4; `analysis/compare_models.py`, A = the run's `best.pt`, B = `weights/balatro-bot-moe2-pins0.pt`): `--seed-tag v4-test`; the summary adds wins per sim-hour and its bootstrap bound.
-
-### Routine
-
-- **The controller** `tools\balatro.ps1 <command>` wraps setup and routine jobs from PowerShell: `check`, `lock`/`unlock` (stop Steam updating the game), `bundle` (extract the game's Lua into `balatro_bundle.zip`), `setup` (build the Linux side and run every check), `train`, `stop`, `status`, `watch`, `verify` (replay every published route on the untouched game), `publish` (add new verified wins to `wins/`, update the tally, commit, push), and the save commands. `help` lists them.
-- **Record the machine**: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\sysinfo.ps1` writes hardware, Windows, WSL, GPU driver, CUDA and package versions to `balatro-work\sysinfo-<date>.txt` (no host or user names).
-- **Record the Python packages**: `wsl -d Ubuntu-24.04 -- bash -lc "~/balatro/venv/bin/pip freeze"` (the source of `requirements-lock.txt`).
-- **Diagnose a machine crash** (Windows went down under training): `Get-WinEvent -FilterHashtable @{LogName='System'; StartTime=(Get-Date).AddHours(-4)} | ? { $_.Id -in 41,1001,1074,6008 -or $_.ProviderName -match 'WHEA|Thermal' } | Format-List TimeCreated,Id,ProviderName,Message`. 1074 is a requested restart, 1001 a bugcheck (blue screen) with its code, 41 without 1074 an unclean shutdown, WHEA a hardware error. The crashes on 2026-11-04 were bugcheck 0x20001 (hypervisor, I/O MMU) after an ASUS driver update; the driver was rolled back and Windows Update driver installs were turned off (`docs/REPRODUCE.md`, "The training machine").
-- **Delete merged branches on GitHub** (from the Linux clone, which has push credentials): `wsl -d Ubuntu-24.04 -e bash -lc 'cd ~/balatro/balatro-headless && git fetch -q --prune origin && git branch -r --merged origin/main | grep -v -e HEAD -e origin/main$ | sed s#origin/## | xargs git push origin --delete'`.
-
-- **Scan seeds for naneinf openings**: `wsl -d Ubuntu-24.04 -- bash -lc "cd ~/balatro/balatro-headless/naneinf && . ~/balatro/venv/bin/activate && BALATRO_SRC=~/balatro/local/source python3 scan.py --check"`, then the same with `--n 200000 --workers 2 --out /mnt/c/Users/<you>/balatro-work/naneinf_hits.jsonl` in place of `--check`. `. ~/balatro/venv/bin/activate` loads the venv; `BALATRO_SRC` tells the harness where the game's Lua source is.
-
-### Past runs
-
-Each past run's code is kept in the commit it launched from, tagged `run-<run>`: `ARCHIVE.md` lists the tags, launchers and results. `git worktree add /tmp/old run-moe2` gives that tree back exactly.
-
-- **Compare the experts from the same positions** (`analysis/paired_experts.py`, mixture-of-experts runs): `wsl bash -lc "cd ~/balatro/balatro-headless/analysis && . ~/balatro/venv/bin/activate && python3 paired_experts.py /mnt/c/Users/<you>/balatro-work/runs/moe2/pins0.pt --src ~/balatro/local/source --seeds 200 --handoff-antes 3,4,5 --workers 2 --out /mnt/c/Users/<you>/balatro-work/paired_moe2.jsonl"`.
-- **Read GPU state**: `wsl bash -lc "nvidia-smi --query-gpu=temperature.gpu,clocks.sm,clocks_throttle_reasons.active,memory.used,memory.total,power.draw --format=csv"`.
-
-Limits of this machine that shape the commands: the GPU (RTX 4050 Laptop) has 6 GB of its own memory. Past that, WSL's driver spills into system memory and updates slow ~10x, so the trainer caps PyTorch at 90% of the card (`--gpu-mem-fraction`) and splits a minibatch that doesn't fit. `PYTORCH_CUDA_ALLOC_CONF=expandable_segments` crashes under WSL and must not be set. Under sustained load the laptop heat-throttles; runs use 12 of its 16 cores.
-
-Every result can also be checked without PowerShell: on any Linux machine with the harness built and the pinned game, `train/verify_games.py` replays saved routes.
-
-## Docs
-
-- [README](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/README.md): summary, current tally, results, research question, repository map, harness validation, versions, usage
-- [Training runs](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/runs/README.md): one page per run (v1 → v4): what it was, what was registered and scored for it, what it left behind, and how to take out one run's routes
-- [Closed hypotheses](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/closed_hypotheses.md): where every registered hypothesis ended (scored, void, closed unscored) and which are still open
-- [Pre-registered hypotheses and results](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/hypotheses.md): every prediction, test window and result, dated, including corrections
-- [Model card](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/models.md): the released models, their training, evaluation and hashes
-- [System card, moe2-pins0](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/system_card_moe2.md): the released mixture of experts: how it routes, how it was trained, what it does and doesn't do
-- [moe2 evaluation](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/moe2_evaluation.md): the run's evals, training curves, experts and open questions
-- [Model design](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/model_v1.md): observation encoding, action scoring, PPO, reward and shaping
-- [Reproduction guide](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/REPRODUCE.md): from a Steam copy of Balatro to a training bot and checked routes
-- [Proof by construction](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/proof.md): a published route replayed to the game's own win, and the save-progress ledger
-- [Won-game analysis](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/docs/won_games_analysis.md): what the bot learned and didn't, tested against baselines
-- [Changelog](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/CHANGELOG.md): every change, dated
-
-## Data
-
-- [Beaten seeds](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/wins/README.md): format of the public record; routes in `wins/routes.jsonl`, the list in `wins/beaten_seeds.csv`, final-boss near misses in `wins/near_misses.jsonl`
-- [Released weights](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/weights/README.md): the model files; the model card says how to watch one play a seed
-- [naneinf](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/naneinf/README.md): what counts, what the bot still needs, community seeds checked on this version, the seed scanner
+- [Registrations, current](docs/hypotheses-v6.md) and [the teacher's](docs/hypotheses-reproduce.md); index: [docs/hypotheses.md](docs/hypotheses.md).
+- [Run pages](docs/runs/README.md): v6e, v6dt, v6g.
+- [Teacher reproduction](reproduce/balatro_lab/README.md): Balatro Lab on its own simulator and through the bridge.
+- [Archive](ARCHIVE.md): every earlier run at its launch commit.
 
 ## Code
 
-- [harness/](https://github.com/bapbapbapbap/balatro-headless/tree/main/harness): headless boot, replay validator, the playable environment (`env.lua`, `env.py`), its checks, fuzzing, the differential accuracy check
-- [train/](https://github.com/bapbapbapbap/balatro-headless/tree/main/train): model, PPO trainer and launchers, publishing and verifying wins, exporting weights, playing a seed
-- [tools/](https://github.com/bapbapbapbap/balatro-headless/tree/main/tools): Windows PowerShell controller, game bundling, update lock, training watcher, WSL setup
-- [tests/](https://github.com/bapbapbapbap/balatro-headless/tree/main/tests): logged real-game runs (gameplay data only) and check scripts
+- `harness/`: game runtime, legal actions, observations, replay.
+- `train/`: trainer (`train.py`), imitation (`imitate.py`), launcher (`launch.py`), publishing and replay checks (`publish_wins.py`, `verify_games.py`).
+- `tools/eval_ladder.py`: evaluate any checkpoint on any deck and stake; `tools/ladder_to_routes.py`: turn its wins into verified routes.
+- `gold/`: the 15-deck Gold checks.
 
-## Optional
-
-- [Analysis scripts](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/analysis/README.md): the won-game analysis, the re-solve test, and the paired expert comparison
-- [License](https://raw.githubusercontent.com/bapbapbapbap/balatro-headless/main/LICENSE): MIT, covering this project's tooling only; it grants nothing about Balatro
+Contact: chud (GitHub bapbapbapbap), jacobhadji05@gmail.com. Code written by Claude (Anthropic) with chud, who is the author.

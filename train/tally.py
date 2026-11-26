@@ -89,7 +89,7 @@ def block(total, by_model, by_setup, top_stake, naneinf, wins_link, naneinf_link
             + (f"\n**Final-boss near misses: {near[0]:,}.** Seeds where the bot reached the Ante 8 boss and "
                f"lost it, kept with their routes in [`{near_link}`]({near_link}): median {near[1]:.0%} of the "
                f"boss's target scored, {near[2]:,} at 90% or more. Until 2026-11-03 these were counted as wins "
-               "(see the CHANGELOG, 0.13.2).\n" if near[0] else ""))
+               "(see the CHANGELOG at the tag archive-2026-11-25, 0.13.2).\n" if near[0] else ""))
 
 
 def put(path, text):

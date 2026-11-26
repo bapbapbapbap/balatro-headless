@@ -1,0 +1,57 @@
+# Model v6, stage 3 at Gold (docs/hypotheses-v6.md, 2026-11-22 19:36 section; run page docs/runs/v6g.md):
+# PPO on our reward alone from v6dt's best.pt (fresh optimizer, round 0), Red deck, Gold stake (8), no teacher.
+# The first 10 rounds train only the value heads (--critic-rounds); agreement with the teacher is still scored.
+#
+#   bash train/launch.sh v6g --work /mnt/c/Users/Jacobi/balatro-work [--smoke]
+
+[run]
+start = "warm:{work}/runs/v6dt/best.pt"
+hours = 168
+workers = 12
+checks = ["repo", "fixture-replay", "ordered", "diff", "v4-credit", "v4-phase", "v4-phi", "v5-play", "v6-imitate"]
+mirror_dir = "/mnt/f/balatro data/{run}"
+spill_dir = "/mnt/f/balatro data"
+publish_on_stop = false
+
+# train.py's settings (train/options.py); anything not listed keeps its default there.
+[train]
+# the model: v6dt's (two networks, encoding 2, ordered actions with the joker-drag cap, offer and play values)
+phase_split = true
+d = 192
+layers = 4
+heads = 6
+enc = 2
+actions = "ordered-capped"
+offer_values = true
+play_values = true
+# what it wants, and how credit reaches its moves (v4b's, as in v6dt)
+reward = "blinds"
+build_shaping = 1
+gamma_blind = 0.95
+lam_blind = 0.95
+lam_hand = 0.8
+shop_ent = "0.001"
+# training: stage 3 as registered (2026-11-20), plus the critic warm-up
+seed = 3
+lr = 5e-5
+critic_rounds = 10
+# agreement with the teacher at every eval, without imitation
+agreement_from = "{work}/teach_v6"
+agreement_set = "{work}/runs/v6dt/agreement_set.json"
+# the game
+back = "b_red"
+stake = 8
+# evals and stops (v4b's stall rule)
+eval_games = 600
+eval_every = 20
+stall_evals = 25
+max_wins = 1000000
+
+# --smoke: runs/v6g-smoke, 3 rounds (2 of them critic rounds), a 12-game eval, then stop
+[smoke]
+iterations = 3
+critic_rounds = 2
+eval_games = 12
+eval_every = 2
+games_per_worker = 2
+hours = 1
