@@ -43,6 +43,18 @@ cluster on a band of about 1% of seeds shared across decks: [`gold/results/seed_
 How the policy was made (imitation of Balatro Lab's bot, then PPO at Gold) and what we learned:
 [`docs/system_card_v6g.md`](docs/system_card_v6g.md).
 
+**BalatroBench conditions** (Red Deck, White Stake, their 15 games: seeds AAAAAAA-EEEEEEE, 3 runs each, ranked by
+mean final round, 24 = win), with v6dt, the White Stake model before Gold training. Run here, not submitted: their
+community board takes LLM prompt strategies, not trained policies.
+
+| | Wins | Mean final round |
+|---|---|---|
+| v6dt, blind skips removed | 10/15 | 22.4 ± 3.7 |
+| v6dt as trained (a skipped blind isn't a round) | 7/15 | 15.8 ± 5.5 |
+| BalatroBench community #1 ("Default", gpt-oss-20b, their page 2026-11-24) | – | 5.7 ± 3.4 |
+
+Games and method: [`analysis/README.md`](analysis/README.md#balatrobench-comparison-off-board-2026-11-24).
+
 ## Limits
 
 - 0.01-0.32% per deck at Gold. Not competitive on rate.
@@ -57,6 +69,8 @@ How the policy was made (imitation of Balatro Lab's bot, then PPO at Gold) and w
   reimplementation. Its v0.1.0 (2026-11-12), trained on Red Deck White Stake only, already reported 1-2% at Gold on
   six decks; its v0.2.0 (2026-11-20), trained on every deck and stake, reports about 12% at Gold over all 15. Both
   came before our 15-deck result (2026-11-24).
+- **BalatroBench** ([balatrobench.com](https://balatrobench.com/community.html)): a benchmark of LLM agents playing
+  real Balatro through BalatroBot, ranked by mean final round; our run under its conditions is under Results.
 - **Atol8/balatro-ai** ([Attol8/balatro-ai](https://github.com/Attol8/balatro-ai)): an LLM with exact scoring
   tools; two Black Deck Gold Stake wins in the real game.
 
