@@ -81,3 +81,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-27, after chud's 14:56 CST message: the dollar_buffer fix, results](hypotheses-v6.md#added-2026-11-27-after-chuds-1456-cst-message-the-dollar_buffer-fix-results) | v6 |
 | [Added 2026-11-27, after chud's 15:40 CST message: the jokers' before step in score(), registered before its code](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-the-jokers-before-step-in-score-registered-before-its-code) | v6 |
 | [Added 2026-11-27, after chud's 15:40 CST message: correction to the before-step section: play values only](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-correction-to-the-before-step-section-play-values-only) | v6 |
+| [Added 2026-11-27, after chud's 15:40 CST message: the before step, results](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-the-before-step-results) | v6 |

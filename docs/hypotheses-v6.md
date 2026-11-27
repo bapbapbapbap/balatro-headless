@@ -1361,3 +1361,23 @@ So phi_build and offer values stay as defined. Q1-Q3 are unchanged (the audit an
 **Q4 is replaced:** on the Gold routes, phi_build and offer values identical to main at every move (the step
 doesn't reach them); play values differ only at moves where a before-step joker is held. No size predicted.
 Whether phi_build's definition should take the before step is chud's call, as its own registered change.
+
+## Added 2026-11-27, after chud's 15:40 CST message: the before step, results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o, code e1e689f (before step for play values only).
+- Joker audit, 150 x 12 with the shorter left-out list: **0 unlabeled misses** (Q1, 70%: **met**; run on ed50ed0,
+  which differs only in also stepping phi_build; the audit tests play values, rerun on e1e689f for the 9 jokers:
+  0 misses).
+- The 6 measured jokers plus Midas Mask, To Do List, Obelisk at 40 trials each: **all exact**, 35-39 checked plays
+  each (Q2, 75%: **met**). Caveat: each trial starts a fresh run, so growing jokers start at their base value and
+  Obelisk's trigger is rare; routes test grown values (below).
+- `v4_phi_check --routes 6`: ALL PASS. `v5_play_check --routes 3`: check 2 **137 of 137** exact (was 102: Green
+  Joker's 35 plays on 115I4TMI came into the check), check 1 PASS (Q3, 85%: **met**).
+- All 181 Gold routes, main (ea8dedd) vs fixed: phi_build and offer values identical at all 49,957 moves, cache =
+  fresh everywhere (Q4 as replaced: **met**). Play values differ at **3,076 moves, all with a before-step joker
+  held** (16,221 such moves, on 86 of 181 routes; 19% of them).
+
+Reading: the play values input was wrong at about one in five moves holding Green Joker, Ride the Bus, Square,
+Runner, Spare Trousers, Obelisk, Vampire, Midas Mask or To Do List, on half of v6g's Gold wins. Low for the growers,
+high for Vampire. This is the input the policy reads to choose a play (score vs what the blind needs), so it bears
+on round play, which the walls report ranks first. v6g trained on the old values.
