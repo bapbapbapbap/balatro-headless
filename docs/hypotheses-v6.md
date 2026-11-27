@@ -1315,3 +1315,23 @@ Claude's, reviewed by chud. Cloud, 1.0.1o.
 Predictions: 3 misses exact and 0 of 150: **met** (75%); Bull and Bootstraps all exact at 60: **met** (80%);
 pre-flight ALL PASS: **met**. Reading: a real bias, small on the routes v6g won, because it needs a paying card in
 play (Gold Seals, Gold Cards, Rough Gem, Business Card) next to Bull or Bootstraps.
+
+## Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection vs the bot's own games, registered
+
+Claude's, reviewed by chud. phi_build values a scaling joker by its value projected `PROJECT_ROUNDS` = 6 rounds
+ahead at `GROWTH`'s per-round rates (build_phi.lua: the balatro-gym planner's "rough community-consensus rates for
+a spam-hand build", mapped onto the game's fields, decays ours). Nobody has checked those rates against how the bot
+actually grows them. chud (11-27): valuing growing jokers by what they grow into is massive (Balatro Lab's
+largest single gain, +20 points).
+
+**Measure (no code change).** The 181 Gold routes in `wins/routes.jsonl` replayed; at the first move of every
+round (SELECTING_HAND, `G.GAME.round` new) each held joker in `GROWTH` gives its field value, keyed by `sort_id`.
+Per joker type: observed per-round growth (median and mean over instances of (last - first) / rounds held), and
+for every instance held 6 more rounds, projected (v + 6 x rate, with GROWTH's floor) vs actual. Reported:
+observed rate / GROWTH rate, and the projection's error. Script in the PR. Wins only: a biased sample (games
+where the build worked), stated as such; v6g's saved training games (chud's laptop) are the follow-up if this
+shows a gap.
+
+**Predictions (Claude's).** R1: at least one of the commonest five types (by rounds held) has an observed rate
+off GROWTH's by 2x or more either way: 70%. R2: Hologram and Constellation (xMult growers) grow slower than
+GROWTH says in the bot's games: 55%. R3: Green Joker's observed rate is under 2.0/round (discards cost it 1): 65%.
