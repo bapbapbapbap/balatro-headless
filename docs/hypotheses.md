@@ -77,3 +77,4 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-27, after chud's 13:58 CST message: issue #138 measured, old code vs fixed](hypotheses-v6.md#added-2026-11-27-after-chuds-1358-cst-message-issue-138-measured-old-code-vs-fixed) | v6 |
 | [Added 2026-11-27, after chud's 14:56 CST message: per-joker scoring audit, registered before its full run](hypotheses-v6.md#added-2026-11-27-after-chuds-1456-cst-message-per-joker-scoring-audit-registered-before-its-full-run) | v6 |
 | [Added 2026-11-27, after chud's 14:56 CST message: per-joker audit, first full run](hypotheses-v6.md#added-2026-11-27-after-chuds-1456-cst-message-per-joker-audit-first-full-run) | v6 |
+| [Added 2026-11-27, after chud's 14:56 CST message: money earned in one valued play leaked into the next (fix registered)](hypotheses-v6.md#added-2026-11-27-after-chuds-1456-cst-message-money-earned-in-one-valued-play-leaked-into-the-next-fix-registered) | v6 |
