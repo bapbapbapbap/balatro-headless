@@ -216,6 +216,9 @@ end
 local HELD_JOKERS = { ["Baron"] = true, ["Raised Fist"] = true, ["Shoot the Moon"] = true }
 -- cards: the played cards; held: the rest of the deal. Returns chips * mult and the hand's name.
 local function score(cards, held, live)
+  -- money a card pays while scoring goes to G.GAME.dollar_buffer (Bull and Bootstraps read it) and the game clears it
+  -- by an event; events are stubbed here, so it is put back on return: one play's money never reaches another play
+  local dollar_buffer0 = G.GAME.dollar_buffer
   local text, _, poker_hands, scoring_hand = G.FUNCS.get_poker_hand_info(cards)
   local sh = {}
   for i, c in ipairs(scoring_hand) do sh[i] = c end
@@ -338,6 +341,7 @@ local function score(cards, held, live)
   local nu_chip, nu_mult = G.GAME.selected_back:trigger_effect({ context = "final_scoring_step", chips = hand_chips, mult = mult })
   mult, hand_chips = mod_mult(nu_mult or mult), mod_chips(nu_chip or hand_chips)
   G.hand.cards = hand_cards
+  G.GAME.dollar_buffer = dollar_buffer0
   local s = hand_chips * mult
   if s ~= s or s < 0 then s = 0 end
   return s, text
