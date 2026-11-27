@@ -6,9 +6,9 @@ side by side with v4b's observation (phi_build and offer values) and v5's (the s
      observation v4b sees are identical at every move.
   2. S, the score a play is valued at, equals the chips the game scores when the play is made (the game's own
      hand_chips * mult, captured from evaluate_play's check_and_set_high_score), for every play with nothing
-     the registration leaves out: no joker acting before scoring (Spare Trousers, Square Joker, Runner, Midas
-     Mask, Vampire, To Do List, DNA, Ride the Bus, Obelisk, Green Joker), no chance in the score (Space Joker,
-     Bloodstone, Misprint, a Lucky Card played), not The Hook. At least 98% exact; every miss is listed.
+     the registration leaves out: not DNA (its copy isn't made), no chance in the score (Space Joker, Bloodstone,
+     Misprint, a Lucky Card played), not The Hook. (Until 2026-11-27 the jokers acting before scoring were left out
+     too: Spare Trousers, Square Joker, Runner, Midas Mask, Vampire, To Do List, Ride the Bus, Obelisk, Green Joker.) At least 98% exact; every miss is listed.
   3. The warm-started v5 model (train/model.py warm_start_state) gives the same move probabilities as v4b's
      checkpoint at every move of the routes (largest difference under 1e-5). Needs torch and --warm.
   4. Sim time per move, v5 over v4b on the same routes: reported; over 2x fails (the launch stops for chud).
@@ -34,8 +34,9 @@ from sim import Sim  # noqa: E402
 FAILS = []
 V4B = {"build_phi": True, "offer_values": True}
 V5 = {"build_phi": True, "offer_values": True, "play_values": True}
-LEFT_OUT_JOKERS = {"Spare Trousers", "Square Joker", "Runner", "Midas Mask", "Vampire", "To Do List", "DNA",
-                   "Ride the Bus", "Obelisk", "Green Joker", "Space Joker", "Bloodstone", "Misprint"}
+# What score() can't match exactly: DNA (its copy isn't made), chance (Space Joker, Bloodstone, Misprint). The jokers
+# acting before scoring came in with score()'s before step (docs/hypotheses-v6.md, 2026-11-27 15:40 section).
+LEFT_OUT_JOKERS = {"DNA", "Space Joker", "Bloodstone", "Misprint"}
 CAPTURE = """local H = ...
 H._cap = nil
 if not H._cap_wrapped then
