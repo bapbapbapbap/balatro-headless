@@ -1260,3 +1260,17 @@ inside one play still counts for jokers later in that play, never for another pl
 **Prediction (Claude's).** With the fix: the audit's 3 misses are exact; the full audit (150 x 12, same seeds) has
 0 unlabeled misses: 75%; Bull and Bootstraps at 60 trials each: all exact: 80%. `v4_phi_check`, `v5_play_check`
 still ALL PASS.
+
+## Added 2026-11-27, after chud's 14:56 CST message: the dollar_buffer fix, results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o.
+- The joker audit (`tests/joker_audit.py`, branch `joker-audit`), same 1,800 trials: **0 unlabeled misses of 150**
+  (before: 3). Bull and Bootstraps at 60 trials each: fixed 104 of 104 exact; pre-fix Bootstraps 51 of 56 (e.g.
+  b_red EVL313A1, a Gold card and a Gold Seal in hand, play 5,6: S 418, game 66).
+- `tests/v4_phi_check.py --routes 6`: ALL PASS (86 of 86 offers). `tests/v5_play_check.py --routes 3`: 102 of 102.
+- Size on wins: the 10 Gold routes ending with Bull or Bootstraps, old vs fixed: 2,797 moves, 2,186 with one held;
+  phi_build differs at 39 (all held), largest 0.060; offer values at 17 moves; play values at 1.
+
+Predictions: 3 misses exact and 0 of 150: **met** (75%); Bull and Bootstraps all exact at 60: **met** (80%);
+pre-flight ALL PASS: **met**. Reading: a real bias, small on the routes v6g won, because it needs a paying card in
+play (Gold Seals, Gold Cards, Rough Gem, Business Card) next to Bull or Bootstraps.
