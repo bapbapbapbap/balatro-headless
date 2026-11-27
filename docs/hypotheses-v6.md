@@ -1347,3 +1347,17 @@ labels by the same list.
 jokers measured above all exact at 40 trials each: 75%. Q3: `v4_phi_check --routes 6` and `v5_play_check --routes 3`
 ALL PASS (check 2 at least 98% with the shorter list): 85%. Q4: on the Gold routes, phi_build moves at more than
 5% of moves where Green Joker, Ride the Bus, Square, Runner, Spare Trousers, Obelisk or Vampire is held: 60%.
+
+## Added 2026-11-27, after chud's 15:40 CST message: correction to the before-step section: play values only
+
+Claude's, reviewed by chud. The 15:40 registration said the before step would apply to "play values, phi_build
+and offer values alike". That changes a registered definition: phi_build's (build_phi.lua header, from v4's
+definitions entry) leaves out "what a play changes (the `before` context, destruction, dollars)". phi_build values
+the board with scaling jokers projected 6 rounds ahead, not one play's side effects (a Ride the Bus would reset to
+0 on any deal whose best hand has a face card, wiping its projection). The step was committed (ed50ed0) for all
+callers and is limited to `score(..., live)`, i.e. play values, in the next commit; noticed before any result.
+
+So phi_build and offer values stay as defined. Q1-Q3 are unchanged (the audit and v5 check 2 test play values).
+**Q4 is replaced:** on the Gold routes, phi_build and offer values identical to main at every move (the step
+doesn't reach them); play values differ only at moves where a before-step joker is held. No size predicted.
+Whether phi_build's definition should take the before step is chud's call, as its own registered change.
