@@ -1176,3 +1176,37 @@ What this does not settle:
 The registered reading for a D1 miss stands, stronger: the deck mix is not the lever at this scale. Boss play
 and xMult (the walls report) stay first. Red-only stays the default for the next Gold run unless a deck-token arm
 or a second seed says otherwise.
+
+## Added 2026-11-27, after chud's 13:58 CST message: issue #138 found (Blackboard reads the hand on screen), fix registered
+
+Claude's, reviewed by chud. Written after the cause was found with a probe in a cloud session (game source from
+chud's bundle, LuaJIT 2.0.5), before the fix is committed. The guess in the 2026-11-26 10:55 section (card
+`debuff` missing from the key) is wrong: `build_power_fresh` clears every playing card's debuff, so neither the
+cached nor the fresh value sees a boss's debuffs.
+
+**Cause.** On ZZ6JHUKR the board at move 22 is Gros Michel, Swashbuckler, **Blackboard**, Business Card. The key
+at move 22 (SELECTING_HAND) equals the key at move 20 (blind select), but the fresh value fell from 1.2129 to
+0.8167. With `G.hand.cards` emptied at move 22, fresh gives 1.2129 again. In `score()` the deal's held cards are
+put in `G.hand.cards` only for the held-card step, and the real hand is put back before the joker step.
+Blackboard's joker_main reads `G.hand.cards` (card.lua: X3 if every held card is a Spade or Club). So:
+- outside a round (shop, blind select, packs) the hand is empty, and Blackboard gave X3 on every deal;
+- in a round it read the real hand, the played cards included.
+The key doesn't hold the hand, so the cache also went stale between those states. The 1.2129 was the wrong value.
+
+**What it touched.** On any board with Blackboard: phi_build (v4+ build shaping), the offer values input (a
+Blackboard on offer was valued as a free X3 in every shop), and the play values input (v5+, `score(..., live)`).
+In the game, joker_main runs with the played cards already in G.play, so G.hand.cards is the held cards.
+
+**The fix.** `score()` keeps `G.hand.cards` = the held cards through the jokers and the final step, and puts
+the hand back just before it returns. Same for both callers. `tests/v4_phi_check.py` gets one more invariant
+every 25th move: phi_build is the same with the hand on screen emptied (catches any other joker that reads
+G.hand). It goes back into the pre-flight of the next run.
+
+**What it doesn't change.** v6g and v6gd ran the old code (tags/launch commits keep it); their results stand as
+measured under it. r660's weights were trained on the old inputs, so an r660 eval on the fixed harness differs on
+Blackboard boards: evals of r660 are reported with the harness commit.
+
+**To measure (results go in a new section).** On every Gold route in `wins/routes.jsonl`, old vs fixed code side
+by side: the share of moves (and of moves with Blackboard held) where phi_build or an offer value differs, and by
+how much; and that the fixed code has cache = fresh on all of them. Claude's prediction (made here, before the
+sweep finishes): differences only on boards holding Blackboard; cache = fresh everywhere with the fix.
