@@ -13,7 +13,8 @@ of beaten seeds whose routes replay exactly. chud's goals, in order: the stronge
 - **Current policy: v6g best.pt, round 660** (sha256 `4462f80e4b41fb9e...`). Trained on Red only (Balatro Lab
   teacher -> v6e -> v6dt by imitation -> v6g by PPO at Gold). Gold wins on all 15 decks zero-shot, verified
   (`gold/README.md`). Weights released (GitHub Release `v6g-r660`, with v6dt); game logs not released; no priority claim.
-- **Next run: v6gd** (`configs/v6gd.toml`, `docs/runs/v6gd.md`): v6g with every game's deck drawn uniformly from all 15.
+- **v6gd** (v6g with all 15 decks mixed) stopped 11-27: at round 660 it is below Red-only v6g on 14 of 15 decks at
+  Gold (`docs/runs/v6gd.md`). Nothing training. Open issue #138 (phi_build cache gap at Gold).
 - Prior art to cite wherever results are stated: Balatro Lab (the teacher), AnteZero (learned policy, all decks
   and stakes, ~12% Gold), Atol8/balatro-ai (LLM, Black Gold wins). See README "Related work".
 - **Don't push to the branch a run trains from** while it trains: a watcher restart runs `git pull`.

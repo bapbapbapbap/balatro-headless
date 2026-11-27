@@ -9,7 +9,7 @@ Important for anyone reading or using this repository:
 - Results are simulator runs of the game's own code, not real-save achievements.
 - A seed counts as beaten only if its saved route replays move for move to the game's own win (the Ante 8 boss beaten).
 - **Current policy: v6g best.pt (round 660)**, sha256 4462f80e4b41fb9e85ec9f69a48dc3bf1ac35099d3c3a6f3213b8535aa909106. Trained on the Red Deck only: imitation of Balatro Lab's hand-built bot (v6e, v6dt), then PPO on "blinds beaten" at Gold Stake (v6g). Zero-shot, it has won at Gold Stake on all 15 decks; t0 win rates 0.01-0.32% per deck over 9,000 seeds (Black 18,000); 114 routes verified. White Stake, Red Deck: 174/600.
-- Training next: v6gd, v6g's run with every game's deck drawn uniformly from all 15 (registered 2026-11-25, `docs/runs/v6gd.md`).
+- v6gd (v6g with all 15 decks mixed, equal games): lower than Red-only v6g on 14 of 15 decks at Gold, round 660 (`docs/runs/v6gd.md`). Nothing training.
 - Wins cluster on a shared band of about 1% of seeds; deck strength sets the rate inside it.
 - Prior art: AnteZero (namecallfilter/antezero) reports about 12% at Gold over all 15 decks with a policy trained on every deck and stake, released before this result. Atol8/balatro-ai (LLM with tools) won Black Deck Gold Stake in the real game. Balatro Lab (KvashaIhor/balatro-lab) is the teacher.
 - Designs and predictions are committed before their code or data (`docs/hypotheses-v6.md`); committed sections are never edited; results, including predictions not met, are new sections.

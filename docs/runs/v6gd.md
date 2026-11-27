@@ -16,7 +16,11 @@ blinds per game are not comparable to v6g's Red-only evals. The start banner pri
 default and is unused once `--backs` is set; each game's deck is in its record (`back`). The comparison with v6g
 is scored afterwards by `tools/eval_ladder.py` on matched checkpoints, 15 decks × 600 seeds each.
 
-**Status:** registered; the first smoke (2026-11-25 23:30) stopped in pre-flight at `v4-phi` (a phi_build cache gap v6g also trained with; 2026-11-26 10:55 section). That check is dropped for v6gd; not started.
+**Status:** stopped. Started 2026-11-26 18:18 (after `v4-phi` was dropped from its pre-flight, 2026-11-26 10:55
+section); chud stopped it with Ctrl+C at iteration 766, 16.0 h, before the stall rule fired (in-run best 9.57 at
+700). **Result at round 660** (2026-11-27 section): v6g, the Red specialist, beats it on 14 of 15 decks at Gold,
+pooled 10.03 vs 9.73 blinds a game (paired z -7.45 over 9,000 games); wins 4 vs 4. D1 and D3 missed, D2 and D4 met.
+One run each, so run-to-run variance is unmeasured.
 
 Launch (smoke first; `--backs` has not been used in the v6 lineage):
 

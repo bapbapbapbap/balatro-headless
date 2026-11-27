@@ -1125,3 +1125,54 @@ decks, `gold/results/seed_pool_wins.csv`). v6dt best.pt, temperature 0, Gold, al
 - Reading: these seeds are not won by any policy that reaches them. The wins need what Gold training added to v6dt.
   This does not fully separate seed from policy: v6dt is r660's parent and won nothing at Gold anywhere. A strong,
   unrelated policy on the same seeds would (v6gd's checkpoints are the nearest candidate).
+
+## Added 2026-11-27, after chud's 13:52 CST message: v6gd scored against v6g: the Red specialist wins
+
+Claude's, reviewed by chud. v6gd ran 2026-11-26 18:18 to 2026-11-27 ~10:20 (chud's Ctrl+C at iteration 766, 16.0 h;
+the stall rule had not fired; in-run best 9.57 blinds at 700, mixed decks ~40 games each). Scored as registered at
+R = 660 by `balatro-work/gold/score_v6gd.py` (not in the repo): v6g's `ckpt_00660` first replayed 20 Red seeds
+move for move against `gold/v6g_t0_s8_red.jsonl` (20/20, so v6g's existing best.pt files are round 660). Then
+v6gd's `ckpt_00660` played the first 600 eval seeds on each of the 15 decks at Gold, temperature 0, 0 errors.
+
+| Deck | v6g blinds | v6gd blinds | diff | v6g wins | v6gd wins |
+|---|---|---|---|---|---|
+| Red | 9.923 | 9.493 | -0.430 | 0 | 0 |
+| Blue | 11.417 | 11.265 | -0.152 | 1 | 1 |
+| Yellow | 11.165 | 10.847 | -0.318 | 0 | 0 |
+| Green | 11.535 | 10.985 | -0.550 | 2 | 2 |
+| Black | 6.722 | 6.165 | -0.557 | 0 | 0 |
+| Magic | 9.580 | 9.783 | +0.203 | 0 | 0 |
+| Nebula | 9.182 | 8.975 | -0.207 | 0 | 0 |
+| Ghost | 10.545 | 10.315 | -0.230 | 0 | 0 |
+| Abandoned | 9.795 | 9.455 | -0.340 | 1 | 0 |
+| Checkered | 10.757 | 10.587 | -0.170 | 0 | 1 |
+| Zodiac | 9.677 | 9.207 | -0.470 | 0 | 0 |
+| Painted | 10.493 | 10.118 | -0.375 | 0 | 0 |
+| Anaglyph | 9.297 | 8.867 | -0.430 | 0 | 0 |
+| Plasma | 10.228 | 10.165 | -0.063 | 0 | 0 |
+| Erratic | 10.062 | 9.720 | -0.342 | 0 | 0 |
+| **All 15** | **10.025** | **9.730** | **-0.295** | **4** | **4** |
+
+Paired over the 9,000 seed × deck games: v6gd minus v6g = -0.295 blinds (sd 3.76, z -7.45).
+
+- **D1** (pooled blinds, v6gd higher, 70%): **missed**, and the other way: v6g is higher, z -7.45.
+- **D2** (Red: v6g at least v6gd, 55%): **met** (9.92 vs 9.49).
+- **D3** (v6gd higher on at least 11 decks, 50%): **missed**: higher on 1 (Magic, +0.20).
+- **D4** (pooled wins, v6gd at least v6g, 55%): **met**, 4 vs 4. Too few wins to read either way.
+
+Reading: at equal games (660 rounds of 96), training only on Red beat training on all 15. It won on 14 of
+15 decks, including the 14 it never trained on. The mixed run saw about 4,200 games of each deck against v6g's
+63,000 Red games, and still lost on the decks it trained on. So more games of a deck did not buy skill on it at this
+scale. Claude's main prediction was wrong.
+
+What this does not settle:
+1. **One run each.** z -7.45 is over games, not training runs. Run-to-run variance (same config, another
+   training seed) is unmeasured, so part of -0.3 could be the luck of either run. A second v6g or v6gd would size it.
+2. **Encoding 2 has no deck token.** v6gd had to learn one policy for 15 decks it can tell apart only from what it
+   sees (hand size, starting cards, money). A deck token (encoding 3) is the obvious next arm. It is a different
+   question from this one.
+3. **One checkpoint.** R = 660 was registered. v6gd's best in-run eval was 700, on ~40 games per deck; not tested.
+
+The registered reading for a D1 miss stands, stronger: the deck mix is not the lever at this scale. Boss play
+and xMult (the walls report) stay first. Red-only stays the default for the next Gold run unless a deck-token arm
+or a second seed says otherwise.
