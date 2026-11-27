@@ -309,7 +309,8 @@ local function score(cards, held, live)
       j = j + 1
     end
   end
-  G.hand.cards = hand_cards
+  -- G.hand.cards stays the held cards through the jokers too: in the game the played cards are in G.play by
+  -- then, and Blackboard's joker_main reads G.hand.cards (issue #138)
   -- jokers (and consumables' editions): edition, main effect, joker-on-joker, x-mult edition
   for i = 1, #G.jokers.cards + #G.consumeables.cards do
     local c = G.jokers.cards[i] or G.consumeables.cards[i - #G.jokers.cards]
@@ -336,6 +337,7 @@ local function score(cards, held, live)
   end
   local nu_chip, nu_mult = G.GAME.selected_back:trigger_effect({ context = "final_scoring_step", chips = hand_chips, mult = mult })
   mult, hand_chips = mod_mult(nu_mult or mult), mod_chips(nu_chip or hand_chips)
+  G.hand.cards = hand_cards
   local s = hand_chips * mult
   if s ~= s or s < 0 then s = 0 end
   return s, text

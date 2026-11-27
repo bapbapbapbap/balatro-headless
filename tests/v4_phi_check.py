@@ -7,7 +7,8 @@ the real game, side by side with and without phi_build, and checks at every move
   2. The cached value equals a fresh computation (the cache key holds everything phi_build reads); the same
      for every offer value, every 10th move.
   3. The same state gives the same value: in another runtime that replays to the same move with an empty
-     cache, and with the deck in another order (draw order is hidden; phi_build reads the deck as a set).
+     cache, and with the deck in another order (draw order is hidden; phi_build reads the deck as a set), and with
+     the hand on screen emptied (the deals are the build's hands, not the one being held).
   4. Bounded in [0, 3], 0 at the end of the game; the shaping sums to -phi(start) over a game at gamma 1.
   5. An offer's value is what taking it does: after buying or picking a joker or planet, or redeeming a
      voucher, phi_build moves by exactly that offer's value (the price paid included: Bull and Bootstraps
@@ -98,6 +99,11 @@ def check_route(src, r, k_cross):
             b.env.lua.execute(rev, b.H)
             if v0 != v1:
                 return fail(f"{r['seed']} move {k}: phi_build depends on the deck's order: {v0} vs {v1}")
+            # the hand on screen isn't the build either (issue #138: Blackboard read G.hand.cards)
+            v2 = b.env.lua.execute("local H = ...; local s = G.hand.cards; G.hand.cards = {}; "
+                                   "local v = H.build_power_fresh(); G.hand.cards = s; return v", b.H)
+            if v0 != v2:
+                return fail(f"{r['seed']} move {k} ({st}): phi_build depends on the hand on screen: {v0} vs {v2}")
         if k == k_cross:
             cross = (phi_now, list(ob["act"][:, 18]))
         money = bool(b.env.lua.eval("(function() for _, c in ipairs(G.jokers.cards) do "
