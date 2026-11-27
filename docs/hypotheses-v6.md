@@ -1235,3 +1235,28 @@ Reading: the gap was Blackboard alone on these routes, and v6g's build signal wa
 moves on Gold wins, 8% of the routes. That sample is wins, so it may undercount training games that bought
 Blackboard on the inflated value. v6g's saved games would size that; not run. Small next to the walls (bosses,
 xMult); it doesn't explain v6g's Gold rate. The fix goes into the next run's pre-flight with `v4-phi` back on.
+
+## Added 2026-11-27, after chud's 14:56 CST message: money earned in one valued play leaked into the next (fix registered)
+
+Claude's, reviewed by chud. Found by the per-joker audit (PR for `tests/joker_audit.py`, its 14:56 section): 3
+of 150 jokers missed outside the labeled set, every one with Bull or Bootstraps on the board (j_ancient t7: Bootstraps
+and Marble, $4, play A K 4 2 as High Card: S 208, game 16; j_ice_cream t11 with Bootstraps: S 8320, game 2240;
+j_bull t8: S 352, game 136).
+
+**Cause.** A card that pays during scoring (Gold Seal, and in card.lua Rough Gem, Business Card, Golden Ticket,
+Reserved Parking, Lucky Card's money, and others) adds to `G.GAME.dollar_buffer` at once and clears it through an
+event. The sim's valuations stub events (`G.E_MANAGER.add_event = NOOP`), so the buffer is never cleared inside one
+valuation: `H.play_scores` values every legal play in turn, and each inherits the money of the plays valued before it;
+`build_power_fresh` does the same over 12 deals x every hand type. Bull and Bootstraps read dollars + buffer.
+Both restore `G.GAME` scalars only after the whole loop.
+
+**What it touched.** On boards holding Bull or Bootstraps with any money-paying card in the deck or on a joker:
+play values (v5+), phi_build and offer values (v4+), inflated. In the game, the buffer holds only the play being
+scored, so a Gold Seal scored earlier in the same play does count for Bull later in it.
+
+**The fix.** `score()` saves `G.GAME.dollar_buffer` on entry and puts it back before it returns: money earned
+inside one play still counts for jokers later in that play, never for another play or deal.
+
+**Prediction (Claude's).** With the fix: the audit's 3 misses are exact; the full audit (150 x 12, same seeds) has
+0 unlabeled misses: 75%; Bull and Bootstraps at 60 trials each: all exact: 80%. `v4_phi_check`, `v5_play_check`
+still ALL PASS.
