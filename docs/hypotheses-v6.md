@@ -1235,3 +1235,25 @@ Reading: the gap was Blackboard alone on these routes, and v6g's build signal wa
 moves on Gold wins, 8% of the routes. That sample is wins, so it may undercount training games that bought
 Blackboard on the inflated value. v6g's saved games would size that; not run. Small next to the walls (bosses,
 xMult); it doesn't explain v6g's Gold rate. The fix goes into the next run's pre-flight with `v4-phi` back on.
+
+## Added 2026-11-27, after chud's 14:56 CST message: per-joker scoring audit, registered before its full run
+
+Claude's, reviewed by chud. Why: #138 lived 18 days because the checks replay 3-6 won routes, and won routes reach
+only jokers the bot wins with. `tests/joker_audit.py` puts every joker in the game (`G.P_CENTER_POOLS.Joker`, 150) on
+a board and compares the sim's score for a play (`H.play_scores`, the `score()` phi_build also uses) with the chips
+the game scores when that play is made (captured as in `tests/v5_play_check.py`).
+
+Design: per joker, 12 trials. A fresh run (6 decks in turn: Red, Blue, Yellow, Plasma, Checkered, Abandoned; White
+Stake), first blind selected; the joker made by the game's own create_card / add_to_deck / emplace, with a random
+edition 25% of the time and 0-2 random companions in 2 of 3 trials; each hand card a random enhancement (15%), seal
+(7%) or edition (5%); the board settles; the best play by S half the time, a random play otherwise. Plays are
+labeled, not dropped, where v5_play_check's registration leaves them out (jokers acting before scoring or by chance;
+Lucky Cards played). Smoke (before this section): it finds #138 on the pre-fix code (Blackboard 13 of 15 exact,
+misses at S 304 vs game 912) and passes on the fixed code (15 of 15). The full run is on the #140 code (fix-138-blackboard).
+
+Predictions (Claude's): P1, at least one joker outside the labeled set has an unlabeled miss: 70%. P2, no trial
+crashes in the sim's scoring: 60%. P3, every labeled joker that changes before scoring (Ride the Bus, Green Joker,
+Spare Trousers, Square, Runner, Obelisk, Vampire, Midas Mask) misses in at least one trial where its trigger is met:
+80% (this is the known gap the v5 registration left out; task 3 of chud's 14:54 list).
+
+Each miss found is a separate registered fix. A miss in score() touches phi_build, offer values and play values.
