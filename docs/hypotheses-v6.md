@@ -1094,3 +1094,34 @@ games per checkpoint, paired seed by seed and deck by deck.
 Reading: D1 hit → training across decks beats specializing at equal games; the next Gold run trains mixed. D1
 miss → at this scale one deck generalizes as well as the mix, and the deck set is not the lever (boss play and
 xMult, from the walls report, stay first).
+
+## Added 2026-11-26, after chud's 10:55 CST message: v6gd's pre-flight, a phi_build cache gap, v6gd unchanged
+
+Claude's, reviewed by chud. The v6gd smoke (2026-11-25 23:30, ccfb59e) stopped in pre-flight at `v4-phi`
+(`tests/v4_phi_check.py --routes 3`): on route ZZ6JHUKR (Red, Gold, found 2026-11-23 in v6g's training) at move 22
+(SELECTING_HAND) the cached phi_build was 1.2129 and a fresh computation 0.8167 ("key misses something"). Nothing
+trained; the real launch was not reached.
+
+Why now: the check replays routes spread evenly over `wins/routes.jsonl`, and the last one is now a Gold route
+(PR #132 added them). When v6g launched (74eeab7) the file had none. `harness/` is identical between the tag
+`run-v6g` and ccfb59e and `train/` differs only in eval-only and logging lines, so **v6g trained with this same
+gap**: its build shaping and its offer-values input could read a stale phi_build at some decisions. How often, and
+by how much, is not measured. A likely cause (unconfirmed): `build_key` does not include a card's `debuff`
+(card_sig omits it, `build_power_fresh` reads it), so a boss that debuffs cards would hit an entry cached
+before the boss.
+
+Decision for v6gd: it keeps v6g's code exactly, so the comparison changes only the deck. `v4-phi` is dropped from
+`configs/v6gd.toml`'s pre-flight list. Every other check stays. The gap is tracked as its own issue. Its size will
+be measured on v6g's saved Gold games, and any fix registered as its own change. It does not enter v6gd.
+
+## Added 2026-11-26, after chud's 10:55 CST message: the seed band test (v6dt on r660's shared seeds)
+
+Claude's, reviewed by chud. Laptop, 2026-11-25 ~23:30, `balatro-work/gold/seed_band.py` (not in the repo: it runs
+`tools/eval_ladder.py` unchanged with `common.eval_seeds` swapped for the 15 seeds v6g r660 won on two or more
+decks, `gold/results/seed_pool_wins.csv`). v6dt best.pt, temperature 0, Gold, all 15 decks: 225 games, 0 errors.
+- **Won 0 of 225**, including 0 of the 43 cells r660 won. Mean 7.83 blinds a game (Red on these seeds 7.20; v6dt
+  on Red Gold's 600 eval seeds 6.98, test S).
+- **Claude's prediction, made in chat on 11-25 ~23:25 before the run (not committed): v6dt wins at most 3. Met.**
+- Reading: these seeds are not won by any policy that reaches them. The wins need what Gold training added to v6dt.
+  This does not fully separate seed from policy: v6dt is r660's parent and won nothing at Gold anywhere. A strong,
+  unrelated policy on the same seeds would (v6gd's checkpoints are the nearest candidate).
