@@ -1235,3 +1235,83 @@ Reading: the gap was Blackboard alone on these routes, and v6g's build signal wa
 moves on Gold wins, 8% of the routes. That sample is wins, so it may undercount training games that bought
 Blackboard on the inflated value. v6g's saved games would size that; not run. Small next to the walls (bosses,
 xMult); it doesn't explain v6g's Gold rate. The fix goes into the next run's pre-flight with `v4-phi` back on.
+
+## Added 2026-11-27, after chud's 14:56 CST message: per-joker scoring audit, registered before its full run
+
+Claude's, reviewed by chud. Why: #138 lived 18 days because the checks replay 3-6 won routes, and won routes reach
+only jokers the bot wins with. `tests/joker_audit.py` puts every joker in the game (`G.P_CENTER_POOLS.Joker`, 150) on
+a board and compares the sim's score for a play (`H.play_scores`, the `score()` phi_build also uses) with the chips
+the game scores when that play is made (captured as in `tests/v5_play_check.py`).
+
+Design: per joker, 12 trials. A fresh run (6 decks in turn: Red, Blue, Yellow, Plasma, Checkered, Abandoned; White
+Stake), first blind selected; the joker made by the game's own create_card / add_to_deck / emplace, with a random
+edition 25% of the time and 0-2 random companions in 2 of 3 trials; each hand card a random enhancement (15%), seal
+(7%) or edition (5%); the board settles; the best play by S half the time, a random play otherwise. Plays are
+labeled, not dropped, where v5_play_check's registration leaves them out (jokers acting before scoring or by chance;
+Lucky Cards played). Smoke (before this section): it finds #138 on the pre-fix code (Blackboard 13 of 15 exact,
+misses at S 304 vs game 912) and passes on the fixed code (15 of 15). The full run is on the #140 code (fix-138-blackboard).
+
+Predictions (Claude's): P1, at least one joker outside the labeled set has an unlabeled miss: 70%. P2, no trial
+crashes in the sim's scoring: 60%. P3, every labeled joker that changes before scoring (Ride the Bus, Green Joker,
+Spare Trousers, Square, Runner, Obelisk, Vampire, Midas Mask) misses in at least one trial where its trigger is met:
+80% (this is the known gap the v5 registration left out; task 3 of chud's 14:54 list).
+
+Each miss found is a separate registered fix. A miss in score() touches phi_build, offer values and play values.
+
+## Added 2026-11-27, after chud's 14:56 CST message: per-joker audit, first full run
+
+Claude's, reviewed by chud. Cloud, main at 507fac1 (#140 merged), 1.0.1o, 150 jokers x 12 trials, 1,800 trials.
+- **147 of 150 jokers exact on every unlabeled play.** 3 miss: j_ancient, j_ice_cream, j_bull, each with Bull or
+  Bootstraps on the board. Cause: `G.GAME.dollar_buffer` carried from one valued play to the next (registered and
+  fixed as its own change, branch `fix-dollar-buffer`; with it, the same 1,800 trials give 0 misses).
+- 0 trials crashed.
+- Labeled plays (left out by the v5 registration), off / labeled: Green Joker 17/18, Misprint 16/18, Lucky Card
+  19/136, Ride the Bus 8/16, Space Joker 7/20, Vampire 5/16, Bloodstone 4/19, Square 3/16, Runner 2/15, Spare
+  Trousers 1/14, DNA 1/21, Obelisk 0/18, Midas Mask 0/17, To Do List 0/18. The deterministic ones run low by the
+  growth on the hand being played (Green Joker 196 vs 294, Ride the Bus 92 vs 138, Square 961 vs 1089); Vampire runs
+  high (S 480 vs 396: the sim keeps the enhancements Vampire eats before scoring).
+
+Predictions: P1 (an unlabeled miss, 70%): **met** (3). P2 (no crash, 60%): **met**. P3 (every one of the 8 jokers
+that change before scoring misses where its trigger is met, 80%): **not settled as written**: 6 of 8 missed;
+Obelisk and Midas Mask never did, and the audit doesn't record whether a trigger was met (Midas Mask's Gold cards
+don't change a play's chips; Obelisk's trigger is unlikely on a run's first hand). The before-scoring gap is
+the next fix (chud's list, item 3): Green Joker, Ride the Bus, Square, Runner, Spare Trousers, Vampire.
+
+## Added 2026-11-27, after chud's 14:56 CST message: money earned in one valued play leaked into the next (fix registered)
+
+Claude's, reviewed by chud. Found by the per-joker audit (PR for `tests/joker_audit.py`, its 14:56 section): 3
+of 150 jokers missed outside the labeled set, every one with Bull or Bootstraps on the board (j_ancient t7: Bootstraps
+and Marble, $4, play A K 4 2 as High Card: S 208, game 16; j_ice_cream t11 with Bootstraps: S 8320, game 2240;
+j_bull t8: S 352, game 136).
+
+**Cause.** A card that pays during scoring (Gold Seal, and in card.lua Rough Gem, Business Card, Golden Ticket,
+Reserved Parking, Lucky Card's money, and others) adds to `G.GAME.dollar_buffer` at once and clears it through an
+event. The sim's valuations stub events (`G.E_MANAGER.add_event = NOOP`), so the buffer is never cleared inside one
+valuation: `H.play_scores` values every legal play in turn, and each inherits the money of the plays valued before it;
+`build_power_fresh` does the same over 12 deals x every hand type. Bull and Bootstraps read dollars + buffer.
+Both restore `G.GAME` scalars only after the whole loop.
+
+**What it touched.** On boards holding Bull or Bootstraps with any money-paying card in the deck or on a joker:
+play values (v5+), phi_build and offer values (v4+), inflated. In the game, the buffer holds only the play being
+scored, so a Gold Seal scored earlier in the same play does count for Bull later in it.
+
+**The fix.** `score()` saves `G.GAME.dollar_buffer` on entry and puts it back before it returns: money earned
+inside one play still counts for jokers later in that play, never for another play or deal.
+
+**Prediction (Claude's).** With the fix: the audit's 3 misses are exact; the full audit (150 x 12, same seeds) has
+0 unlabeled misses: 75%; Bull and Bootstraps at 60 trials each: all exact: 80%. `v4_phi_check`, `v5_play_check`
+still ALL PASS.
+
+## Added 2026-11-27, after chud's 14:56 CST message: the dollar_buffer fix, results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o.
+- The joker audit (`tests/joker_audit.py`, branch `joker-audit`), same 1,800 trials: **0 unlabeled misses of 150**
+  (before: 3). Bull and Bootstraps at 60 trials each: fixed 104 of 104 exact; pre-fix Bootstraps 51 of 56 (e.g.
+  b_red EVL313A1, a Gold card and a Gold Seal in hand, play 5,6: S 418, game 66).
+- `tests/v4_phi_check.py --routes 6`: ALL PASS (86 of 86 offers). `tests/v5_play_check.py --routes 3`: 102 of 102.
+- Size on wins: the 10 Gold routes ending with Bull or Bootstraps, old vs fixed: 2,797 moves, 2,186 with one held;
+  phi_build differs at 39 (all held), largest 0.060; offer values at 17 moves; play values at 1.
+
+Predictions: 3 misses exact and 0 of 150: **met** (75%); Bull and Bootstraps all exact at 60: **met** (80%);
+pre-flight ALL PASS: **met**. Reading: a real bias, small on the routes v6g won, because it needs a paying card in
+play (Gold Seals, Gold Cards, Rough Gem, Business Card) next to Bull or Bootstraps.
