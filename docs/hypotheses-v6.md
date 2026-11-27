@@ -1257,3 +1257,22 @@ Spare Trousers, Square, Runner, Obelisk, Vampire, Midas Mask) misses in at least
 80% (this is the known gap the v5 registration left out; task 3 of chud's 14:54 list).
 
 Each miss found is a separate registered fix. A miss in score() touches phi_build, offer values and play values.
+
+## Added 2026-11-27, after chud's 14:56 CST message: per-joker audit, first full run
+
+Claude's, reviewed by chud. Cloud, main at 507fac1 (#140 merged), 1.0.1o, 150 jokers x 12 trials, 1,800 trials.
+- **147 of 150 jokers exact on every unlabeled play.** 3 miss: j_ancient, j_ice_cream, j_bull, each with Bull or
+  Bootstraps on the board. Cause: `G.GAME.dollar_buffer` carried from one valued play to the next (registered and
+  fixed as its own change, branch `fix-dollar-buffer`; with it, the same 1,800 trials give 0 misses).
+- 0 trials crashed.
+- Labeled plays (left out by the v5 registration), off / labeled: Green Joker 17/18, Misprint 16/18, Lucky Card
+  19/136, Ride the Bus 8/16, Space Joker 7/20, Vampire 5/16, Bloodstone 4/19, Square 3/16, Runner 2/15, Spare
+  Trousers 1/14, DNA 1/21, Obelisk 0/18, Midas Mask 0/17, To Do List 0/18. The deterministic ones run low by the
+  growth on the hand being played (Green Joker 196 vs 294, Ride the Bus 92 vs 138, Square 961 vs 1089); Vampire runs
+  high (S 480 vs 396: the sim keeps the enhancements Vampire eats before scoring).
+
+Predictions: P1 (an unlabeled miss, 70%): **met** (3). P2 (no crash, 60%): **met**. P3 (every one of the 8 jokers
+that change before scoring misses where its trigger is met, 80%): **not settled as written**: 6 of 8 missed;
+Obelisk and Midas Mask never did, and the audit doesn't record whether a trigger was met (Midas Mask's Gold cards
+don't change a play's chips; Obelisk's trigger is unlikely on a run's first hand). The before-scoring gap is
+the next fix (chud's list, item 3): Green Joker, Ride the Bus, Square, Runner, Spare Trousers, Vampire.
