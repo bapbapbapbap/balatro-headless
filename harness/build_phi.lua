@@ -233,7 +233,7 @@ local function score(cards, held, live)
   for i, c in ipairs(cards) do pos[c] = i end
   table.sort(sh, function(a, b) return pos[a] < pos[b] end)
   scoring_hand = sh
-  -- the jokers' before step, as G.FUNCS.evaluate_play runs it before reading the hand's chips and mult: Spare
+  -- the jokers' before step (play values), as G.FUNCS.evaluate_play runs it before reading the hand's chips and mult: Spare
   -- Trousers, Square, Runner, Ride the Bus, Obelisk, Green Joker grow or reset; Vampire strips the scoring cards'
   -- enhancements; Midas Mask makes scoring faces Gold; To Do List pays; Space Joker levels by chance. DNA's copy is
   -- not made (it creates a card and doesn't change this play's score). set_ability (Vampire, Midas Mask) changes a
@@ -249,7 +249,8 @@ local function score(cards, held, live)
   local cr = G.GAME.current_round
   local hands_played0 = cr.hands_played
   if next(find_joker("DNA")) then cr.hands_played = math.max(1, hands_played0 or 0) end
-  for i = 1, #G.jokers.cards do
+  -- play values only (live): phi_build's definition leaves the before context out (this file's header)
+  for i = 1, live and #G.jokers.cards or 0 do
     local ef = eval_card(G.jokers.cards[i], { cardarea = G.jokers, full_hand = cards, scoring_hand = scoring_hand,
                          scoring_name = text, poker_hands = poker_hands, before = true })
     if ef.jokers and ef.jokers.level_up then level_up_hand(G.jokers.cards[i], text, true) end
