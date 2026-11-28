@@ -84,3 +84,5 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-27, after chud's 15:40 CST message: the before step, results](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-the-before-step-results) | v6 |
 | [Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection vs the bot's own games, registered](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-phi_builds-growth-projection-vs-the-bots-own-games-registered) | v6 |
 | [Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection, results](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-phi_builds-growth-projection-results) | v6 |
+| [Added 2026-11-27, after chud's 20:14 CST message: encoding 4, the blinds as the player sees them (bug, registered)](hypotheses-v6.md#added-2026-11-27-after-chuds-2014-cst-message-encoding-4-the-blinds-as-the-player-sees-them-bug-registered) | v6 |
+| [Added 2026-11-27, after chud's 20:14 CST message: encoding 4, check results](hypotheses-v6.md#added-2026-11-27-after-chuds-2014-cst-message-encoding-4-check-results) | v6 |

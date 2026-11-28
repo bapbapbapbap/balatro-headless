@@ -53,6 +53,8 @@ CHECKS = {
     "clock": ("blind clock: skips, shaping and returns", ["tests/v3_check.py", "{src}", "--routes", "12"], "",
               "ALL PASS"),
     "repo": ("the repo's indexes, configs and map are consistent", ["tools/check_repo.py"], "", "ALL PASS"),
+    "enc4-blinds": ("encoding 4: blinds' requirement = the game's chips, every boss's text, encodings 1-3 unchanged",
+                    ["tests/enc4_blind_check.py", "{src}", "--routes", "6"], "", "ALL PASS"),
 }
 # set by the launcher, never by a config
 OWNED = {"src", "run", "out", "hours", "workers", "resume", "init_weights", "warm_start", "mirror_dir", "spill_dir"}

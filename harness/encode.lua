@@ -50,6 +50,7 @@ local ACTION = { play = 1, discard = 2, select_blind = 3, skip_blind = 4, end_sh
                  move_joker = 17, reroll_boss = 18 }
 H.KIND, H.ACTION, H.FEATURES, H.ACT_WIDTH, H.ENC = KIND, ACTION, F, ACT, ENC
 
+
 -- v2 joker numbers: fixed slots for what actually changes during a run (v1 kept the first 8
 -- numeric fields alphabetically, which are mostly constant and miss mult / x_mult).
 local SPECIAL = { "caino_xmult", "invis_rounds", "loyalty_remaining", "yorick_discards", "burnt_hand" }
@@ -89,6 +90,33 @@ local function tok(kind, v)
 end
 local function set(r, i, x) r[i + 2] = x end      -- feature i is 1-based
 local function onehot(r, start, n, k) if k and k >= 1 and k <= n then r[start + k - 1 + 2] = 1 end end
+
+-- v4: each blind as the player sees it (docs/hypotheses-v6.md, 2026-11-27 20:14 section). Slots 17-32 translate the
+-- boss's effect text (localization/en-us.lua); grouped slots are told apart by the blind's identity token.
+local BLIND_TEXT = {
+  bl_needle = { 17 }, bl_water = { 18 },
+  bl_club = { 19 }, bl_goad = { 20 }, bl_head = { 21 }, bl_window = { 22 },
+  bl_plant = { 23 },
+  bl_house = { 24 }, bl_wheel = { 24 }, bl_mark = { 24 }, bl_fish = { 24 },
+  bl_manacle = { 25 }, bl_psychic = { 26 },
+  bl_mouth = { 27 }, bl_eye = { 27 },
+  bl_flint = { 28 }, bl_arm = { 28 },
+  bl_tooth = { 29 }, bl_ox = { 29 },
+  bl_hook = { 30 }, bl_serpent = { 30 }, bl_final_bell = { 30 },
+  bl_pillar = { 31 }, bl_final_leaf = { 31 },
+  bl_final_heart = { 32 }, bl_final_acorn = { 32 },
+  -- no slot of their own: the score multiplier (slot 16) says it (The Wall, Violet Vessel), or no effect
+  bl_wall = {}, bl_final_vessel = {}, bl_small = {}, bl_big = {},
+}
+H.BLIND_TEXT = BLIND_TEXT
+local function blind_seen(r, key, amount, reward)
+  local b = G.P_BLINDS[key]
+  if not b then return end
+  if amount then set(r, 14, slog(amount)) end
+  if reward then set(r, 15, reward / 8) end
+  set(r, 16, (b.mult or 1) / 6)
+  for _, k in ipairs(BLIND_TEXT[key] or {}) do set(r, k, 1) end
+end
 
 local function card_features(r, c, start)       -- 29 slots from `start`
   if c.face_down then set(r, start + 27, 1); return end
@@ -180,6 +208,7 @@ function H.encode()
   if o.blind then
     local r = tok(KIND.BLIND, vid(o.blind.key))
     set(r, 1, slog(o.blind.target)); set(r, 2, o.blind.boss and 1 or 0); set(r, 3, o.blind.disabled and 1 or 0); set(r, 4, 1)
+    if ENC >= 4 then blind_seen(r, o.blind.key, o.blind.target, o.blind.dollars) end
   end
   for i, slot in ipairs({ "Small", "Big", "Boss" }) do
     local key = o.blind_choices and o.blind_choices[slot]
@@ -187,6 +216,7 @@ function H.encode()
       local r = tok(KIND.BLIND, vid(key))
       onehot(r, 5, 3, i)
       onehot(r, 8, 6, BSTATE[o.blind_states and o.blind_states[slot] or ""])
+      if ENC >= 4 then blind_seen(r, key, o.blind_amounts and o.blind_amounts[slot], o.blind_rewards and o.blind_rewards[slot]) end
     end
     local tag = o.skip_tags and o.skip_tags[slot]
     if tag and i <= 2 then local r, ti = tok(KIND.SKIPTAG, vid(tag)); onehot(r, 1, 2, i); skip_tok[slot] = ti end

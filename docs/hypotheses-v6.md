@@ -1443,3 +1443,57 @@ What a fix could be (chud's call, registered as its own change): (a) GROWTH from
 re-measured each run; (b) per-event rates from the game's mechanics (Hologram +0.25 a card added, Constellation +0.1
 a planet, Ramen -0.01 a discard, Ice Cream -5 a hand, Trousers +2 a Two Pair) times the bot's own event counts per
 round; (c) leave it and let the value head carry it.
+
+## Added 2026-11-27, after chud's 20:14 CST message: encoding 4, the blinds as the player sees them (bug, registered)
+
+chud's finding ("it's a bug that it didn't know what the bosses did"), reviewed by Claude; design Claude's, reviewed by
+chud. The repo's rule is that the policy sees only what a player sees. The blind-select screen (and Run Info, at any
+time in the ante) shows each blind's name, score requirement, reward, and the boss's effect text. Encodings 1-3 give the
+three choices as an identity token, a slot and a state only: no requirement, no reward, no effect. The bot had to learn
+each boss's effect from the times it faced it (The Wall: 49 times at ante 4+ in the 1,800 walls games, 39 deaths).
+
+**Encoding 4** = encoding 3 (deck and challenge tokens) plus, on every BLIND token (the three choices and the blind
+being played), feature slots 14-32:
+- 14 the score requirement, by the blind-select screen's own formula (`get_blind_amount(round_resets.blind_ante) x
+  mult x ante_scaling`, UI_definitions.lua), slog; 15 the reward ($, 0 where the stake removes it) / 8; 16 the score
+  multiplier / 6 (The Wall 4, Violet Vessel 6, from `G.P_BLINDS`).
+- From each boss's effect text (localization/en-us.lua), one field each: 17 one hand (Needle); 18 no discards (Water);
+  19-22 suit debuffed, Clubs / Spades / Hearts / Diamonds (Club, Goad, Head, Window); 23 face cards debuffed (Plant);
+  24 cards drawn face down (House, Wheel, Mark, Fish); 25 -1 hand size (Manacle); 26 must play 5 cards (Psychic); 27 hand
+  type limited (Mouth, Eye); 28 the hand weakened (Flint halves base chips and mult, Arm lowers its level); 29 money lost
+  (Tooth, Ox); 30 the hand disrupted (Hook discards 2, Serpent always draws 3, Cerulean Bell forces a card); 31 cards
+  debuffed by play or until a sale (Pillar, Verdant Leaf); 32 jokers disrupted (Crimson Heart, Amber Acorn).
+  Grouped fields are told apart by the blind's identity token, as now. This is a translation of the text the player
+  reads, not a valuation: no field says how hard a boss is.
+- Same network; the vocabulary is encoding 3's, so encoding 2/3 weights load (the new feature slots were zero in
+  their training, and the first-layer weights on them are untrained: a run on encoding 4 starts from imitation or
+  fine-tunes, it is not an eval-time swap for r660).
+
+**Checks, before any run uses it** (`tests/enc4_blind_check.py`):
+- B1, requirement: replaying routes, at every round start the requirement a choice token carried in the shop and at
+  blind select equals the game's own `G.GAME.blind.chips` for that blind. Any mismatch is listed (Hieroglyph and
+  Petroglyph move the ante: `blind_ante` vs `ante`).
+- B2, effects: the table names every boss in `G.P_BLINDS` exactly once, and the fields set for each boss match its
+  effect text; listed in the check's output for review.
+- B3, no change below encoding 4: encodings 1-3 give identical tokens before and after (route replay, token by token).
+Claude's predictions: B1 exact on all Gold routes except at most a few moves after Hieroglyph or Petroglyph: 80%. B2, B3
+pass: 95%.
+
+## Added 2026-11-27, after chud's 20:14 CST message: encoding 4, check results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o, code 2ea3d15 + the B1 change below.
+- **B2: pass.** `BLIND_TEXT` names all 30 blinds in `G.P_BLINDS` once; the check prints each boss's effect text beside
+  its fields, and every line reads right (one hand: Needle; no discards: Water; four suit debuffs; Plant; four
+  face-down bosses; Manacle; Psychic; Mouth, Eye; Flint, Arm; Tooth, Ox; Hook, Serpent, Cerulean Bell; Pillar, Verdant
+  Leaf; Crimson Heart, Amber Acorn; The Wall x4 and Violet Vessel x6 by the multiplier slot).
+- **B3: pass.** Encodings 1, 2 and 3 give byte-identical tokens and actions to main (278de36), every move of 3 Gold
+  routes.
+- **B1: 4,342 blinds on all 181 Gold routes, 1 mismatch**: TDBAV9CK (Yellow), ante 8, Violet Vessel shown at
+  1,200,000, played at 400,000. The bot held Chicot, which disables the boss at selection; disabling Violet Vessel
+  removes its size. The token carried what the blind-select screen shows, so the encoding is right and the check was
+  wrong: B1 now counts a boss disabled at selection and doesn't compare it (6 routes after the change: 142 compared,
+  0 mismatches, 2 disabled). No mismatch from Hieroglyph or Petroglyph.
+
+Predictions: B1 (80%, exact except after Hieroglyph or Petroglyph): **missed as worded**: the one exception was
+Chicot, which the prediction didn't name. B2, B3 (95%): **met**. `enc4-blinds` joins `launch.py`'s CHECKS for any run
+on encoding 4. A player holding Chicot knows the boss will be disabled; the bot sees both tokens, as the player does.
