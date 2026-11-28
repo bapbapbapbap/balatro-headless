@@ -1381,3 +1381,65 @@ Reading: the play values input was wrong at about one in five moves holding Gree
 Runner, Spare Trousers, Obelisk, Vampire, Midas Mask or To Do List, on half of v6g's Gold wins. Low for the growers,
 high for Vampire. This is the input the policy reads to choose a play (score vs what the blind needs), so it bears
 on round play, which the walls report ranks first. v6g trained on the old values.
+## Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection vs the bot's own games, registered
+
+Claude's, reviewed by chud. phi_build values a scaling joker by its value projected `PROJECT_ROUNDS` = 6 rounds
+ahead at `GROWTH`'s per-round rates (build_phi.lua: the balatro-gym planner's "rough community-consensus rates for
+a spam-hand build", mapped onto the game's fields, decays ours). Nobody has checked those rates against how the bot
+actually grows them. chud (11-27): valuing growing jokers by what they grow into is massive (Balatro Lab's
+largest single gain, +20 points).
+
+**Measure (no code change).** The 181 Gold routes in `wins/routes.jsonl` replayed; at the first move of every
+round (SELECTING_HAND, `G.GAME.round` new) each held joker in `GROWTH` gives its field value, keyed by `sort_id`.
+Per joker type: observed per-round growth (median and mean over instances of (last - first) / rounds held), and
+for every instance held 6 more rounds, projected (v + 6 x rate, with GROWTH's floor) vs actual. Reported:
+observed rate / GROWTH rate, and the projection's error. Script in the PR. Wins only: a biased sample (games
+where the build worked), stated as such; v6g's saved training games (chud's laptop) are the follow-up if this
+shows a gap.
+
+**Predictions (Claude's).** R1: at least one of the commonest five types (by rounds held) has an observed rate
+off GROWTH's by 2x or more either way: 70%. R2: Hologram and Constellation (xMult growers) grow slower than
+GROWTH says in the bot's games: 55%. R3: Green Joker's observed rate is under 2.0/round (discards cost it 1): 65%.
+
+## Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection, results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o, `analysis/growth_check.py` + `growth_report.py`. Two samples: the 181
+Gold routes (wins, as registered) and, because wins are biased toward builds that worked, v6g's training games
+r00640-r00647 from chud's laptop (768 games, Red Gold, sampled moves, 1 won). Per type: GROWTH's rate, the observed
+mean per-round growth, and over every instance held 6 more rounds, mean gain projected vs real.
+
+| Joker | GROWTH /round | observed, train (wins) | 6-round gain projected | real, train |
+|---|---|---|---|---|
+| Green Joker | +2 mult | +1.98 (+1.94) | +12 | +11.8 |
+| Hologram | +0.05 X | +0.119 (+0.207) | +0.30 | **+0.66** |
+| Constellation | +0.04 X | +0.068 (+0.109) | +0.24 | **+0.50** |
+| Spare Trousers | +0.5 mult | +2.22 (+2.06) | +3 | **+15.1** |
+| Red Card | +0.5 mult | +1.55 (+1.96) | +3 | +12.0 (n 7) |
+| Ramen | -0.1 X | -0.017 (-0.009) | -0.60 | **-0.09** |
+| Ice Cream | -20 chips | -7.9 (-7.6) | -94 | **-45** |
+| Square Joker | +12 chips | +2.2 (+2.9) | +72 | **+19.9** |
+| Ride the Bus | +2 mult | +0.75 (+0.88) | +12 | **+3.5** |
+| Castle | +9 chips | +0.9 (0.0) | +54 | **+4.4** |
+| Flash Card | +1 mult | +0.33 (+2.9) | +6 | +3.3 |
+| Runner | +4 chips | +4.4 (+3.6) | +24 | +23.5 |
+| Obelisk | +0.05 X | +0.14 (0) | +0.30 | +0.45 (n 4) |
+
+Popcorn matches (-4); no instance lasted 6 rounds. Rarer types (Vampire, Campfire, Lucky Cat, Glass, Yorick,
+Wee) have under 25 rounds held in the training sample.
+
+Predictions: R1 (one of the five commonest off by 2x or more, 70%): **met** (Hologram 2.4x, Spare Trousers 4.4x,
+Ice Cream 2.5x, Ramen 6x). R2 (Hologram and Constellation slower than GROWTH, 55%): **missed**, both faster, in both
+samples. R3 (Green Joker under 2.0/round, 65%): **met**, barely (1.98 train, 1.94 wins).
+
+Reading: the projection is right only for Green Joker and Runner. It undervalues the xMult growers the bot actually
+grows (Hologram, Constellation) by about half over 6 rounds, Spare Trousers and Red Card by 4-5x, and treats Ramen and
+Ice Cream as decaying several times faster than they do. It overvalues Square, Ride the Bus and Castle 3-12x. The
+rates follow from the bot's own play: about 1.6 hands a round and few discards (Ice Cream -5 a hand, Ramen -0.01 a
+discarded card), a Two Pair most rounds (Trousers +2 each). Circular in part: v6g's buying and play were shaped by
+these very values. Wins grow the xMult jokers faster still (Hologram 0.21), which is the bias the training sample
+corrects.
+
+What a fix could be (chud's call, registered as its own change): (a) GROWTH from the bot's own training games,
+re-measured each run; (b) per-event rates from the game's mechanics (Hologram +0.25 a card added, Constellation +0.1
+a planet, Ramen -0.01 a discard, Ice Cream -5 a hand, Trousers +2 a Two Pair) times the bot's own event counts per
+round; (c) leave it and let the value head carry it.
