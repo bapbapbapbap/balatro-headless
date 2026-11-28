@@ -225,3 +225,48 @@ laptop can extend it with the same script.
 
 **Z0 moved to the laptop** (2 cloud cores run their oracle at ~0.2 s a step; 600 games is ~13 h here). Cloud
 partial, before it was stopped: Red, stake 1, 19/19 games matched (the 20th was running).
+
+## Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): Z1-Z3 results, scored; Z0 still to run
+
+Claude's, reviewed by chud. All in the cloud (2 cores, LuaJIT 2.0.5 via lupa, our 1.0.1o source). Data:
+`reproduce/antezero/results/2026-11-27/`.
+
+| test | what | result |
+|---|---|---|
+| Z1 | openings, 200 seeds x 15 decks x 8 stakes, our view (deck order, blinds, boss, tags, voucher, every RNG stream, ...) | **24,000 / 24,000** match |
+| Z2 | random-policy lockstep, 10 games x 120 cells, our view after every action | **1,200 / 1,200** games match to the end; 26,823 actions; 0 simulator actions outside our env's legal list |
+| Z3 | their bot (v0.2.0, greedy, no search), their eval loop, White and Gold, 20 games x 15 decks each; replayed in our harness | **600 / 600** games move for move (110,201 actions); wins in their sim = wins on the game's code: White 295/300 (98.3%), Gold 36/300 (12.0%) |
+
+Scored:
+- Z1 (every opening matches; Claude 90%): yes.
+- Z2a (>= 95% of games match; Claude 70%): yes, 100%. Weak coverage: the policy is crude, 834 of 1,200 games end in
+  ante 1 and none past ante 6; Z3 is the deep test.
+- Z2b (every divergence traces to the timer rebase, the `unique_val` tie-break or our env's action path; Claude 60%):
+  not tested, there were no divergences. Neither of the two things their oracle can't check (their harness's timer
+  rebase, its `unique_val` override) showed up in 137,024 compared actions on our harness, which has neither.
+- Z2c (every simulator-legal action is in our legal set; Claude 75%): yes in Z2 (0 of 26,823). Z2 had no sorts or
+  drags (the simulator's default `Game` offers none). In Z3 the bot's 16,382 sorts and 11 hand drags aren't in our
+  subsets-mode list (that mode leaves them out by design) and were applied with the game's own sort functions; every
+  other Z3 action (1,908 joker drags included) was in our list.
+- Z3a (sim win rate within their table: White >= 88%, Gold 12% +- 4; Claude 75%): yes, 98.3% and 12.0%.
+- Z3b (>= 95% replay move for move; Claude 65%): yes, 100%, with one handling decided after the first test games
+  showed it (code commit `ecfd909` and the README's notes, before the 600 ran): at a win the game pauses on its win
+  overlay with the boss still in place (debuffs, face-down jokers, the blind's chips), and the simulator's terminal
+  state is the one after the overlay is dismissed, as their harness dismisses it. Without that step all 331 wins
+  differ at their last action only; after it all match. The 269 losses match at every action as they are.
+- Z3c (wins on the game's code within 1 point of the sim's; Claude 75%): yes, identical (331 = 331).
+
+Caveats:
+- Their eval loop seeds a batch from `EVAL_SEED` + batch index; with one batch per cell, all 15 decks of a stake
+  used the same 20 seed strings. 300 different games per stake, but 20 seeds. A laptop run with more games per cell
+  (README) widens it.
+- Card `ability` tables are checked on the keys their dump has; game-only keys aren't checked. Booster centers that
+  differ only in art and come from unseeded `math.random` counted as equal (380 of the Z3 games had one).
+- One code change after Z2 started: the drag matcher now also checks the destination slot (it had picked the first
+  drag from the same slot). Z2 had no drags, so its result doesn't depend on it; Z3 ran after it.
+- Z0 (their own difftest at scale) was stopped in the cloud after 19/19 games of one cell matched; it runs on the
+  laptop (`reproduce/antezero/z0.sh`).
+
+Reading: on everything compared, AnteZero's simulator follows the game's own code exactly, deep into Gold runs, and
+its bot's 12% Gold is real on the game's code. For scale: our v6g r660 wins 0.01-0.32% a deck at Gold and 174/600
+(29%) at Red White (docs/system_card_v6g.md). Answer to question 1 for AnteZero: yes.

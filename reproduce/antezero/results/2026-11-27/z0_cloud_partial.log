@@ -1,0 +1,20 @@
+== b_red 1
+ok   T0000001 steps=96 ante=5 won=false
+ok   T0000002 steps=112 ante=5 won=false
+ok   T0000003 steps=19 ante=1 won=false
+ok   T0000004 steps=70 ante=3 won=false
+ok   T0000005 steps=17 ante=1 won=false
+ok   T0000006 steps=148 ante=5 won=false
+ok   T0000007 steps=30 ante=1 won=false
+ok   T0000008 steps=30 ante=1 won=false
+ok   T0000009 steps=62 ante=4 won=false
+ok   T0000010 steps=36 ante=2 won=false
+ok   T0000011 steps=124 ante=4 won=false
+ok   T0000012 steps=180 ante=5 won=false
+ok   T0000013 steps=183 ante=5 won=false
+ok   T0000014 steps=81 ante=3 won=false
+ok   T0000015 steps=187 ante=5 won=false
+ok   T0000016 steps=178 ante=6 won=false
+ok   T0000017 steps=95 ante=5 won=false
+ok   T0000018 steps=61 ante=2 won=false
+ok   T0000019 steps=76 ante=3 won=false
