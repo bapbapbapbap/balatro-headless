@@ -1,0 +1,8 @@
+recorded 150 games, 150 distinct seeds; selfcheck fails 0; undecodable actions in 0
+stake 1: sim wins 70/75 = 93.3% [85.3, 97.1]; labeled in lockstep 75/75; wins on the game's code 70/75
+stake 8: sim wins 9/75 = 12.0% [6.4, 21.3]; labeled in lockstep 75/75; wins on the game's code 9/75
+M1: 150/150 games labeled to the end (100.0%)
+M2: 26585/26587 decisions labeled (99.99%); reorders applied 4278
+   unmapped: {'unmapped:move_joker': 2}
+S1: plays after a sort where order matters: 76; first scoring card changed by the sort: 0 (0.0%); plays after a sort where order doesn't matter: 927
+L1: 30 games, 1281 round decisions: same 1281 (100.00%), different 0; probe reproduced the recorded move 1281/1281

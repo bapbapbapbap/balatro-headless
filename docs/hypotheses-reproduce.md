@@ -326,3 +326,32 @@ actions, encoding 2, offer and play values, phi_build), and compared after every
 - S1 (does sorting matter): for every labeled play that a sort came before since the last decision, whether the first
   scoring card differs from the first scoring card in the hand order before the sorts. Descriptive; Claude predicts
   it differs in >= 20% of those plays (50%).
+
+## Added 2026-11-27, after chud's 22:32 CST message (the commit's time is the record): AnteZero teacher, stage 0 checks, scored
+
+Claude's, reviewed by chud. Cloud, 150 games (5 per deck at stakes 1 and 8), 150 distinct fresh seeds, each used
+once. Data: `reproduce/antezero/results/2026-11-27/teach/` (the labeled pickles stay out of git, 15 MB; the laptop
+run makes its own).
+
+| check | result |
+|---|---|
+| M1 games labeled to the end in lockstep | **150 / 150** |
+| M2 decisions labeled | **26,585 / 26,587** (99.99%); the 2 unlabeled are joker drags past our drag cap |
+| W1 win rate on fresh seeds, on the game's code (= its sim's on every game) | White **70/75 = 93.3%** [85.3, 97.1]; Gold **9/75 = 12.0%** [6.4, 21.3] |
+| L1 leak probe, 30 games | **1,281 / 1,281** round decisions unchanged with the hidden state redrawn |
+| S1 sorts and scoring order | the first scoring card changed in **0 of 76** plays after a sort where order matters; 927 more plays after a sort where it doesn't |
+
+Scored: M1 yes (Claude 75%). M2 yes (70%). W1 White yes (75%; the interval reaches below 90); W1 Gold yes (55%;
+in 6-18). L1 yes (80%). S1 no (predicted >= 20% changed, 50%): the teacher's sorts don't set which card scores
+first. AnteZero's own README says a trained policy "spent a sixth of its steps re-sorting a sorted hand" under its
+default `null_sorts`, which fits.
+
+One labeling detail decided after the registration and before these 150 ran (commit "teach_az.py: ..."): in 134
+plays our list offered no lead that changes nothing (a kicker sat left of the first scoring card). The label is
+the lead move with the same scoring order (the leftmost scoring card leads), and the game gets the teacher's exact
+move, so the replay stays the teacher's game. Without it the first such game diverged in deck order (cards return
+to the deck in played order; the next shuffle orders them by `sort_id` again).
+
+Reading: the pipeline is ready for the laptop data run. Gold on fresh seeds is in line with 12%, with a wide
+interval at 75 games; the laptop run's size narrows it. The student's size: `docs/proposals/az-student-size.md`
+(facts only; it corrects a chat figure: v6 is 3.38M parameters, the teacher 6.32M).

@@ -18,6 +18,7 @@ there? Then its bot can teach ours. Registrations and predictions: [`docs/hypoth
 | `view.lua` | our view of the game's state, read straight from `G` (loaded into our harness) | none |
 | `lockstep.py` | Z1 (openings) and Z2 (random-policy lockstep): their simulator and our harness, same seed and actions, our view compared after every action; also the action translation and comparison used by `z3.py` | `antezero_sim.Game`: `legal_codes`, `step`, `state_json`, `clone`, `chips`, `phase`, `is_terminal` |
 | `z3.py` | Z3: their bot plays in their simulator with their eval loop; every game's actions recorded as text codes, then replayed in our harness move for move | `antezero_agent.runtime.load_model`, `antezero_agent.eval._envs` / `EVAL_SEED`, `antezero_agent.model.obs_from_numpy`, `Net.act`, `VecEnv`, `Game.factored_to_code` |
+| `teach_az.py` | the teacher's data: its bot plays fresh seeds (one per game) in its simulator (`record`), each game is replayed in `train/sim.Sim` with v6g's settings in lockstep and written as the student sees it (`label`, `teach.py`'s format for `train/imitate.py`), checks (`report`: lockstep, labels, win rate, leak probe, sorts) | `runtime.load_model`, `runtime.make_env`, `model.obs_from_numpy`, `Net.act`, `VecEnv.set_game`, `Game.factored_to_code`, `Game.resample_hidden` |
 | `results/2026-11-27/` | what has run | |
 
 ## Setup (laptop, WSL)
@@ -62,6 +63,13 @@ All three resume when re-run.
   compares again; both results are kept (`match_raw`, `overlay_dismissed`).
 - A simulator action our env's legal list doesn't hold is applied directly and counted (`unlisted`).
 
-## As a teacher
-Z3's replay already pairs, at every decision, the game's state in our harness with AnteZero's bot's move; that is
-the teacher data the way `reproduce/balatro_lab/teach.py` made it for Balatro Lab. Not built yet.
+## As a teacher (stage 0: the data)
+Registered and checked in the cloud (docs/hypotheses-reproduce.md, 2026-11-27 sections): 150/150 games labeled in
+lockstep, 99.99% of decisions labeled, leak probe 1,281/1,281. The data run on the laptop; how many games and which
+decks and stakes are chud's call (this example: every deck and stake, 25 games each = 3,000 games, fresh seeds):
+
+    wsl bash -lc "cd ~/balatro/balatro-headless/reproduce/antezero && source ~/balatro/venv/bin/activate && python3 teach_az.py record --az ~/balatro/antezero --ckpt /mnt/c/Users/Jacobi/balatro-work/antezero/antezero-v0.2.0.pt --per-cell 25 --stakes 1,2,3,4,5,6,7,8 --leak 100 --threads 8 --out /mnt/c/Users/Jacobi/balatro-work/teach_az && python3 teach_az.py label --src ~/balatro/local/source --dir /mnt/c/Users/Jacobi/balatro-work/teach_az --workers 12 && python3 teach_az.py report --dir /mnt/c/Users/Jacobi/balatro-work/teach_az | tee /mnt/c/Users/Jacobi/balatro-work/teach_az/report.txt"
+
+Labeling costs ~16 s a game per worker (about 1 h for 3,000 games at 12 workers). Re-running resumes. The folder is
+what `train/imitate.py` reads (`--imitate`). The student itself is a later registration; its size:
+`docs/proposals/az-student-size.md`.
