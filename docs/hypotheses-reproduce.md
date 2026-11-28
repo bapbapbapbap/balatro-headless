@@ -270,3 +270,13 @@ Caveats:
 Reading: on everything compared, AnteZero's simulator follows the game's own code exactly, deep into Gold runs, and
 its bot's 12% Gold is real on the game's code. For scale: our v6g r660 wins 0.01-0.32% a deck at Gold and 174/600
 (29%) at Red White (docs/system_card_v6g.md). Answer to question 1 for AnteZero: yes.
+
+## Added 2026-11-27, after chud's 22:17 CST message: correction to the Z3 seed caveat
+
+Claude's, reviewed by chud. The 20:57 results section says "all 15 decks of a stake used the same 20 seed strings".
+It is wider than that: the same 20 seeds ran in all 30 cells (15 decks x 2 stakes); each seed appears 30 times in
+`z3_games.jsonl.gz`. The cause is how `z3.py` calls AnteZero's `_envs`: once per cell, 20 games, so every call is
+one batch seeded `EVAL_SEED` + 0. Their own eval makes one call over all decks and stakes, with batch k seeded
+`EVAL_SEED + k`, and doesn't repeat seeds this way. The chat summary that called it their loop's reuse was wrong.
+Fidelity results stand (600 different games, 110,201 actions); the win rates are from 20 seeds, correlated across
+cells, so their uncertainty is wider than 300 independent games per stake would give.
