@@ -280,3 +280,49 @@ one batch seeded `EVAL_SEED` + 0. Their own eval makes one call over all decks a
 `EVAL_SEED + k`, and doesn't repeat seeds this way. The chat summary that called it their loop's reuse was wrong.
 Fidelity results stand (600 different games, 110,201 actions); the win rates are from 20 seeds, correlated across
 cells, so their uncertainty is wider than 300 independent games per stake would give.
+
+## Added 2026-11-27, after chud's 22:32 CST message (the commit's time is the record): AnteZero as teacher, stage 0 (the data), registered before its code
+
+Claude's, reviewed by chud. chud asked to start a teacher from AnteZero the way v6 started from Balatro Lab. This
+section covers only the teacher's data and its checks. The student (size, encoding, which decks and stakes it trains
+on, imitation then PPO) is a later registration, before any of its code; chud decides the size after a write-up.
+
+**Why no bridge.** v6 needed `bridge.py` to rebuild Balatro Lab's state from our game. Z1-Z3 found AnteZero's
+simulator follows the game action for action, so the teacher plays in its own simulator and every game is replayed
+in our harness, where each decision is written as our student sees it.
+
+**Seeds.** chud's standard: never a fixed eval set. Every teacher game gets its own seed from
+`random.Random("az-teach")` (8 characters from the game's alphabet), skipping our 600 eval seeds and the 20 Z3
+seeds; no seed is used twice, across decks and stakes included.
+
+**Record** (`reproduce/antezero/teach_az.py record`). AnteZero v0.2.0 (sha256 `ea28506d…ffaef8`), greedy, no
+search, through its own `VecEnv` (built by its `runtime.make_env` from the checkpoint's config, endless off); each
+slot is loaded with `Game(seed, back, stake)` through `VecEnv.set_game`, with the slot's own options (skip, sorts,
+rearranges). Every action is saved as the simulator's text code, with the deck and stake. Self-check: the codes
+replayed in a fresh `Game` reach the same end.
+
+**Label** (`teach_az.py label`). Each recorded game replayed in `train/sim.Sim` with v6g's settings (ordered-capped
+actions, encoding 2, offer and play values, phi_build), and compared after every action with the simulator, as Z3
+(our view, `view.lua`). The teacher's code becomes one of our legal moves:
+- Hand sorts and hand drags are not decisions in our action list: applied to the game as they are, counted
+  (`reorders`), not labeled.
+- Play, discard, use, pick: the legal move with the same kind, index and cards; where our list offers a lead card
+  (plays) or a copy direction (Death), the one that changes nothing (the leftmost scoring card as lead, the rightmost
+  selected card as Death's source). That plays the teacher's exact scoring order, since the hand is already in the
+  teacher's order.
+- Anything else by kind and index. A teacher move with no legal match (e.g. a joker drag past our drag cap) is
+  applied as it is and that decision is unlabeled (`unmapped`).
+- A game is kept only if the comparison matches after every action (the win overlay handled as in Z3); otherwise it
+  is logged with an error and not saved. Output: `teach.py`'s format (`games_w*.jsonl`, `games/<seed>.pkl.gz` with
+  `{obs, member, a, labeled, kind, desc, played, progress}`), so `train/imitate.py` reads it unchanged.
+
+**Checks, cloud size** (2 cores; the laptop's data run gives the real numbers). 5 games per deck at stakes 1 and 8
+(150 games).
+- M1: >= 99% of games label to the end in lockstep. Claude 75%. M2: >= 98% of decisions labeled. Claude 70%.
+- W1: their bot's win rate on fresh seeds on the game's code: White >= 90% (Claude 75%); Gold between 6% and 18%
+  (Claude 55%). Reported with Wilson intervals; at this size they are wide.
+- L1 (leak probe, as v6's B2): at every round decision of 30 of these games, the teacher decides again on a copy whose
+  hidden state is redrawn (`Game.resample_hidden`); an honest teacher decides the same. >= 99.5% the same. Claude 80%.
+- S1 (does sorting matter): for every labeled play that a sort came before since the last decision, whether the first
+  scoring card differs from the first scoring card in the hand order before the sorts. Descriptive; Claude predicts
+  it differs in >= 20% of those plays (50%).
