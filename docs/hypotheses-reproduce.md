@@ -152,3 +152,55 @@ arms, 0 errors. Data: `reproduce/balatro_lab/results/2026-11-15/`.
   (A5 wins >= 60%; 75%) no: 23/300, with the caveat above.
 - By the rule fixed at 16:05: the arm with the largest blind gain is A1, interval above 0. v5 gets the computation
   behind hand play (docs/hypotheses-v5.md).
+
+## Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): AnteZero's simulator, what is already measured, and tests Z1-Z2 registered before their code
+
+Claude's, reviewed by chud. AnteZero is namecallfilter's (github.com/namecallfilter/antezero, MIT, pinned at commit
+`4fe07f771104a811ca8452efd4831b0dbf097e6e`, 2026-11-27); none of its code is in this repository. Its README calls
+its Rust simulator "a bit-exact Rust reimplementation of Balatro v1.0.1o, verified in lockstep against the real
+game", and reports win rates measured in that simulator (94% White, 12% Gold, all decks, no search). chud's aim:
+test that claim as we tested Balatro Lab's, then use AnteZero's released bot as a teacher.
+
+**How AnteZero checks itself (read from its code before this section).** `sim/oracle` runs the game's scripts
+headless in the game's `lua51.dll` (Windows only) through its own harness (`sim/oracle/lua/harness.lua`), which
+performs actions by calling `G.FUNCS` directly. `difftest` plays random games (with an injection rate that adds
+jokers, cards, money, vouchers) in both engines and compares a canonical state (every RNG stream included) and the
+order of RNG calls, draws and removals after every step. Two things that harness changes, as its own docs say: it
+sets `G.TIMERS.TOTAL` to 0 at the start of every action, and it overrides `Card.unique_val` (which the game derives
+from a UI node counter and uses as a tie-break in `Card:get_nominal`) to the simulator's model, "so this oracle
+cannot check that tie-break on its own". The bridge (`bridge/`) also compares with the real game through a
+Steamodded mod; that needs the Windows game running and is not repeated here.
+
+**Already measured (before this section, setup):**
+- Their oracle ported to Linux (`dlopen` in place of `LoadLibraryExW`, by our script
+  `reproduce/antezero/port_oracle_linux.py`, which edits only the pinned clone), on LuaJIT 2.0.5 built from its
+  release commit 0bf80b07, our 1.0.1o source (exe SHA-256 `0D75FE16…3F47`, the same pin as the harness). The
+  bundle lacks `resources/`; empty font files were placed so the game's font loader finds them (no game logic
+  reads them). Their `difftest 3 1 400 b_red 1 0.15`: 3/3 games matched, 227 steps, 230/230 frame-exact
+  timelines. Their own check reproduces off Windows on a small sample.
+
+**Test Z0 (their method, at scale).** Their `difftest` on Linux as above, 20 games per deck (15 decks) at stakes 1
+and 8, 400 steps max, inject rate 0.15, first seed 1. Outcome: games matched / games. Z0: >= 99%. Claude 85%.
+
+**Test Z1 (openings, our reader).** For 200 seeds per deck x stake (15 x 8, seeds from `random.Random("az-z1")`),
+start the run in their simulator (`antezero_sim.Game`) and in our harness (`harness/env.py`, the game's code, no
+timer rebase, no `unique_val` override); compare our view (below) of the opening state. Z1: every one matches.
+Claude 90%.
+
+**Test Z2 (independent lockstep).** Same seed, deck and stake in both. At every decision a weighted random policy
+picks one of the simulator's legal actions (`legal_codes()`); it is translated to our env's subsets-mode action and
+applied in both; then our view of each is compared. No injections (scenarios come from play). 10 games per deck x
+stake (1,200 games), 400 decisions max, seeds from `random.Random("az-z2")`. Our view, built by our own code on each
+side (the harness side reads `G` directly, the simulator side reads its `state_json`): phase, ante, round, money,
+hands and discards left, chips, blind and its chips, hand (in order), draw pile (in order), discard pile, jokers
+(key, edition, stickers, sell value), consumables, shop jokers / vouchers / boosters (key, cost), pack cards, hand
+levels, tags, used vouchers, and every RNG stream in `G.GAME.pseudorandom`. Numbers compared exactly.
+- Z2a: >= 95% of games match at every decision to the end. Claude 70%.
+- Z2b: every divergence, if any, traces to one of: the timer rebase, the `unique_val` tie-break, or an action our
+  env performs differently from their harness (blind select through the button, the boss-alert wait). Claude 60%.
+- Z2c: every simulator-legal action (no-op sorts and joker/hand drags counted apart) is in our env's legal set.
+  Claude 75%.
+
+A divergence ends that game's comparison; its history is saved and classified by hand. Z3, their released bot
+driving the lockstep and their win rates on the game's code (a win counts only if its route replays move for move
+to the game's own win), is registered in its own section before it runs.
