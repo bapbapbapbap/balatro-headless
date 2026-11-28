@@ -2,6 +2,8 @@
 
 B1, requirement: replaying routes at encoding 4, the requirement each choice's BLIND token carries (feature 14) in the
     shop and at blind select is the game's own G.GAME.blind.chips once that blind is selected. Mismatches listed.
+    A boss disabled at selection (Chicot, Luchador) is counted, not compared: the screen shows it before it is
+    disabled, and disabling The Wall or Violet Vessel removes their size.
 B2, effects: BLIND_TEXT (harness/encode.lua) names every blind in G.P_BLINDS exactly once; each boss's effect text
     and the slots set for it are printed for review.
 B3, no change below encoding 4: encodings 1-3 give identical tokens with this code and with --ref (a checkout
@@ -39,7 +41,7 @@ def slog(x):
 def b1(src, rs):
     sys.path.insert(0, os.path.join(ROOT, "train")); sys.path.insert(0, os.path.join(ROOT, "harness"))
     from sim import Sim
-    bad, checked = [], 0
+    bad, checked, disabled = [], 0, 0
     for r in rs:
         s = Sim(src, mode="ordered-capped", enc=4)
         s.reset(r["seed"], r["back"], r["stake"])
@@ -66,11 +68,15 @@ def b1(src, rs):
             if was == "BLIND_SELECT" and s.H.state_name() == "SELECTING_HAND":
                 on = L.eval("G.GAME.blind and G.GAME.blind:get_type() or ''")
                 chips = L.eval("G.GAME.blind.chips")
+                if L.eval("G.GAME.blind.disabled and true or false"):
+                    disabled += 1          # Chicot / Luchador at selection: the screen showed the boss before it
+                    continue               # (Violet Vessel, The Wall lose their size); counted, not compared
                 if on in seen:
                     checked += 1
                     if abs(seen[on][0] - chips) > 1e-6 * max(1, chips):
                         bad.append((r["seed"], k, on, f"shown {seen[on][0]} ({seen[on][1]} move {seen[on][2]})", chips))
-    print(f"B1: {checked} blinds checked on {len(rs)} routes, {len(bad)} mismatches")
+    print(f"B1: {checked} blinds checked on {len(rs)} routes, {len(bad)} mismatches ({disabled} bosses disabled at "
+          f"selection, not compared)")
     for x in bad[:20]:
         print("   ", x)
     return not bad

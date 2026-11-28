@@ -1478,3 +1478,22 @@ being played), feature slots 14-32:
 - B3, no change below encoding 4: encodings 1-3 give identical tokens before and after (route replay, token by token).
 Claude's predictions: B1 exact on all Gold routes except at most a few moves after Hieroglyph or Petroglyph: 80%. B2, B3
 pass: 95%.
+
+## Added 2026-11-27, after chud's 20:14 CST message: encoding 4, check results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o, code 2ea3d15 + the B1 change below.
+- **B2: pass.** `BLIND_TEXT` names all 30 blinds in `G.P_BLINDS` once; the check prints each boss's effect text beside
+  its fields, and every line reads right (one hand: Needle; no discards: Water; four suit debuffs; Plant; four
+  face-down bosses; Manacle; Psychic; Mouth, Eye; Flint, Arm; Tooth, Ox; Hook, Serpent, Cerulean Bell; Pillar, Verdant
+  Leaf; Crimson Heart, Amber Acorn; The Wall x4 and Violet Vessel x6 by the multiplier slot).
+- **B3: pass.** Encodings 1, 2 and 3 give byte-identical tokens and actions to main (278de36), every move of 3 Gold
+  routes.
+- **B1: 4,342 blinds on all 181 Gold routes, 1 mismatch**: TDBAV9CK (Yellow), ante 8, Violet Vessel shown at
+  1,200,000, played at 400,000. The bot held Chicot, which disables the boss at selection; disabling Violet Vessel
+  removes its size. The token carried what the blind-select screen shows, so the encoding is right and the check was
+  wrong: B1 now counts a boss disabled at selection and doesn't compare it (6 routes after the change: 142 compared,
+  0 mismatches, 2 disabled). No mismatch from Hieroglyph or Petroglyph.
+
+Predictions: B1 (80%, exact except after Hieroglyph or Petroglyph): **missed as worded**: the one exception was
+Chicot, which the prediction didn't name. B2, B3 (95%): **met**. `enc4-blinds` joins `launch.py`'s CHECKS for any run
+on encoding 4. A player holding Chicot knows the boss will be disabled; the bot sees both tokens, as the player does.
