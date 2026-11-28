@@ -149,7 +149,7 @@ def main():
     ap.add_argument("--greedy", type=float, default=0.85)
     ap.add_argument("--max-steps", type=int, default=3000)
     ap.add_argument("--candidate", default="fast", help="fast | fast+<opt>,<opt> (see OPTIMIZATIONS)")
-    ap.add_argument("--enc", type=int, choices=[1, 2, 3], default=1, help="encoding version for --encode")
+    ap.add_argument("--enc", type=int, choices=[1, 2, 3, 4], default=1, help="encoding version for --encode")
     ap.add_argument("--back", default="b_red", help="deck key, e.g. b_red, b_erratic")
     ap.add_argument("--stake", type=int, default=1)
     ap.add_argument("--challenge", default=None, help="challenge id (overrides deck and stake)")

@@ -496,12 +496,22 @@ function H.observe()
   }
   if GG.blind and GG.blind.name and GG.blind.name ~= "" then
     local b = GG.blind
-    o.blind = { name = b.name, key = b.config.blind.key, target = b.chips, boss = b.boss or false,
+    o.blind = { name = b.name, key = b.config.blind.key, target = b.chips, boss = b.boss or false, dollars = b.dollars,
                 disabled = b.disabled or false, hands_sub = b.hands_sub, only_hand = b.only_hand }
   end
   o.blind_choices = { Small = GG.round_resets.blind_choices.Small, Big = GG.round_resets.blind_choices.Big,
                       Boss = GG.round_resets.blind_choices.Boss }
   o.blind_states = primitives(GG.round_resets.blind_states, 0)
+  -- what the blind-select screen (and Run Info) shows for each choice: its score requirement, by the screen's own
+  -- formula (UI_definitions.lua create_UIBox_blind_choice), and its reward (0 where the stake removes it)
+  o.blind_amounts, o.blind_rewards = {}, {}
+  for slot, key in pairs(o.blind_choices) do
+    local b = G.P_BLINDS[key]
+    if b then
+      o.blind_amounts[slot] = get_blind_amount(GG.round_resets.blind_ante) * b.mult * GG.starting_params.ante_scaling
+      o.blind_rewards[slot] = (GG.modifiers.no_blind_reward and GG.modifiers.no_blind_reward[slot]) and 0 or b.dollars
+    end
+  end
   o.skip_tags = { Small = GG.round_resets.blind_tags and GG.round_resets.blind_tags.Small,
                   Big = GG.round_resets.blind_tags and GG.round_resets.blind_tags.Big }
   local function shop_item(c)

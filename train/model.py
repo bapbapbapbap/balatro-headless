@@ -10,7 +10,7 @@ N_KINDS = 16       # token kinds (encode.lua KIND), 0 = padding
 N_ACT_TYPES = 19   # action types (encode.lua ACTION, reroll_boss = 18 in v2), 0 = padding
 F = 32             # features per token
 ACT = 9            # v1 row: type, a, b, c1..c5, hand_type
-ACT_WIDTH = {1: 9, 2: 18, 3: 18}
+ACT_WIDTH = {1: 9, 2: 18, 3: 18, 4: 18}
 # Fields that are embedding ids or numbers (padded with 0); every other field is a token index (-1 = none).
 ZERO_FIELDS = {1: (0, 8), 2: (0, 8, 16, 17), 3: (0, 8, 16, 17)}
 # by action row width: v4's offer values add column 18 (a number) to encoding 2's 18

@@ -37,9 +37,10 @@ def build_parser():
     ap.add_argument("--eval-at-pins-zero", type=int, default=1,
                     help="MoE: run an eval (and save pins0.pt) at the first round after every pin has faded to 0")
     ap.add_argument("--eval-games", type=int, default=200)
-    ap.add_argument("--enc", type=int, choices=[1, 2, 3], default=1,
+    ap.add_argument("--enc", type=int, choices=[1, 2, 3, 4], default=1,
                     help="encoding: 1 = v1; 2 = fixed joker slots, hand table, scoring cards, HUD score; "
-                         "3 = v2 plus deck and challenge tokens (v2 weights load into it)")
+                         "3 = v2 plus deck and challenge tokens (v2 weights load into it); "
+                         "4 = v3 plus each blind's requirement, reward and boss effect as the player sees them")
     ap.add_argument("--actions", choices=["subsets", "ordered", "ordered-capped"], default="subsets",
                     help="action list: subsets (v1) or ordered (lead card, Death direction, boss reroll)")
     ap.add_argument("--d", type=int, default=96)

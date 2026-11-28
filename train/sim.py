@@ -12,7 +12,7 @@ sys.path.insert(0, HARNESS)
 from env import BalatroEnv  # noqa: E402
 
 F = 32
-ACT_WIDTH = {1: 9, 2: 18, 3: 18}     # action row width per encoding version (encode.lua)
+ACT_WIDTH = {1: 9, 2: 18, 3: 18, 4: 18}     # action row width per encoding version (encode.lua)
 
 PROGRESS = r"""
 local H = ...
