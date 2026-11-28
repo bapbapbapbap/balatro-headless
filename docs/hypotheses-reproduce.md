@@ -204,3 +204,24 @@ levels, tags, used vouchers, and every RNG stream in `G.GAME.pseudorandom`. Numb
 A divergence ends that game's comparison; its history is saved and classified by hand. Z3, their released bot
 driving the lockstep and their win rates on the game's code (a win counts only if its route replays move for move
 to the game's own win), is registered in its own section before it runs.
+
+## Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): Z3, AnteZero's bot on the game's code, registered before its code
+
+Claude's, reviewed by chud. AnteZero's released model `antezero-v0.2.0.pt` (release v0.2.0, sha256
+`ea28506dc6a7016b73e0f921c5fe2f1b25caab34b9e13e49d9aced9d89ffaef8`). Z1 and Z2 are running; no Z3 code exists.
+
+**Z3.** Their bot plays in their simulator with their own eval protocol (`antezero_agent.eval.evaluate`'s loop:
+`VecEnv` built by `runtime.make_env` from the checkpoint's config, seed `EVAL_SEED` 7,777,777 + batch, greedy,
+no search, endless off so a game ends at the ante-8 win). For every step we record the action as the simulator's
+text code (`Game.factored_to_code` on `env.game(i)` before the step). Then each game is replayed in our harness
+(the game's own Lua) through `lockstep.py`'s translation, with our view compared after every action as in Z2.
+Cells: White (stake 1) and Gold (stake 8), every deck, 20 games per deck x stake (600 games) in the cloud; the
+laptop can extend it with the same script.
+- Z3a: their bot's win rate in their simulator on these games is within their table's interval: White all decks
+  >= 88%, Gold all decks within 12% +- 4 points. Claude 75%.
+- Z3b: >= 95% of games replay move for move, our view matching after every action. Claude 65%.
+- Z3c: wins on the game's code (the route replays move for move to the game's own win) are within 1 point of the
+  simulator's wins on the same games, per stake. Claude 75%.
+
+**Z0 moved to the laptop** (2 cloud cores run their oracle at ~0.2 s a step; 600 games is ~13 h here). Cloud
+partial, before it was stopped: Red, stake 1, 19/19 games matched (the 20th was running).
