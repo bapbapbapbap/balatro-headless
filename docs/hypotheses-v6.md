@@ -1315,3 +1315,69 @@ Claude's, reviewed by chud. Cloud, 1.0.1o.
 Predictions: 3 misses exact and 0 of 150: **met** (75%); Bull and Bootstraps all exact at 60: **met** (80%);
 pre-flight ALL PASS: **met**. Reading: a real bias, small on the routes v6g won, because it needs a paying card in
 play (Gold Seals, Gold Cards, Rough Gem, Business Card) next to Bull or Bootstraps.
+
+## Added 2026-11-27, after chud's 15:40 CST message: the jokers' before step in score(), registered before its code
+
+Claude's, reviewed by chud. The per-joker audit (14:56 sections) measured the gap the v5 registration left out:
+off / labeled, Green Joker 17/18, Ride the Bus 8/16, Square 3/16, Runner 2/15, Spare Trousers 1/14 (low by the
+growth on the hand being played), Vampire 5/16 (high: it keeps the enhancements Vampire eats). Same bug as the
+ROADMAP's "Ride the Bus ~12 low".
+
+**Cause.** The game's `G.FUNCS.evaluate_play` runs every joker with `context.before` after the hand is counted
+and before it reads the hand's chips and mult (state_events.lua). `score()` (build_phi.lua) skips that step. In
+card.lua it is where Spare Trousers, Square Joker, Runner, Ride the Bus, Obelisk and Green Joker grow (or reset),
+Vampire strips the scoring cards' enhancements and grows, Midas Mask turns scoring face cards Gold, To Do List pays,
+Space Joker levels the hand by chance, and DNA copies a lone first card.
+
+**The fix.** `score()` runs that step as the game does: `eval_card(joker, {cardarea = G.jokers, full_hand,
+scoring_hand, scoring_name, poker_hands, before = true})` for every joker in order (so Blueprint and Brainstorm copy
+what the game lets them), a returned `level_up` levels the hand, and then reads the hand's chips and mult. Two
+guards: DNA's copy is not made (it creates a card; it doesn't change the play's score), and the played cards'
+center, ability table and `vampired` flag (changed by Vampire and Midas Mask through `set_ability`) are put back on
+return. The callers already restore jokers' abilities and the hand levels after every valued play or deal, so a
+before-step growth never carries to another play. This applies to play values, phi_build and offer values alike:
+phi_build's deals now include the growth on the hand dealt.
+
+**The check changes with it.** `tests/v5_play_check.py` LEFT_OUT_JOKERS keeps only what still can't match exactly:
+DNA, Space Joker, Bloodstone, Misprint (and Lucky Cards, The Hook). Spare Trousers, Square Joker, Runner, Midas Mask,
+Vampire, To Do List, Ride the Bus, Obelisk and Green Joker come into check 2, and into the joker audit, which
+labels by the same list.
+
+**Predictions (Claude's).** Q1: joker audit, 150 x 12, 0 unlabeled misses with the shorter list: 70%. Q2: the six
+jokers measured above all exact at 40 trials each: 75%. Q3: `v4_phi_check --routes 6` and `v5_play_check --routes 3`
+ALL PASS (check 2 at least 98% with the shorter list): 85%. Q4: on the Gold routes, phi_build moves at more than
+5% of moves where Green Joker, Ride the Bus, Square, Runner, Spare Trousers, Obelisk or Vampire is held: 60%.
+
+## Added 2026-11-27, after chud's 15:40 CST message: correction to the before-step section: play values only
+
+Claude's, reviewed by chud. The 15:40 registration said the before step would apply to "play values, phi_build
+and offer values alike". That changes a registered definition: phi_build's (build_phi.lua header, from v4's
+definitions entry) leaves out "what a play changes (the `before` context, destruction, dollars)". phi_build values
+the board with scaling jokers projected 6 rounds ahead, not one play's side effects (a Ride the Bus would reset to
+0 on any deal whose best hand has a face card, wiping its projection). The step was committed (ed50ed0) for all
+callers and is limited to `score(..., live)`, i.e. play values, in the next commit; noticed before any result.
+
+So phi_build and offer values stay as defined. Q1-Q3 are unchanged (the audit and v5 check 2 test play values).
+**Q4 is replaced:** on the Gold routes, phi_build and offer values identical to main at every move (the step
+doesn't reach them); play values differ only at moves where a before-step joker is held. No size predicted.
+Whether phi_build's definition should take the before step is chud's call, as its own registered change.
+
+## Added 2026-11-27, after chud's 15:40 CST message: the before step, results
+
+Claude's, reviewed by chud. Cloud, 1.0.1o, code e1e689f (before step for play values only).
+- Joker audit, 150 x 12 with the shorter left-out list: **0 unlabeled misses** (Q1, 70%: **met**; run on ed50ed0,
+  which differs only in also stepping phi_build; the audit tests play values, rerun on e1e689f for the 9 jokers:
+  0 misses).
+- The 6 measured jokers plus Midas Mask, To Do List, Obelisk at 40 trials each: **all exact**, 35-39 checked plays
+  each (Q2, 75%: **met**). Caveat: each trial starts a fresh run, so growing jokers start at their base value and
+  Obelisk's trigger is rare; routes test grown values (below).
+- `v4_phi_check --routes 6`: ALL PASS. `v5_play_check --routes 3`: check 2 **137 of 137** exact (was 102: Green
+  Joker's 35 plays on 115I4TMI came into the check), check 1 PASS (Q3, 85%: **met**).
+- All 181 Gold routes, main (ea8dedd) vs fixed: phi_build and offer values identical at all 49,957 moves, cache =
+  fresh everywhere (Q4 as replaced: **met**). Play values differ at **3,076 moves, all with a before-step joker
+  held** (16,221 such moves, on 86 of 181 routes; 19% of them).
+
+Reading: the play values input was wrong at about one in five moves holding Green Joker, Ride the Bus, Square,
+Runner, Spare Trousers, Obelisk, Vampire, Midas Mask or To Do List, on half of v6g's Gold wins. Low for the growers,
+high for Vampire. This is the input the policy reads to choose a play (score vs what the blind needs), so it bears
+on round play, which the walls report ranks first. v6g trained on the old values.

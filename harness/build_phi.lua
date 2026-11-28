@@ -233,6 +233,29 @@ local function score(cards, held, live)
   for i, c in ipairs(cards) do pos[c] = i end
   table.sort(sh, function(a, b) return pos[a] < pos[b] end)
   scoring_hand = sh
+  -- the jokers' before step (play values), as G.FUNCS.evaluate_play runs it before reading the hand's chips and mult: Spare
+  -- Trousers, Square, Runner, Ride the Bus, Obelisk, Green Joker grow or reset; Vampire strips the scoring cards'
+  -- enhancements; Midas Mask makes scoring faces Gold; To Do List pays; Space Joker levels by chance. DNA's copy is
+  -- not made (it creates a card and doesn't change this play's score). set_ability (Vampire, Midas Mask) changes a
+  -- card's center and ability and marks G.GAME.used_jokers: all put back on return (the callers restore the jokers'
+  -- abilities and the hand levels after every play or deal).
+  local undo = {}
+  for _, c in ipairs(cards) do
+    undo[c] = { c.config.center, c.config.center_key, c.sticker_run, c.label, c.base_cost, c.ability, copy(c.ability),
+                c.vampired }
+  end
+  local used0 = {}
+  for k, v in pairs(G.GAME.used_jokers) do used0[k] = v end
+  local cr = G.GAME.current_round
+  local hands_played0 = cr.hands_played
+  if next(find_joker("DNA")) then cr.hands_played = math.max(1, hands_played0 or 0) end
+  -- play values only (live): phi_build's definition leaves the before context out (this file's header)
+  for i = 1, live and #G.jokers.cards or 0 do
+    local ef = eval_card(G.jokers.cards[i], { cardarea = G.jokers, full_hand = cards, scoring_hand = scoring_hand,
+                         scoring_name = text, poker_hands = poker_hands, before = true })
+    if ef.jokers and ef.jokers.level_up then level_up_hand(G.jokers.cards[i], text, true) end
+  end
+  cr.hands_played = hands_played0
   local hand = G.GAME.hands[text]
   local mult, hand_chips = mod_mult(hand.mult), mod_chips(hand.chips)
   if live then      -- model v5: the blind being played (The Flint), as G.FUNCS.evaluate_play applies it
@@ -342,6 +365,13 @@ local function score(cards, held, live)
   mult, hand_chips = mod_mult(nu_mult or mult), mod_chips(nu_chip or hand_chips)
   G.hand.cards = hand_cards
   G.GAME.dollar_buffer = dollar_buffer0
+  for c, u in pairs(undo) do
+    c.config.center, c.config.center_key, c.sticker_run, c.label, c.base_cost, c.ability = u[1], u[2], u[3], u[4], u[5], u[6]
+    restore(c.ability, u[7])
+    c.vampired = u[8]
+  end
+  for k in pairs(G.GAME.used_jokers) do if used0[k] == nil then G.GAME.used_jokers[k] = nil end end
+  for k, v in pairs(used0) do G.GAME.used_jokers[k] = v end
   local s = hand_chips * mult
   if s ~= s or s < 0 then s = 0 end
   return s, text
