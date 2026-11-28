@@ -18,7 +18,7 @@ New sections go at the end of the file they concern, dated, with a row added her
 
 | File | Contents |
 |---|---|
-| [`hypotheses-reproduce.md`](hypotheses-reproduce.md) | Reproducing other bots (Balatro Lab, the teacher) |
+| [`hypotheses-reproduce.md`](hypotheses-reproduce.md) | Reproducing other bots (Balatro Lab, the teacher; AnteZero) |
 | [`hypotheses-v6.md`](hypotheses-v6.md) | Model v6: taught by Balatro Lab's bot (v6e, v6dt), then our reward at Gold (v6g) |
 
 ## Every section on main, in the order it was added
@@ -84,3 +84,9 @@ New sections go at the end of the file they concern, dated, with a row added her
 | [Added 2026-11-27, after chud's 15:40 CST message: the before step, results](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-the-before-step-results) | v6 |
 | [Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection vs the bot's own games, registered](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-phi_builds-growth-projection-vs-the-bots-own-games-registered) | v6 |
 | [Added 2026-11-27, after chud's 15:40 CST message: phi_build's growth projection, results](hypotheses-v6.md#added-2026-11-27-after-chuds-1540-cst-message-phi_builds-growth-projection-results) | v6 |
+| [Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): AnteZero's simulator, what is already measured, and tests Z1-Z2 registered before their code](hypotheses-reproduce.md#added-2026-11-27-after-chuds-2057-cst-message-the-commits-time-is-the-record-antezeros-simulator-what-is-already-measured-and-tests-z1-z2-registered-before-their-code) | reproduce |
+| [Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): Z3, AnteZero's bot on the game's code, registered before its code](hypotheses-reproduce.md#added-2026-11-27-after-chuds-2057-cst-message-the-commits-time-is-the-record-z3-antezeros-bot-on-the-games-code-registered-before-its-code) | reproduce |
+| [Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): Z1-Z3 results, scored; Z0 still to run](hypotheses-reproduce.md#added-2026-11-27-after-chuds-2057-cst-message-the-commits-time-is-the-record-z1-z3-results-scored-z0-still-to-run) | reproduce |
+| [Added 2026-11-27, after chud's 22:17 CST message: correction to the Z3 seed caveat](hypotheses-reproduce.md#added-2026-11-27-after-chuds-2217-cst-message-correction-to-the-z3-seed-caveat) | reproduce |
+| [Added 2026-11-27, after chud's 22:32 CST message (the commit's time is the record): AnteZero as teacher, stage 0 (the data), registered before its code](hypotheses-reproduce.md#added-2026-11-27-after-chuds-2232-cst-message-the-commits-time-is-the-record-antezero-as-teacher-stage-0-the-data-registered-before-its-code) | reproduce |
+| [Added 2026-11-27, after chud's 22:32 CST message (the commit's time is the record): AnteZero teacher, stage 0 checks, scored](hypotheses-reproduce.md#added-2026-11-27-after-chuds-2232-cst-message-the-commits-time-is-the-record-antezero-teacher-stage-0-checks-scored) | reproduce |

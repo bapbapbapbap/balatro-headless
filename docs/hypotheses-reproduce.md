@@ -152,3 +152,206 @@ arms, 0 errors. Data: `reproduce/balatro_lab/results/2026-11-15/`.
   (A5 wins >= 60%; 75%) no: 23/300, with the caveat above.
 - By the rule fixed at 16:05: the arm with the largest blind gain is A1, interval above 0. v5 gets the computation
   behind hand play (docs/hypotheses-v5.md).
+
+## Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): AnteZero's simulator, what is already measured, and tests Z1-Z2 registered before their code
+
+Claude's, reviewed by chud. AnteZero is namecallfilter's (github.com/namecallfilter/antezero, MIT, pinned at commit
+`4fe07f771104a811ca8452efd4831b0dbf097e6e`, 2026-11-27); none of its code is in this repository. Its README calls
+its Rust simulator "a bit-exact Rust reimplementation of Balatro v1.0.1o, verified in lockstep against the real
+game", and reports win rates measured in that simulator (94% White, 12% Gold, all decks, no search). chud's aim:
+test that claim as we tested Balatro Lab's, then use AnteZero's released bot as a teacher.
+
+**How AnteZero checks itself (read from its code before this section).** `sim/oracle` runs the game's scripts
+headless in the game's `lua51.dll` (Windows only) through its own harness (`sim/oracle/lua/harness.lua`), which
+performs actions by calling `G.FUNCS` directly. `difftest` plays random games (with an injection rate that adds
+jokers, cards, money, vouchers) in both engines and compares a canonical state (every RNG stream included) and the
+order of RNG calls, draws and removals after every step. Two things that harness changes, as its own docs say: it
+sets `G.TIMERS.TOTAL` to 0 at the start of every action, and it overrides `Card.unique_val` (which the game derives
+from a UI node counter and uses as a tie-break in `Card:get_nominal`) to the simulator's model, "so this oracle
+cannot check that tie-break on its own". The bridge (`bridge/`) also compares with the real game through a
+Steamodded mod; that needs the Windows game running and is not repeated here.
+
+**Already measured (before this section, setup):**
+- Their oracle ported to Linux (`dlopen` in place of `LoadLibraryExW`, by our script
+  `reproduce/antezero/port_oracle_linux.py`, which edits only the pinned clone), on LuaJIT 2.0.5 built from its
+  release commit 0bf80b07, our 1.0.1o source (exe SHA-256 `0D75FE16…3F47`, the same pin as the harness). The
+  bundle lacks `resources/`; empty font files were placed so the game's font loader finds them (no game logic
+  reads them). Their `difftest 3 1 400 b_red 1 0.15`: 3/3 games matched, 227 steps, 230/230 frame-exact
+  timelines. Their own check reproduces off Windows on a small sample.
+
+**Test Z0 (their method, at scale).** Their `difftest` on Linux as above, 20 games per deck (15 decks) at stakes 1
+and 8, 400 steps max, inject rate 0.15, first seed 1. Outcome: games matched / games. Z0: >= 99%. Claude 85%.
+
+**Test Z1 (openings, our reader).** For 200 seeds per deck x stake (15 x 8, seeds from `random.Random("az-z1")`),
+start the run in their simulator (`antezero_sim.Game`) and in our harness (`harness/env.py`, the game's code, no
+timer rebase, no `unique_val` override); compare our view (below) of the opening state. Z1: every one matches.
+Claude 90%.
+
+**Test Z2 (independent lockstep).** Same seed, deck and stake in both. At every decision a weighted random policy
+picks one of the simulator's legal actions (`legal_codes()`); it is translated to our env's subsets-mode action and
+applied in both; then our view of each is compared. No injections (scenarios come from play). 10 games per deck x
+stake (1,200 games), 400 decisions max, seeds from `random.Random("az-z2")`. Our view, built by our own code on each
+side (the harness side reads `G` directly, the simulator side reads its `state_json`): phase, ante, round, money,
+hands and discards left, chips, blind and its chips, hand (in order), draw pile (in order), discard pile, jokers
+(key, edition, stickers, sell value), consumables, shop jokers / vouchers / boosters (key, cost), pack cards, hand
+levels, tags, used vouchers, and every RNG stream in `G.GAME.pseudorandom`. Numbers compared exactly.
+- Z2a: >= 95% of games match at every decision to the end. Claude 70%.
+- Z2b: every divergence, if any, traces to one of: the timer rebase, the `unique_val` tie-break, or an action our
+  env performs differently from their harness (blind select through the button, the boss-alert wait). Claude 60%.
+- Z2c: every simulator-legal action (no-op sorts and joker/hand drags counted apart) is in our env's legal set.
+  Claude 75%.
+
+A divergence ends that game's comparison; its history is saved and classified by hand. Z3, their released bot
+driving the lockstep and their win rates on the game's code (a win counts only if its route replays move for move
+to the game's own win), is registered in its own section before it runs.
+
+## Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): Z3, AnteZero's bot on the game's code, registered before its code
+
+Claude's, reviewed by chud. AnteZero's released model `antezero-v0.2.0.pt` (release v0.2.0, sha256
+`ea28506dc6a7016b73e0f921c5fe2f1b25caab34b9e13e49d9aced9d89ffaef8`). Z1 and Z2 are running; no Z3 code exists.
+
+**Z3.** Their bot plays in their simulator with their own eval protocol (`antezero_agent.eval.evaluate`'s loop:
+`VecEnv` built by `runtime.make_env` from the checkpoint's config, seed `EVAL_SEED` 7,777,777 + batch, greedy,
+no search, endless off so a game ends at the ante-8 win). For every step we record the action as the simulator's
+text code (`Game.factored_to_code` on `env.game(i)` before the step). Then each game is replayed in our harness
+(the game's own Lua) through `lockstep.py`'s translation, with our view compared after every action as in Z2.
+Cells: White (stake 1) and Gold (stake 8), every deck, 20 games per deck x stake (600 games) in the cloud; the
+laptop can extend it with the same script.
+- Z3a: their bot's win rate in their simulator on these games is within their table's interval: White all decks
+  >= 88%, Gold all decks within 12% +- 4 points. Claude 75%.
+- Z3b: >= 95% of games replay move for move, our view matching after every action. Claude 65%.
+- Z3c: wins on the game's code (the route replays move for move to the game's own win) are within 1 point of the
+  simulator's wins on the same games, per stake. Claude 75%.
+
+**Z0 moved to the laptop** (2 cloud cores run their oracle at ~0.2 s a step; 600 games is ~13 h here). Cloud
+partial, before it was stopped: Red, stake 1, 19/19 games matched (the 20th was running).
+
+## Added 2026-11-27, after chud's 20:57 CST message (the commit's time is the record): Z1-Z3 results, scored; Z0 still to run
+
+Claude's, reviewed by chud. All in the cloud (2 cores, LuaJIT 2.0.5 via lupa, our 1.0.1o source). Data:
+`reproduce/antezero/results/2026-11-27/`.
+
+| test | what | result |
+|---|---|---|
+| Z1 | openings, 200 seeds x 15 decks x 8 stakes, our view (deck order, blinds, boss, tags, voucher, every RNG stream, ...) | **24,000 / 24,000** match |
+| Z2 | random-policy lockstep, 10 games x 120 cells, our view after every action | **1,200 / 1,200** games match to the end; 26,823 actions; 0 simulator actions outside our env's legal list |
+| Z3 | their bot (v0.2.0, greedy, no search), their eval loop, White and Gold, 20 games x 15 decks each; replayed in our harness | **600 / 600** games move for move (110,201 actions); wins in their sim = wins on the game's code: White 295/300 (98.3%), Gold 36/300 (12.0%) |
+
+Scored:
+- Z1 (every opening matches; Claude 90%): yes.
+- Z2a (>= 95% of games match; Claude 70%): yes, 100%. Weak coverage: the policy is crude, 834 of 1,200 games end in
+  ante 1 and none past ante 6; Z3 is the deep test.
+- Z2b (every divergence traces to the timer rebase, the `unique_val` tie-break or our env's action path; Claude 60%):
+  not tested, there were no divergences. Neither of the two things their oracle can't check (their harness's timer
+  rebase, its `unique_val` override) showed up in 137,024 compared actions on our harness, which has neither.
+- Z2c (every simulator-legal action is in our legal set; Claude 75%): yes in Z2 (0 of 26,823). Z2 had no sorts or
+  drags (the simulator's default `Game` offers none). In Z3 the bot's 16,382 sorts and 11 hand drags aren't in our
+  subsets-mode list (that mode leaves them out by design) and were applied with the game's own sort functions; every
+  other Z3 action (1,908 joker drags included) was in our list.
+- Z3a (sim win rate within their table: White >= 88%, Gold 12% +- 4; Claude 75%): yes, 98.3% and 12.0%.
+- Z3b (>= 95% replay move for move; Claude 65%): yes, 100%, with one handling decided after the first test games
+  showed it (code commit `ecfd909` and the README's notes, before the 600 ran): at a win the game pauses on its win
+  overlay with the boss still in place (debuffs, face-down jokers, the blind's chips), and the simulator's terminal
+  state is the one after the overlay is dismissed, as their harness dismisses it. Without that step all 331 wins
+  differ at their last action only; after it all match. The 269 losses match at every action as they are.
+- Z3c (wins on the game's code within 1 point of the sim's; Claude 75%): yes, identical (331 = 331).
+
+Caveats:
+- Their eval loop seeds a batch from `EVAL_SEED` + batch index; with one batch per cell, all 15 decks of a stake
+  used the same 20 seed strings. 300 different games per stake, but 20 seeds. A laptop run with more games per cell
+  (README) widens it.
+- Card `ability` tables are checked on the keys their dump has; game-only keys aren't checked. Booster centers that
+  differ only in art and come from unseeded `math.random` counted as equal (380 of the Z3 games had one).
+- One code change after Z2 started: the drag matcher now also checks the destination slot (it had picked the first
+  drag from the same slot). Z2 had no drags, so its result doesn't depend on it; Z3 ran after it.
+- Z0 (their own difftest at scale) was stopped in the cloud after 19/19 games of one cell matched; it runs on the
+  laptop (`reproduce/antezero/z0.sh`).
+
+Reading: on everything compared, AnteZero's simulator follows the game's own code exactly, deep into Gold runs, and
+its bot's 12% Gold is real on the game's code. For scale: our v6g r660 wins 0.01-0.32% a deck at Gold and 174/600
+(29%) at Red White (docs/system_card_v6g.md). Answer to question 1 for AnteZero: yes.
+
+## Added 2026-11-27, after chud's 22:17 CST message: correction to the Z3 seed caveat
+
+Claude's, reviewed by chud. The 20:57 results section says "all 15 decks of a stake used the same 20 seed strings".
+It is wider than that: the same 20 seeds ran in all 30 cells (15 decks x 2 stakes); each seed appears 30 times in
+`z3_games.jsonl.gz`. The cause is how `z3.py` calls AnteZero's `_envs`: once per cell, 20 games, so every call is
+one batch seeded `EVAL_SEED` + 0. Their own eval makes one call over all decks and stakes, with batch k seeded
+`EVAL_SEED + k`, and doesn't repeat seeds this way. The chat summary that called it their loop's reuse was wrong.
+Fidelity results stand (600 different games, 110,201 actions); the win rates are from 20 seeds, correlated across
+cells, so their uncertainty is wider than 300 independent games per stake would give.
+
+## Added 2026-11-27, after chud's 22:32 CST message (the commit's time is the record): AnteZero as teacher, stage 0 (the data), registered before its code
+
+Claude's, reviewed by chud. chud asked to start a teacher from AnteZero the way v6 started from Balatro Lab. This
+section covers only the teacher's data and its checks. The student (size, encoding, which decks and stakes it trains
+on, imitation then PPO) is a later registration, before any of its code; chud decides the size after a write-up.
+
+**Why no bridge.** v6 needed `bridge.py` to rebuild Balatro Lab's state from our game. Z1-Z3 found AnteZero's
+simulator follows the game action for action, so the teacher plays in its own simulator and every game is replayed
+in our harness, where each decision is written as our student sees it.
+
+**Seeds.** chud's standard: never a fixed eval set. Every teacher game gets its own seed from
+`random.Random("az-teach")` (8 characters from the game's alphabet), skipping our 600 eval seeds and the 20 Z3
+seeds; no seed is used twice, across decks and stakes included.
+
+**Record** (`reproduce/antezero/teach_az.py record`). AnteZero v0.2.0 (sha256 `ea28506d…ffaef8`), greedy, no
+search, through its own `VecEnv` (built by its `runtime.make_env` from the checkpoint's config, endless off); each
+slot is loaded with `Game(seed, back, stake)` through `VecEnv.set_game`, with the slot's own options (skip, sorts,
+rearranges). Every action is saved as the simulator's text code, with the deck and stake. Self-check: the codes
+replayed in a fresh `Game` reach the same end.
+
+**Label** (`teach_az.py label`). Each recorded game replayed in `train/sim.Sim` with v6g's settings (ordered-capped
+actions, encoding 2, offer and play values, phi_build), and compared after every action with the simulator, as Z3
+(our view, `view.lua`). The teacher's code becomes one of our legal moves:
+- Hand sorts and hand drags are not decisions in our action list: applied to the game as they are, counted
+  (`reorders`), not labeled.
+- Play, discard, use, pick: the legal move with the same kind, index and cards; where our list offers a lead card
+  (plays) or a copy direction (Death), the one that changes nothing (the leftmost scoring card as lead, the rightmost
+  selected card as Death's source). That plays the teacher's exact scoring order, since the hand is already in the
+  teacher's order.
+- Anything else by kind and index. A teacher move with no legal match (e.g. a joker drag past our drag cap) is
+  applied as it is and that decision is unlabeled (`unmapped`).
+- A game is kept only if the comparison matches after every action (the win overlay handled as in Z3); otherwise it
+  is logged with an error and not saved. Output: `teach.py`'s format (`games_w*.jsonl`, `games/<seed>.pkl.gz` with
+  `{obs, member, a, labeled, kind, desc, played, progress}`), so `train/imitate.py` reads it unchanged.
+
+**Checks, cloud size** (2 cores; the laptop's data run gives the real numbers). 5 games per deck at stakes 1 and 8
+(150 games).
+- M1: >= 99% of games label to the end in lockstep. Claude 75%. M2: >= 98% of decisions labeled. Claude 70%.
+- W1: their bot's win rate on fresh seeds on the game's code: White >= 90% (Claude 75%); Gold between 6% and 18%
+  (Claude 55%). Reported with Wilson intervals; at this size they are wide.
+- L1 (leak probe, as v6's B2): at every round decision of 30 of these games, the teacher decides again on a copy whose
+  hidden state is redrawn (`Game.resample_hidden`); an honest teacher decides the same. >= 99.5% the same. Claude 80%.
+- S1 (does sorting matter): for every labeled play that a sort came before since the last decision, whether the first
+  scoring card differs from the first scoring card in the hand order before the sorts. Descriptive; Claude predicts
+  it differs in >= 20% of those plays (50%).
+
+## Added 2026-11-27, after chud's 22:32 CST message (the commit's time is the record): AnteZero teacher, stage 0 checks, scored
+
+Claude's, reviewed by chud. Cloud, 150 games (5 per deck at stakes 1 and 8), 150 distinct fresh seeds, each used
+once. Data: `reproduce/antezero/results/2026-11-27/teach/` (the labeled pickles stay out of git, 15 MB; the laptop
+run makes its own).
+
+| check | result |
+|---|---|
+| M1 games labeled to the end in lockstep | **150 / 150** |
+| M2 decisions labeled | **26,585 / 26,587** (99.99%); the 2 unlabeled are joker drags past our drag cap |
+| W1 win rate on fresh seeds, on the game's code (= its sim's on every game) | White **70/75 = 93.3%** [85.3, 97.1]; Gold **9/75 = 12.0%** [6.4, 21.3] |
+| L1 leak probe, 30 games | **1,281 / 1,281** round decisions unchanged with the hidden state redrawn |
+| S1 sorts and scoring order | the first scoring card changed in **0 of 76** plays after a sort where order matters; 927 more plays after a sort where it doesn't |
+
+Scored: M1 yes (Claude 75%). M2 yes (70%). W1 White yes (75%; the interval reaches below 90); W1 Gold yes (55%;
+in 6-18). L1 yes (80%). S1 no (predicted >= 20% changed, 50%): the teacher's sorts don't set which card scores
+first. AnteZero's own README says a trained policy "spent a sixth of its steps re-sorting a sorted hand" under its
+default `null_sorts`, which fits.
+
+One labeling detail decided after the registration and before these 150 ran (commit "teach_az.py: ..."): in 134
+plays our list offered no lead that changes nothing (a kicker sat left of the first scoring card). The label is
+the lead move with the same scoring order (the leftmost scoring card leads), and the game gets the teacher's exact
+move, so the replay stays the teacher's game. Without it the first such game diverged in deck order (cards return
+to the deck in played order; the next shuffle orders them by `sort_id` again).
+
+Reading: the pipeline is ready for the laptop data run. Gold on fresh seeds is in line with 12%, with a wide
+interval at 75 games; the laptop run's size narrows it. The student's size: `docs/proposals/az-student-size.md`
+(facts only; it corrects a chat figure: v6 is 3.38M parameters, the teacher 6.32M).
